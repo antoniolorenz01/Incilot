@@ -1,0 +1,60 @@
+"""Generador de tráfico: usuarios virtuales que navegan y compran en la tienda sin parar."""
+
+import asyncio
+import os
+import random
+from collections import Counter
+
+import httpx
+
+from incilot_sim.common.log import configure_logging, get_logger
+
+SHOP_URL = os.getenv("SHOP_URL", "http://shop:8000")
+SHOPPERS = int(os.getenv("TRAFFIC_SHOPPERS", "5"))
+BUY_PROBABILITY = 0.6
+THINK_TIME_SECONDS = (0.2, 1.5)
+# Hay 500 usuarios: los IDs 501-520 no existen y generan algún 404 realista.
+USER_IDS = (1, 520)
+REPORT_INTERVAL_SECONDS = 30
+
+log = get_logger("traffic")
+
+
+async def shopper(client: httpx.AsyncClient, stats: Counter) -> None:
+    while True:
+        try:
+            response = await client.get("/products")
+            stats[f"GET /products {response.status_code}"] += 1
+            if response.status_code == 200 and random.random() < BUY_PROBABILITY:
+                product = random.choice(response.json())
+                response = await client.post(
+                    "/orders",
+                    json={
+                        "user_id": random.randint(*USER_IDS),
+                        "product_id": product["id"],
+                        "quantity": random.randint(1, 3),
+                    },
+                )
+                stats[f"POST /orders {response.status_code}"] += 1
+        except httpx.HTTPError as exc:
+            stats[f"error {type(exc).__name__}"] += 1
+        await asyncio.sleep(random.uniform(*THINK_TIME_SECONDS))
+
+
+async def report(stats: Counter) -> None:
+    while True:
+        await asyncio.sleep(REPORT_INTERVAL_SECONDS)
+        log.info("traffic summary", window_seconds=REPORT_INTERVAL_SECONDS, counts=dict(stats))
+        stats.clear()
+
+
+async def main() -> None:
+    configure_logging("traffic", os.getenv("LOG_LEVEL", "INFO"))
+    log.info("traffic started", shop_url=SHOP_URL, shoppers=SHOPPERS)
+    stats: Counter = Counter()
+    async with httpx.AsyncClient(base_url=SHOP_URL, timeout=5) as client:
+        await asyncio.gather(report(stats), *(shopper(client, stats) for _ in range(SHOPPERS)))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
