@@ -1,0 +1,46 @@
+// Recoge los logs de los contenedores con la etiqueta incilot.logs=true y los manda a Loki.
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s" // por defecto 1m: perdería el arranque de los servicios
+
+  filter {
+    name   = "label"
+    values = ["incilot.logs=true"]
+  }
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.json.receiver]
+}
+
+// El nivel pasa a ser etiqueta para filtrar rápido ({service="shop", level="error"}).
+loki.process "json" {
+  stage.json {
+    expressions = { level = "" }
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

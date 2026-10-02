@@ -1,0 +1,144 @@
+# Mini-empresa simulada + stack de observabilidad. `docker compose up --build`.
+#
+#   Tienda      http://localhost:8000/docs
+#   Prometheus  http://localhost:9090
+#   Loki        http://localhost:3100
+#   Grafana     http://localhost:3000
+
+# Todos los servicios usan la misma imagen; solo `shop` la construye.
+x-service: &service
+  image: incilot-sim
+  pull_policy: never
+  restart: unless-stopped
+  labels:
+    incilot.logs: "true"
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
+x-db-and-cache: &db-and-cache
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+services:
+  # --- Mini-empresa -----------------------------------------------------------
+
+  shop:
+    <<: *service
+    build:
+      context: .
+      dockerfile: sim/Dockerfile
+    command: uvicorn incilot_sim.services.shop:app --host 0.0.0.0 --port 8000 --no-access-log
+    environment:
+      DATABASE_URL: postgresql://incilot:incilot@postgres:5432/shop
+      REDIS_URL: redis://redis:6379/1
+      USERS_URL: http://users:8000
+      INVENTORY_URL: http://inventory:8000
+      PAYMENTS_URL: http://payments:8000
+    ports: ["8000:8000"]
+    depends_on:
+      <<: *db-and-cache
+      users:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
+
+  users:
+    <<: *service
+    command: uvicorn incilot_sim.services.users:app --host 0.0.0.0 --port 8000 --no-access-log
+    environment:
+      DATABASE_URL: postgresql://incilot:incilot@postgres:5432/users
+      REDIS_URL: redis://redis:6379/0
+    depends_on: *db-and-cache
+
+  inventory:
+    <<: *service
+    command: uvicorn incilot_sim.services.inventory:app --host 0.0.0.0 --port 8000 --no-access-log
+    environment:
+      DATABASE_URL: postgresql://incilot:incilot@postgres:5432/inventory
+    depends_on: *db-and-cache
+
+  payments:
+    <<: *service
+    command: uvicorn incilot_sim.services.payments:app --host 0.0.0.0 --port 8000 --no-access-log
+    environment:
+      DATABASE_URL: postgresql://incilot:incilot@postgres:5432/payments
+    depends_on: *db-and-cache
+
+  traffic:
+    <<: *service
+    command: python -m incilot_sim.traffic
+    environment:
+      SHOP_URL: http://shop:8000
+      TRAFFIC_SHOPPERS: "5"
+    healthcheck:
+      disable: true
+    depends_on:
+      shop:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: incilot
+      POSTGRES_PASSWORD: incilot
+    volumes:
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    labels:
+      incilot.logs: "true"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "incilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    labels:
+      incilot.logs: "true"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --- Observabilidad ---------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  loki:
+    image: grafana/loki:3.4.2
+    command: -config.file=/etc/loki/local-config.yaml
+    ports: ["3100:3100"]
+
+  alloy:
+    image: grafana/alloy:v1.7.1
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./infra/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on: [loki]
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus, loki]
+
+volumes:
+  postgres-data:

@@ -14,4 +14,13 @@ test:
 
 check: lint test
 
-.PHONY: install lint fmt test check
+up:
+	docker compose up --build -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+.PHONY: install lint fmt test check up down logs
