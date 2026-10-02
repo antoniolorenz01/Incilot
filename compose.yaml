@@ -35,6 +35,7 @@ services:
     command: uvicorn incilot_sim.services.shop:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/shop
+      FAULTS_REDIS_URL: redis://redis:6379/2
       REDIS_URL: redis://redis:6379/1
       USERS_URL: http://users:8000
       INVENTORY_URL: http://inventory:8000
@@ -54,6 +55,7 @@ services:
     command: uvicorn incilot_sim.services.users:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/users
+      FAULTS_REDIS_URL: redis://redis:6379/2
       REDIS_URL: redis://redis:6379/0
     depends_on: *db-and-cache
 
@@ -62,6 +64,7 @@ services:
     command: uvicorn incilot_sim.services.inventory:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/inventory
+      FAULTS_REDIS_URL: redis://redis:6379/2
     depends_on: *db-and-cache
 
   payments:
@@ -69,6 +72,7 @@ services:
     command: uvicorn incilot_sim.services.payments:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/payments
+      FAULTS_REDIS_URL: redis://redis:6379/2
     depends_on: *db-and-cache
 
   traffic:

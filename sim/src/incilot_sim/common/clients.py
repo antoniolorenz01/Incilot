@@ -8,6 +8,7 @@ import asyncpg
 import httpx
 from redis.asyncio import Redis
 
+from incilot_sim.common.faults import switchboard
 from incilot_sim.common.log import request_id
 from incilot_sim.common.metrics import UPSTREAM_LATENCY, UPSTREAM_REQUESTS
 
@@ -18,6 +19,7 @@ async def connect_db(schema: str) -> asyncpg.Pool:
         os.environ["DATABASE_URL"], min_size=1, max_size=int(os.getenv("DB_POOL_SIZE", "10"))
     )
     await pool.execute(schema)
+    switchboard.track_pool(pool)
     return pool
 
 

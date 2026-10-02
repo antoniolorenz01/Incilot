@@ -12,6 +12,7 @@ from prometheus_client import Counter
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 
+from incilot_sim.common import faults
 from incilot_sim.common.app import create_app
 from incilot_sim.common.clients import Upstream, connect_cache, connect_db
 from incilot_sim.common.log import get_logger
@@ -63,13 +64,13 @@ app = create_app("shop", lifespan)
 
 
 async def call(upstream: Upstream, method: str, path: str, **kwargs) -> httpx.Response:
-    """Llama a otro servicio; si no responde o falla con 5xx, la tienda devuelve 502."""
+    """Llama a otro servicio; si no responde, falla con 5xx o limita (429), devuelve 502."""
     try:
         response = await upstream.request(method, path, **kwargs)
     except httpx.HTTPError as exc:
         log.error("upstream unavailable", target=upstream.name, error=repr(exc))
         raise HTTPException(502, f"{upstream.name}_unavailable") from exc
-    if response.status_code >= 500:
+    if response.status_code >= 500 or response.status_code == 429:
         log.error("upstream error", target=upstream.name, status=response.status_code)
         raise HTTPException(502, f"{upstream.name}_error")
     return response
@@ -162,6 +163,8 @@ async def create_order(order: OrderIn):
 
 async def release_reservation(order_id: UUID) -> None:
     """Devuelve el stock reservado. Si falla, se loguea y el pedido sigue su curso."""
+    if faults.flag("skip_reservation_release"):
+        return
     try:
         await call(inventory, "POST", f"/reservations/{order_id}/release")
     except HTTPException:
