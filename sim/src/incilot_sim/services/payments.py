@@ -10,6 +10,7 @@ import asyncpg
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
+from incilot_sim.common import faults
 from incilot_sim.common.app import create_app
 from incilot_sim.common.clients import connect_db
 from incilot_sim.common.log import get_logger
@@ -50,8 +51,11 @@ app = create_app("payments", lifespan)
 
 @app.post("/charges", status_code=201)
 async def charge(charge: Charge):
-    await asyncio.sleep(random.uniform(*PROVIDER_LATENCY_SECONDS))
-    status = "declined" if random.random() < DECLINE_RATE else "captured"
+    await asyncio.sleep(
+        random.uniform(*faults.override("provider_latency_seconds", PROVIDER_LATENCY_SECONDS))
+    )
+    declined = random.random() < faults.override("decline_rate", DECLINE_RATE)
+    status = "declined" if declined else "captured"
     try:
         payment_id = await db.fetchval(
             "INSERT INTO payments (order_id, user_id, amount_cents, status) "

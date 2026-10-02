@@ -3,12 +3,14 @@
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from incilot_sim.common import faults
 from incilot_sim.common.log import configure_logging, get_logger, request_id
 from incilot_sim.common.metrics import HTTP_LATENCY, HTTP_REQUESTS
 
@@ -18,7 +20,23 @@ _UNOBSERVED = {"/health", "/metrics"}
 def create_app(service: str, lifespan=None) -> FastAPI:
     configure_logging(service, os.getenv("LOG_LEVEL", "INFO"))
     log = get_logger("http")
-    app = FastAPI(title=service, lifespan=lifespan)
+
+    @asynccontextmanager
+    async def lifespan_with_faults(app: FastAPI):
+        # Los fallos se detienen antes que el servicio: así sueltan las conexiones
+        # retenidas antes de que se cierre el pool.
+        if lifespan is None:
+            async with faults.control(service):
+                yield
+            return
+        async with lifespan(app), faults.control(service):
+            yield
+
+    app = FastAPI(
+        title=service,
+        lifespan=lifespan_with_faults,
+        dependencies=[Depends(faults.switchboard.disrupt)],
+    )
 
     @app.middleware("http")
     async def observe(request: Request, call_next):
@@ -27,6 +45,15 @@ def create_app(service: str, lifespan=None) -> FastAPI:
         try:
             try:
                 response = await call_next(request)
+            except faults.InjectedError as exc:
+                # Mismo log que un error real, con el traceback que define el escenario.
+                log.error(
+                    "unhandled error",
+                    method=request.method,
+                    path=request.url.path,
+                    exc=exc.traceback,
+                )
+                response = JSONResponse({"detail": "internal_error"}, status_code=500)
             except Exception:
                 log.exception("unhandled error", method=request.method, path=request.url.path)
                 response = JSONResponse({"detail": "internal_error"}, status_code=500)

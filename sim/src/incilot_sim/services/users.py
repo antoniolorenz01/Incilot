@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import HTTPException
 from redis.asyncio import Redis
 
+from incilot_sim.common import faults
 from incilot_sim.common.app import create_app
 from incilot_sim.common.clients import connect_cache, connect_db
 from incilot_sim.common.log import get_logger
@@ -59,5 +60,7 @@ async def get_user(user_id: int):
     if row is None:
         raise HTTPException(404, "user_not_found")
     user = dict(row)
-    await cache.set(key, json.dumps(user), ex=CACHE_TTL_SECONDS)
+    ttl = faults.override("cache_ttl_seconds", CACHE_TTL_SECONDS)
+    if ttl > 0:
+        await cache.set(key, json.dumps(user), ex=ttl)
     return user
