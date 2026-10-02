@@ -6,6 +6,7 @@ IncidentPilot: un agente que investiga y resuelve incidentes en una mini-empresa
 
 ```
 sim/        Mini-empresa simulada (microservicios, tráfico, logs, métricas)
+docs/       Arquitectura, observabilidad y doc de cada servicio
 infra/      Configuración de Postgres, Prometheus, Loki/Alloy y Grafana
 compose.yaml  Levanta la mini-empresa y la observabilidad
 .github/    CI (lint + tests)
