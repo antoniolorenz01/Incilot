@@ -23,4 +23,7 @@ down:
 logs:
 	docker compose logs -f
 
-.PHONY: install lint fmt test check up down logs
+company-repo:
+	uv run python -m incilot_sim.company_repo
+
+.PHONY: install lint fmt test check up down logs company-repo

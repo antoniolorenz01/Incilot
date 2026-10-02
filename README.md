@@ -26,6 +26,7 @@ make fmt       # autoformato
 make up        # levanta todo (docker compose)
 make logs      # sigue los logs
 make down      # apaga todo
+make company-repo  # genera el repo Git de la empresa desde ../incilot-data
 ```
 
 ## La mini-empresa
