@@ -5,6 +5,7 @@ python -m incilot_agent.investigate --resume ID     # retoma desde el último pa
 python -m incilot_agent.investigate --approve ID    # aprueba la acción propuesta
 python -m incilot_agent.investigate --reject ID     # la rechaza
 python -m incilot_agent.investigate --check-tools   # prueba cada herramienta una vez
+python -m incilot_agent.investigate --selftest      # estado duradero, sin LLM
 """
 
 import argparse
@@ -18,6 +19,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
 
 from incilot_agent import config, graph
+from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
 
 DEFAULT_ALERT = "Se reportó una degradación en la tienda: hay quejas de clientes."
@@ -93,11 +95,14 @@ def main() -> None:
     group.add_argument("--approve", metavar="ID")
     group.add_argument("--reject", metavar="ID")
     group.add_argument("--check-tools", action="store_true")
+    group.add_argument("--selftest", action="store_true")
     parser.add_argument("alert", nargs="*", help="descripción de la alerta")
     args = parser.parse_args()
 
     if args.check_tools:
         raise SystemExit(0 if asyncio.run(check_tools()) else 1)
+    if args.selftest:
+        raise SystemExit(0 if asyncio.run(selftest()) else 1)
     if args.resume:
         print(f"Retomando la investigación {args.resume}")
         asyncio.run(run(None, args.resume))
