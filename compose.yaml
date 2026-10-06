@@ -5,6 +5,7 @@
 #   Loki        http://localhost:3100
 #   Grafana     http://localhost:3000
 #   Injector    http://localhost:8100/docs
+#   Agente      http://localhost:8200/docs
 #
 # Ruido de fondo (errores transitorios, picos de latencia y de tráfico) encendido
 # por defecto; `BACKGROUND_NOISE=off make up` para depurar el agente en limpio.
@@ -21,6 +22,29 @@ x-service: &service
     interval: 5s
     timeout: 3s
     retries: 10
+
+x-agent: &agent
+  image: incilot-agent
+  pull_policy: never
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    PROMETHEUS_URL: http://prometheus:9090
+    LOKI_URL: http://loki:3100
+    COMPANY_REPO: /company-repo
+    RUNBOOKS_DIR: /runbooks
+    POSTGRES_HOST: postgres
+    AGENT_REDIS_URL: redis://agent:agent@redis:6379/3
+  volumes:
+    - company-repo:/company-repo:ro
+    - ${INCILOT_DATA:-../incilot-data}/runbooks:/runbooks:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
 
 x-db-and-cache: &db-and-cache
   postgres:
@@ -116,18 +140,25 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Usuario del agente: solo lee las cachés (user:*, catalog); no ve faults:* ni lista claves.
+    # Usuario del agente: solo lee las cachés (user:*, catalog), lee y escribe su cola y
+    # sus eventos (investigation:*); no ve faults:*, no lista claves ni borra bases.
     command:
       - redis-server
       - --user
       - "agent"
       - "on"
       - ">agent"
-      - "~user:*"
-      - "~catalog"
+      - "%R~user:*"
+      - "%R~catalog"
+      - "~investigation:*"
       - "+@read"
+      - "+@write"
+      - "+@list"
+      - "+@stream"
+      - "+@hash"
       - "+select"
       - "+ping"
+      - "-@dangerous"
       - "-scan"
       - "-keys"
       - "-randomkey"
@@ -163,28 +194,28 @@ services:
   # --- Agente ------------------------------------------------------------------
   # Sandbox: imagen sin el código de la simulación, usuario sin privilegios, solo las
   # credenciales `agent` y el repo de la empresa y los runbooks en solo lectura. Sin
-  # socket de Docker ni incilot-data/scenarios. No arranca con `make up`:
-  # `make investigate` lo corre a demanda.
+  # socket de Docker ni incilot-data/scenarios.
+  #
+  #   agent-api     API: lanzar, seguir (SSE) y aprobar investigaciones — :8200
+  #   agent-worker  corre las investigaciones que encola la API
+  #   agent         la consola (`make investigate`); no arranca con `make up`
 
-  agent:
+  agent-api:
+    <<: *agent
     build:
       context: .
       dockerfile: agent/Dockerfile
-    image: incilot-agent
+    command: uvicorn incilot_agent.api:app --host 0.0.0.0 --port 8000
+    ports: ["8200:8000"]
+
+  agent-worker:
+    <<: *agent
+    command: python -m incilot_agent.worker
+
+  agent:
+    <<: *agent
     profiles: ["agent"]
     command: python -m incilot_agent.investigate
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      PROMETHEUS_URL: http://prometheus:9090
-      LOKI_URL: http://loki:3100
-      COMPANY_REPO: /company-repo
-      RUNBOOKS_DIR: /runbooks
-      POSTGRES_HOST: postgres
-    volumes:
-      - company-repo:/company-repo:ro
-      - ${INCILOT_DATA:-../incilot-data}/runbooks:/runbooks:ro
 
   # --- Observabilidad ---------------------------------------------------------
 

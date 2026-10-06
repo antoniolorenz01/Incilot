@@ -41,15 +41,19 @@ agent-access:
 
 # make investigate [ARGS="descripción de la alerta"]: el agente investiga lo que esté pasando.
 investigate:
-	docker compose --profile agent build -q agent
+	docker compose build -q agent-api
 	docker compose run --rm agent python -m incilot_agent.investigate $(ARGS)
 
 # Corre cada herramienta del agente una vez desde su contenedor (incluida la base).
 agent-tools:
-	docker compose --profile agent build -q agent
+	docker compose build -q agent-api
 	docker compose run --rm agent python -m incilot_agent.investigate --check-tools
+
+# Lanza una investigación dry_run por la API, la sigue por SSE y la aprueba (sin tokens).
+agent-api-check:
+	uv run python -m incilot_agent.apicheck
 
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check company-repo

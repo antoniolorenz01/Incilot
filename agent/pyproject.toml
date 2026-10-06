@@ -5,12 +5,15 @@ description = "IncidentPilot: el agente que investiga incidentes en la mini-empr
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",
+    "fastapi>=0.142.2",
     "httpx>=0.28.1",
     "langchain-openai>=1.6.7",
     "langgraph>=1.2.13",
     "langgraph-checkpoint-postgres>=3.1.2",
     "psycopg[binary]>=3.3.6",
     "pydantic>=2.13.5",
+    "redis>=8.1.0",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]

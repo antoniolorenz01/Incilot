@@ -18,3 +18,6 @@ AGENT_STATE_URL = os.getenv(
     "AGENT_STATE_URL",
     f"postgresql://{AGENT_DB_USER}:{AGENT_DB_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/agent_state",
 )
+# Redis del agente (usuario `agent`, db 3): cola de trabajos y eventos de cada
+# investigación. Solo puede escribir claves `investigation:*`.
+AGENT_REDIS_URL = os.getenv("AGENT_REDIS_URL", "redis://agent:agent@redis:6379/3")

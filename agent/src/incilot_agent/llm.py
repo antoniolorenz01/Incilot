@@ -30,6 +30,23 @@ def openai_models() -> list[BaseChatModel]:
     ]
 
 
+def dry_run_models() -> list[BaseChatModel]:
+    """LLM simulado para `dry_run`: usa una herramienta real y entrega un diagnóstico de
+    prueba. Cero tokens: para probar la API y el dashboard."""
+    from incilot_agent.testing import DIAGNOSIS, FakeLLM, call
+
+    diagnosis = DIAGNOSIS | {"service": "dry-run", "root_cause": "investigación simulada"}
+    query = "sum by (service) (rate(http_requests_total[1m]))"
+    return [
+        FakeLLM(
+            replies=[
+                call("query_metrics", {"promql": query, "minutes": 5}, "dry-1"),
+                call("submit_diagnosis", diagnosis, "dry-2"),
+            ]
+        )
+    ]
+
+
 def model_name(llm: BaseChatModel) -> str:
     return getattr(llm, "model_name", None) or type(llm).__name__
 

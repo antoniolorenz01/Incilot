@@ -18,6 +18,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
 
 from incilot_agent import config, graph
+from incilot_agent.events import investigation_events
 from incilot_agent.llm import openai_models
 from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
@@ -50,45 +51,42 @@ async def check_tools() -> bool:
     return ok
 
 
+def render(event: dict) -> str | None:
+    """Una línea de consola por evento (None: no se muestra)."""
+    match event["type"]:
+        case "triage":
+            return "[triage] resumen del sistema listo"
+        case "tool_call":
+            args = json.dumps(event["args"], ensure_ascii=False)
+            return f"\n[ronda {event['round']}] {event['name']}({args[:200]})"
+        case "tool_result":
+            return short(event["content"])
+        case "llm_fallback":
+            target = event["fallback_to"] or "sin respaldo"
+            return f"\n[llm] {event['model']} falló ({event['error'][:80]}) → {target}"
+        case "diagnosis":
+            header = f"\n=== Diagnóstico ({event['stop_reason']}, {event['tokens']} tokens) ==="
+            return header + "\n" + json.dumps(event["diagnosis"], indent=2, ensure_ascii=False)
+        case "approval":
+            verdict = "APROBADA" if event["approved"] else "RECHAZADA"
+            return f"\nAcción {verdict} por {event['by']}"
+    return None
+
+
 async def run(graph_input, thread_id: str) -> None:
-    llms = openai_models()
     run_config = {"configurable": {"thread_id": thread_id}}
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
-        app = graph.build(llms, checkpointer)
-        steps = (await app.aget_state(run_config)).values.get("steps", 0)
-
-        async for update in app.astream(graph_input, run_config, stream_mode="updates"):
-            for node, change in update.items():
-                if node == "__interrupt__":
-                    continue
-                for event in (change or {}).get("llm_events", []):
-                    target = event["fallback_to"] or "sin respaldo"
-                    print(f"\n[llm] {event['model']} falló ({event['error'][:80]}) → {target}")
-                if node == "triage":
-                    print("[triage] resumen del sistema listo")
-                elif node == "agent":
-                    for call in change["messages"][-1].tool_calls:
-                        args = json.dumps(call["args"], ensure_ascii=False)
-                        print(f"\n[ronda {steps + 1}] {call['name']}({args[:200]})")
-                elif node == "tools":
-                    steps = change["steps"]
-                    for message in change["messages"]:
-                        print(short(message.content))
-
-        snapshot = await app.aget_state(run_config)
-    state = snapshot.values
-    if not state:
-        print(f"no existe la investigación {thread_id}")
-        return
-    print(f"\n=== Diagnóstico ({state.get('stop_reason')}, {state.get('tokens', 0)} tokens) ===")
-    print(json.dumps(state.get("diagnosis"), indent=2, ensure_ascii=False))
-    if "approval" in snapshot.next:
-        print("\nEsperando aprobación de la acción propuesta. Para decidir:")
-        print(f'  make investigate ARGS="--approve {thread_id}"   (o --reject)')
-    elif state.get("approval"):
-        verdict = "APROBADA" if state["approval"]["approved"] else "RECHAZADA"
-        print(f"\nAcción {verdict} por {state['approval']['by']}")
+        app = graph.build(openai_models(), checkpointer)
+        if graph_input is None and not (await app.aget_state(run_config)).values:
+            print(f"no existe la investigación {thread_id}")
+            return
+        async for event in investigation_events(app, graph_input, run_config):
+            if line := render(event):
+                print(line)
+            if event["type"] == "awaiting_approval":
+                print("\nEsperando aprobación de la acción propuesta. Para decidir:")
+                print(f'  make investigate ARGS="--approve {thread_id}"   (o --reject)')
 
 
 def main() -> None:

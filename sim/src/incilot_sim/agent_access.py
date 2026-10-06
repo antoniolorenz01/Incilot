@@ -4,8 +4,9 @@ El agente se conecta como `agent`:
   - Postgres: lectura sobre las bases de los servicios y las vistas de actividad
     (pg_stat_activity, pg_locks); sin acceso a `groundtruth`. Es dueño de su propia
     base, `agent_state`, donde guarda los checkpoints de sus investigaciones.
-  - Redis: lectura de las cachés (`user:*`, `catalog`); sin acceso a `faults:*`
-    (los interruptores) ni a listar claves. El usuario se define en compose.yaml.
+  - Redis: lectura de las cachés (`user:*`, `catalog`) y lectura y escritura de su
+    cola y sus eventos (`investigation:*`, db 3); sin acceso a `faults:*` (los
+    interruptores), sin listar claves ni borrar bases. El usuario se define en compose.yaml.
 
     python -m incilot_sim.agent_access    # verifica los accesos (make agent-access)
 """
@@ -116,6 +117,12 @@ async def check(admin_url: str, redis_host: str) -> bool:
         ),
         ("Redis: listar claves", False, lambda: redis_call(0, "SCAN", "0")),
         ("Redis: escribir en la caché", False, lambda: redis_call(0, "SET", "user:1", "x")),
+        (
+            "Redis: escribir en su cola (investigation:*)",
+            True,
+            lambda: redis_call(3, "SET", "investigation:access-probe", "x", "EX", "60"),
+        ),
+        ("Redis: borrar una base (FLUSHDB)", False, lambda: redis_call(3, "FLUSHDB")),
     ]
     results = [await _expect(label, allowed, fn) for label, allowed, fn in checks]
     print(f"\n{sum(results)}/{len(results)} accesos como se espera")

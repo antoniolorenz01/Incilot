@@ -133,3 +133,28 @@ def test_when_every_model_fails_the_investigation_stops_and_can_resume():
     recovered = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
     state = asyncio.run(graph.build(recovered, checkpointer).ainvoke(None, THREAD))
     assert state["diagnosis"]["service"] == "inventory"
+
+
+def test_investigation_events_sequence():
+    from incilot_agent.events import investigation_events
+
+    async def collect(app, graph_input):
+        return [e["type"] async for e in investigation_events(app, graph_input, THREAD)]
+
+    checkpointer = InMemorySaver()
+    llm = FakeLLM(
+        replies=[
+            call("query_metrics", {"promql": "up"}, "1"),
+            call("submit_diagnosis", DIAGNOSIS, "2"),
+        ]
+    )
+    app = graph.build(llm, checkpointer)
+    assert asyncio.run(collect(app, {"alert": "test"})) == [
+        "triage",
+        "tool_call",
+        "tool_result",
+        "diagnosis",
+        "awaiting_approval",
+    ]
+    decision = Command(resume={"approved": True, "by": "toni", "note": ""})
+    assert asyncio.run(collect(app, decision)) == ["approval", "done"]
