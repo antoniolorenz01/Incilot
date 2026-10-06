@@ -210,6 +210,11 @@ class Injector:
                 container.start()
         if session := current["infra"].get("stuck_session"):
             await end_stuck_session(self.postgres_url, session)
+        # Un rollback real redeploya el servicio: p. ej. la memoria de un leak solo
+        # vuelve al sistema operativo reiniciando el proceso.
+        if restart := current["infra"].get("restart_on_recover"):
+            for container in compose_containers(self.docker, restart):
+                container.restart()
         await clear_faults(self.redis, list(current["faults"]))
         if current["culprit_sha"]:
             revert(self.repo, current["culprit_sha"], ON_CALL, datetime.now(UTC))
