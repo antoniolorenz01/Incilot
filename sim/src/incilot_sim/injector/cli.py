@@ -53,7 +53,7 @@ def cmd_list(_args) -> None:
     for scenario_id, variants in scenarios.load(data_dir()).items():
         print(f"{scenario_id}  ({variants[0].category}) {variants[0].title}")
         for v in variants:
-            print(f"  - {v.id}  [{v.service}]")
+            print(f"  - {v.id}  [{v.service}]{'  (exam)' if v.split == 'exam' else ''}")
 
 
 async def cmd_inject(args) -> None:

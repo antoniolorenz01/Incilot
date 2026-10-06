@@ -17,6 +17,7 @@ class Variant:
     faults: dict[str, dict]
     infra: dict
     ground_truth: dict
+    split: str  # dev: para desarrollar el agente; exam: solo para medirlo
 
 
 def authors(data: Path) -> dict[str, str]:
@@ -46,6 +47,7 @@ def load(data: Path) -> dict[str, list[Variant]]:
                     faults=v.get("faults", {}),
                     infra=v.get("infra", {}),
                     ground_truth=v["ground_truth"],
+                    split=v.get("split", "dev"),
                 )
             )
         scenarios[spec["id"]] = variants

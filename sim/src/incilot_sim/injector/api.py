@@ -46,7 +46,7 @@ app = FastAPI(title="injector", lifespan=lifespan)
 @app.get("/scenarios")
 async def list_scenarios():
     return {
-        scenario_id: [{"variant": v.id, "service": v.service} for v in variants]
+        scenario_id: [{"variant": v.id, "service": v.service, "split": v.split} for v in variants]
         for scenario_id, variants in scenarios.load(DATA).items()
     }
 
