@@ -20,9 +20,10 @@ def build(data: Path, out: Path, now: datetime) -> None:
     files = data / "files"
     unused = {p.relative_to(files) for p in files.rglob("*") if p.is_file()}
 
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
+    # Se vacía el contenido, no el directorio: puede ser el punto de montaje de un volumen.
+    out.mkdir(parents=True, exist_ok=True)
+    for child in out.iterdir():
+        shutil.rmtree(child) if child.is_dir() else child.unlink()
     git(out, "init", "-q", "-b", "main")
 
     for entry in history["commits"]:

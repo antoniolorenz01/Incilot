@@ -20,10 +20,18 @@ up:
 down:
 	docker compose down
 
+# Como down, pero borra también los datos (Postgres, repo de la empresa).
+clean:
+	docker compose down -v --remove-orphans
+
 logs:
 	docker compose logs -f
+
+# make injector ARGS="inject deploy-latency-regression"
+injector:
+	docker compose exec injector python -m incilot_sim.injector.cli $(ARGS)
 
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down logs company-repo
+.PHONY: install lint fmt test check up down clean logs injector company-repo

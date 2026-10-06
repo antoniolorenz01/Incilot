@@ -4,6 +4,7 @@
 #   Prometheus  http://localhost:9090
 #   Loki        http://localhost:3100
 #   Grafana     http://localhost:3000
+#   Injector    http://localhost:8100/docs
 
 # Todos los servicios usan la misma imagen; solo `shop` la construye.
 x-service: &service
@@ -113,6 +114,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # --- Injector de fallos -----------------------------------------------------
+  # Sin la etiqueta incilot.logs ni métricas: el agente no debe ver el ground truth.
+
+  injector:
+    image: incilot-sim
+    pull_policy: never
+    restart: unless-stopped
+    command: uvicorn incilot_sim.injector.api:app --host 0.0.0.0 --port 8000
+    environment:
+      INJECTOR_DATA: /data
+      COMPANY_REPO: /company-repo
+      GROUNDTRUTH_DATABASE_URL: postgresql://incilot:incilot@postgres:5432/groundtruth
+      FAULTS_REDIS_URL: redis://redis:6379/2
+    volumes:
+      - ${INCILOT_DATA:-../incilot-data}:/data:ro
+      - company-repo:/company-repo
+    ports: ["8100:8000"]
+    depends_on: *db-and-cache
+
   # --- Observabilidad ---------------------------------------------------------
 
   prometheus:
@@ -146,3 +166,4 @@ services:
 
 volumes:
   postgres-data:
+  company-repo:

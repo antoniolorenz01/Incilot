@@ -25,7 +25,8 @@ make check     # lint + tests
 make fmt       # autoformato
 make up        # levanta todo (docker compose)
 make logs      # sigue los logs
-make down      # apaga todo
+make down      # apaga todo (conserva los datos)
+make clean     # apaga todo y borra los datos
 make company-repo  # genera el repo Git de la empresa desde ../incilot-data
 ```
 
