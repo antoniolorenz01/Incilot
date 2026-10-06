@@ -17,6 +17,7 @@ investigación cortada a mitad se retoma desde el último paso completo.
 """
 
 import asyncio
+import operator
 import os
 from typing import Annotated, TypedDict
 
@@ -30,6 +31,7 @@ from langgraph.types import interrupt
 from pydantic import ValidationError
 
 from incilot_agent.diagnosis import Diagnosis
+from incilot_agent.llm import invoke_with_fallback, model_name
 from incilot_agent.tools import READ_ONLY_TOOLS
 from incilot_agent.triage import overview
 
@@ -68,6 +70,7 @@ class State(TypedDict):
     diagnosis: dict | None
     stop_reason: str | None
     approval: dict | None  # {"approved": bool, "by": str, "note": str}
+    llm_events: Annotated[list, operator.add]  # fallos del LLM y caídas al respaldo
 
 
 TOOLS = {
@@ -90,9 +93,13 @@ SUBMIT_TOOL = StructuredTool.from_function(
 )
 
 
-def build(llm: BaseChatModel, checkpointer: BaseCheckpointSaver | None = None):
-    agent_llm = llm.bind_tools([*TOOLS.values(), SUBMIT_TOOL])
-    diagnosis_llm = llm.with_structured_output(Diagnosis)
+def build(
+    llms: BaseChatModel | list[BaseChatModel], checkpointer: BaseCheckpointSaver | None = None
+):
+    """`llms`: un modelo, o varios en orden de preferencia (fallback)."""
+    llms = llms if isinstance(llms, list) else [llms]
+    agent_llms = [(model_name(m), m.bind_tools([*TOOLS.values(), SUBMIT_TOOL])) for m in llms]
+    diagnosis_llms = [(model_name(m), m.with_structured_output(Diagnosis)) for m in llms]
 
     async def triage(state: State) -> dict:
         summary = await overview()
@@ -108,9 +115,9 @@ def build(llm: BaseChatModel, checkpointer: BaseCheckpointSaver | None = None):
         }
 
     async def agent(state: State) -> dict:
-        reply = await agent_llm.ainvoke(state["messages"])
+        reply, events = await invoke_with_fallback(agent_llms, state["messages"])
         used = (reply.usage_metadata or {}).get("total_tokens", 0)
-        return {"messages": [reply], "tokens": state["tokens"] + used}
+        return {"messages": [reply], "tokens": state["tokens"] + used, "llm_events": events}
 
     async def tools(state: State) -> dict:
         calls = state["messages"][-1].tool_calls
@@ -141,10 +148,11 @@ def build(llm: BaseChatModel, checkpointer: BaseCheckpointSaver | None = None):
         if isinstance(messages[-1], AIMessage) and messages[-1].tool_calls:
             messages = messages[:-1]  # llamadas sin respuesta: OpenAI no las acepta
         reason = "limit" if _over_limits(state) else "no_submit"
-        result = await diagnosis_llm.ainvoke(
-            [*messages, HumanMessage("Entregá ahora el diagnóstico con la evidencia que tenés.")]
+        result, events = await invoke_with_fallback(
+            diagnosis_llms,
+            [*messages, HumanMessage("Entregá ahora el diagnóstico con la evidencia que tenés.")],
         )
-        return {"diagnosis": result.model_dump(), "stop_reason": reason}
+        return {"diagnosis": result.model_dump(), "stop_reason": reason, "llm_events": events}
 
     def route(state: State) -> str:
         reply = state["messages"][-1]

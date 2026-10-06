@@ -110,3 +110,26 @@ def test_interrupted_investigation_resumes_without_repeating_steps():
     assert TOOL_CALLS == ["up"]  # la herramienta no se volvió a ejecutar
     assert resumed["steps"] == 1
     assert resumed["diagnosis"]["service"] == "inventory"
+
+
+def test_falls_back_to_the_next_model_and_records_it():
+    primary = FakeLLM(replies=[ConnectionError("503 del proveedor")])
+    backup = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
+    app = graph.build([primary, backup], InMemorySaver())
+    state = asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
+
+    assert state["diagnosis"]["service"] == "inventory"
+    [event] = state["llm_events"]
+    assert event["error"].startswith("ConnectionError: 503")
+    assert event["fallback_to"] == "FakeLLM"
+
+
+def test_when_every_model_fails_the_investigation_stops_and_can_resume():
+    checkpointer = InMemorySaver()
+    failing = [FakeLLM(replies=[ConnectionError("caído")]) for _ in range(2)]
+    with pytest.raises(ConnectionError):
+        asyncio.run(graph.build(failing, checkpointer).ainvoke({"alert": "test"}, THREAD))
+
+    recovered = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
+    state = asyncio.run(graph.build(recovered, checkpointer).ainvoke(None, THREAD))
+    assert state["diagnosis"]["service"] == "inventory"

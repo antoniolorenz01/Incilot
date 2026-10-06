@@ -14,11 +14,11 @@ import json
 import os
 from uuid import uuid4
 
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
 
 from incilot_agent import config, graph
+from incilot_agent.llm import openai_models
 from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
 
@@ -51,17 +51,20 @@ async def check_tools() -> bool:
 
 
 async def run(graph_input, thread_id: str) -> None:
-    llm = ChatOpenAI(model=os.environ["OPENAI_MODEL"], timeout=60, max_retries=2)
+    llms = openai_models()
     run_config = {"configurable": {"thread_id": thread_id}}
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
-        app = graph.build(llm, checkpointer)
+        app = graph.build(llms, checkpointer)
         steps = (await app.aget_state(run_config)).values.get("steps", 0)
 
         async for update in app.astream(graph_input, run_config, stream_mode="updates"):
             for node, change in update.items():
                 if node == "__interrupt__":
                     continue
+                for event in (change or {}).get("llm_events", []):
+                    target = event["fallback_to"] or "sin respaldo"
+                    print(f"\n[llm] {event['model']} falló ({event['error'][:80]}) → {target}")
                 if node == "triage":
                     print("[triage] resumen del sistema listo")
                 elif node == "agent":
@@ -113,7 +116,8 @@ def main() -> None:
         thread_id = uuid4().hex[:12]
         alert = " ".join(args.alert) or DEFAULT_ALERT
         print(f"Investigación {thread_id} (si se corta: --resume {thread_id})")
-        print(f"Alerta: {alert}\nModelo: {os.environ['OPENAI_MODEL']}\n")
+        fallback = os.getenv("OPENAI_FALLBACK_MODEL") or "ninguno"
+        print(f"Alerta: {alert}\nModelo: {os.environ['OPENAI_MODEL']} (respaldo: {fallback})\n")
         asyncio.run(run({"alert": alert}, thread_id))
 
 
