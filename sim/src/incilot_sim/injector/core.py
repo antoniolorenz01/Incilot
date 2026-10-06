@@ -3,15 +3,17 @@
 Una inyección:
   1. commitea el cambio culpable en el repo de la empresa (si el escenario lo tiene);
   2. activa los interruptores de los servicios afectados en Redis (`faults:{service}`)
-     y, en fallos de infraestructura, para contenedores;
+     y, en fallos de infraestructura, para contenedores o deja una sesión de
+     Postgres trabada con un lock;
   3. guarda la respuesta correcta en la base `groundtruth`.
 
 La recuperación hace lo inverso: apaga los interruptores, vuelve a arrancar los
-contenedores y revierte el commit.
+contenedores, termina la sesión trabada y revierte el commit.
 Hay como mucho una inyección activa a la vez, para que cada incidente tenga una
 única causa raíz.
 """
 
+import asyncio
 import json
 import socket
 from datetime import UTC, datetime, timedelta
@@ -50,15 +52,18 @@ class InjectionError(Exception):
     pass
 
 
+def with_database(url: str, database: str) -> str:
+    return urlunsplit(urlsplit(url)._replace(path=f"/{database}"))
+
+
 async def connect_groundtruth(url: str) -> asyncpg.Pool:
     """Abre la base de ground truth, creándola si todavía no existe."""
     try:
         pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
     except asyncpg.InvalidCatalogNameError:
-        parts = urlsplit(url)
-        admin = await asyncpg.connect(urlunsplit(parts._replace(path="/postgres")))
+        admin = await asyncpg.connect(with_database(url, "postgres"))
         try:
-            await admin.execute(f'CREATE DATABASE "{parts.path.lstrip("/")}"')
+            await admin.execute(f'CREATE DATABASE "{urlsplit(url).path.lstrip("/")}"')
         finally:
             await admin.close()
         pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
@@ -68,7 +73,12 @@ async def connect_groundtruth(url: str) -> asyncpg.Pool:
 
 def commit_culprit(repo: Path, culprit: dict, now: datetime) -> str:
     for edit in culprit["edits"]:
-        apply_edit(repo / edit["file"], edit["old"], edit["new"])
+        path = repo / edit["file"]
+        if "content" in edit:  # archivo nuevo
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(edit["content"])
+        else:
+            apply_edit(path, edit["old"], edit["new"])
     when = now - timedelta(minutes=culprit["minutes_ago"])
     return commit(repo, culprit["author"], culprit["message"], when)
 
@@ -83,6 +93,35 @@ async def activate_faults(redis: Redis, faults: dict[str, dict]) -> None:
 async def clear_faults(redis: Redis, services: list[str]) -> None:
     if services:
         await redis.delete(*(f"faults:{service}" for service in services))
+
+
+async def start_stuck_session(postgres_url: str, session: dict) -> None:
+    """Deja en Postgres una sesión que toma un lock y no termina (una migración trabada).
+
+    Se suelta la conexión sin cancelar la consulta: Postgres no se entera de que el
+    cliente se fue mientras la consulta corre, así que la sesión sigue con el lock.
+    """
+    conn = await asyncpg.connect(
+        with_database(postgres_url, session["database"]),
+        server_settings={"application_name": session["application_name"]},
+    )
+    query = asyncio.ensure_future(conn.execute(session["sql"]))
+    await asyncio.sleep(1)  # que llegue a tomar el lock
+    if query.done():
+        query.result()  # el SQL falló: que se vea
+    query.add_done_callback(lambda q: q.cancelled() or q.exception())
+    conn.terminate()
+
+
+async def end_stuck_session(postgres_url: str, session: dict) -> None:
+    conn = await asyncpg.connect(with_database(postgres_url, "postgres"))
+    try:
+        await conn.fetch(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = $1",
+            session["application_name"],
+        )
+    finally:
+        await conn.close()
 
 
 def compose_containers(client: docker.DockerClient, services: list[str]) -> list:
@@ -104,10 +143,11 @@ def compose_containers(client: docker.DockerClient, services: list[str]) -> list
 
 
 class Injector:
-    def __init__(self, db: asyncpg.Pool, redis: Redis, repo: Path):
+    def __init__(self, db: asyncpg.Pool, redis: Redis, repo: Path, postgres_url: str):
         self.db = db
         self.redis = redis
         self.repo = repo
+        self.postgres_url = postgres_url  # cualquier base del servidor de la empresa
         self._docker: docker.DockerClient | None = None
 
     @property
@@ -142,6 +182,8 @@ class Injector:
         if stop := variant.infra.get("stop"):
             for container in compose_containers(self.docker, stop):
                 container.stop()
+        if session := variant.infra.get("stuck_session"):
+            await start_stuck_session(self.postgres_url, session)
         row = await self.db.fetchrow(
             "INSERT INTO injections "
             "(scenario, variant, category, service, root_cause, action, culprit_sha, "
@@ -166,6 +208,8 @@ class Injector:
         if stopped := current["infra"].get("stop"):
             for container in compose_containers(self.docker, stopped):
                 container.start()
+        if session := current["infra"].get("stuck_session"):
+            await end_stuck_session(self.postgres_url, session)
         await clear_faults(self.redis, list(current["faults"]))
         if current["culprit_sha"]:
             revert(self.repo, current["culprit_sha"], ON_CALL, datetime.now(UTC))

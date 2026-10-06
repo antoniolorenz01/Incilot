@@ -35,7 +35,7 @@ async def lifespan(_):
         build(DATA, COMPANY_REPO, datetime.now(UTC))
     db = await connect_groundtruth(os.environ["GROUNDTRUTH_DATABASE_URL"])
     redis = Redis.from_url(os.environ["FAULTS_REDIS_URL"], decode_responses=True)
-    injector = Injector(db, redis, COMPANY_REPO)
+    injector = Injector(db, redis, COMPANY_REPO, os.environ["GROUNDTRUTH_DATABASE_URL"])
     yield
     await injector.aclose()
 

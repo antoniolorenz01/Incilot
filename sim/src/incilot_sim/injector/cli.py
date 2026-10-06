@@ -29,7 +29,8 @@ def data_dir() -> Path:
 async def connect():
     db = await connect_groundtruth(os.environ["GROUNDTRUTH_DATABASE_URL"])
     redis = Redis.from_url(os.environ["FAULTS_REDIS_URL"], decode_responses=True)
-    injector = Injector(db, redis, Path(os.getenv("COMPANY_REPO", "build/company-repo")))
+    repo = Path(os.getenv("COMPANY_REPO", "build/company-repo"))
+    injector = Injector(db, redis, repo, os.environ["GROUNDTRUTH_DATABASE_URL"])
     try:
         yield injector
     finally:

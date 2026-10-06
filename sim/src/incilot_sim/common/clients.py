@@ -8,6 +8,7 @@ import asyncpg
 import httpx
 from redis.asyncio import Redis
 
+from incilot_sim.common import faults
 from incilot_sim.common.faults import switchboard
 from incilot_sim.common.log import request_id
 from incilot_sim.common.metrics import UPSTREAM_LATENCY, UPSTREAM_REQUESTS
@@ -39,7 +40,9 @@ class Upstream:
         status = "error"
         start = time.perf_counter()
         try:
-            response = await self._client.request(method, path, headers=headers, **kwargs)
+            # Un fallo puede simular una URL mal configurada (p. ej. `inventory_url`).
+            url = faults.override(f"{self.name}_url", "") + path
+            response = await self._client.request(method, url, headers=headers, **kwargs)
             status = str(response.status_code)
             return response
         except httpx.TimeoutException:
