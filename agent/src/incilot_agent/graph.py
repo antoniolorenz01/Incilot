@@ -33,10 +33,13 @@ from pydantic import ValidationError
 from incilot_agent.diagnosis import Diagnosis
 from incilot_agent.llm import invoke_with_fallback, model_name
 from incilot_agent.tools import READ_ONLY_TOOLS
+from incilot_agent.tools._guard import fit_to_budget
 from incilot_agent.triage import overview
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "12"))
 MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", "150000"))
+# Tope de lo que devuelven las herramientas en una ronda (~4 caracteres por token).
+ROUND_BUDGET_CHARS = int(os.getenv("AGENT_ROUND_BUDGET_CHARS", "16000"))
 SUBMIT = "submit_diagnosis"
 
 SYSTEM_PROMPT = """\
@@ -134,6 +137,9 @@ def build(
             return ToolMessage(content=result, tool_call_id=call["id"], name=call["name"])
 
         results = await asyncio.gather(*(run(c) for c in calls))
+        contents = fit_to_budget([r.content for r in results], ROUND_BUDGET_CHARS)
+        for message, content in zip(results, contents, strict=True):
+            message.content = content
         return {"messages": results, "steps": state["steps"] + 1}
 
     async def finish(state: State) -> dict:

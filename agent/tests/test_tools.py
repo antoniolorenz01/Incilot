@@ -1,4 +1,5 @@
 import asyncio
+import json
 import subprocess
 
 import httpx
@@ -17,7 +18,7 @@ from incilot_agent.tools import (
     search_runbooks,
     show_commit,
 )
-from incilot_agent.tools._guard import MAX_CHARS, ToolError, guarded
+from incilot_agent.tools._guard import MAX_CHARS, ToolError, fit_to_budget, guarded
 from incilot_agent.tools.database import validate_sql
 
 
@@ -112,7 +113,8 @@ def test_search_logs_builds_logql_from_filters(http):
     )
     out = run(search_logs(service="shop", level="error", contains='say "hi"'))
     assert seen[0].url.params["query"] == '{service="shop", level="error"} |= "say \\"hi\\""'
-    assert "[shop] boom" in out
+    assert "1× [shop]" in out
+    assert "ej: boom" in out
 
 
 def test_search_logs_rejects_unknown_service(http):
@@ -227,3 +229,46 @@ def test_tools_are_read_only():
         "search_runbooks",
         "query_database",
     }
+
+
+# --- gestión de contexto -------------------------------------------------------
+
+
+def test_search_logs_groups_repeated_lines_by_pattern(http):
+    def line(rid, user, exc):
+        return json.dumps(
+            {
+                "level": "error",
+                "service": "users",
+                "msg": "unhandled error",
+                "request_id": rid,
+                "path": f"/users/{user}",
+                "exc": f"Traceback...\n{exc}",
+            }  # fmt: skip
+        )
+
+    values = [
+        [str(1700000000 + i) + "000000000", line(f"r{i}", i, "KeyError: 'trial'")]
+        for i in range(40)
+    ]
+    values += [["1700000100000000000", line("x", 7, "ConnectionResetError: [Errno 104] reset")]]
+    http(
+        lambda r: httpx.Response(
+            200, json={"data": {"result": [{"stream": {"service": "users"}, "values": values}]}}
+        )
+    )
+
+    out = run(search_logs(service="users"))
+    assert out.startswith("41 líneas en 2 patrones")
+    assert "\n40× [users]" in out
+    assert "\n1× [users]" in out
+    assert out.count("ej: ") == 2
+
+
+def test_fit_to_budget_keeps_short_outputs_and_trims_long_ones():
+    short, long_a, long_b = "a" * 100, "b" * 5000, "c" * 5000
+    fitted = fit_to_budget([short, long_a, long_b], 3000)
+    assert fitted[0] == short
+    assert sum(map(len, fitted)) <= 3000
+    assert all("recortado por el presupuesto" in f for f in fitted[1:])
+    assert fit_to_budget([short], 3000) == [short]

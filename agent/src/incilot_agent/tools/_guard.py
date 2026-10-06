@@ -20,6 +20,29 @@ def truncate(text: str, limit: int = MAX_CHARS) -> str:
     return text[:limit] + f"\n… [recortado: {len(text) - limit} caracteres más]"
 
 
+def fit_to_budget(outputs: list[str], budget: int) -> list[str]:
+    """Reparte `budget` caracteres entre las salidas de una ronda, en partes justas: las
+    cortas quedan completas y lo que les sobra se reparte entre las largas, que se recortan.
+    """
+    if sum(map(len, outputs)) <= budget:
+        return outputs
+    limits = {}
+    remaining, pending = budget, sorted(range(len(outputs)), key=lambda i: len(outputs[i]))
+    while pending:
+        share = remaining // len(pending)
+        index = pending.pop(0)
+        limits[index] = min(len(outputs[index]), share)
+        remaining -= limits[index]
+    note = (
+        "\n… [recortado por el presupuesto de la ronda: "
+        "pedí menos herramientas a la vez o filtrá más]"
+    )
+    return [
+        text if len(text) <= limits[i] else text[: max(limits[i] - len(note), 0)] + note
+        for i, text in enumerate(outputs)
+    ]
+
+
 def guarded(timeout: float):
     def decorate(fn):
         @functools.wraps(fn)
