@@ -85,6 +85,10 @@ class Injector:
         self.redis = redis
         self.repo = repo
 
+    async def aclose(self) -> None:
+        await self.redis.aclose()
+        await self.db.close()
+
     async def active(self) -> dict | None:
         row = await self.db.fetchrow(
             "SELECT * FROM injections WHERE recovered_at IS NULL ORDER BY injected_at DESC LIMIT 1"
