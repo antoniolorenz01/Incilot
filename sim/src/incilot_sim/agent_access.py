@@ -2,7 +2,8 @@
 
 El agente se conecta como `agent`:
   - Postgres: lectura sobre las bases de los servicios y las vistas de actividad
-    (pg_stat_activity, pg_locks); sin acceso a `groundtruth`.
+    (pg_stat_activity, pg_locks); sin acceso a `groundtruth`. Es dueño de su propia
+    base, `agent_state`, donde guarda los checkpoints de sus investigaciones.
   - Redis: lectura de las cachés (`user:*`, `catalog`); sin acceso a `faults:*`
     (los interruptores) ni a listar claves. El usuario se define en compose.yaml.
 
@@ -22,6 +23,7 @@ AGENT_USER = "agent"
 AGENT_PASSWORD = os.getenv("AGENT_PASSWORD", "agent")
 SERVICE_DATABASES = ["users", "inventory", "payments", "shop"]
 FORBIDDEN_DATABASES = ["groundtruth"]
+STATE_DATABASE = "agent_state"
 
 
 def _url(admin_url: str, database: str, user: str | None = None) -> str:
@@ -38,6 +40,8 @@ async def ensure_postgres_access(admin_url: str) -> None:
         if not await conn.fetchval("SELECT 1 FROM pg_roles WHERE rolname = $1", AGENT_USER):
             await conn.execute(f"CREATE ROLE {AGENT_USER} LOGIN PASSWORD '{AGENT_PASSWORD}'")
         await conn.execute(f"GRANT pg_read_all_stats TO {AGENT_USER}")
+        if not await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", STATE_DATABASE):
+            await conn.execute(f"CREATE DATABASE {STATE_DATABASE} OWNER {AGENT_USER}")
         for db in FORBIDDEN_DATABASES:
             await conn.execute(f"REVOKE ALL ON DATABASE {db} FROM PUBLIC, {AGENT_USER}")
     finally:
@@ -98,6 +102,11 @@ async def check(admin_url: str, redis_host: str) -> bool:
             lambda: pg("users", "UPDATE users SET name = name WHERE id = 0"),
         ),
         ("Postgres: conectarse a groundtruth", False, lambda: pg("groundtruth", "SELECT 1")),
+        (
+            "Postgres: escribir en su base (agent_state)",
+            True,
+            lambda: pg("agent_state", "CREATE TABLE IF NOT EXISTS access_probe (x int)"),
+        ),
         ("Redis: leer la caché de users (db 0)", True, lambda: redis_call(0, "GET", "user:1")),
         ("Redis: leer la caché de shop (db 1)", True, lambda: redis_call(1, "GET", "catalog")),
         (

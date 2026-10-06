@@ -13,3 +13,8 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
 AGENT_DB_USER = os.getenv("AGENT_DB_USER", "agent")
 AGENT_DB_PASSWORD = os.getenv("AGENT_DB_PASSWORD", "agent")
+# Base propia del agente (dueño: `agent`): checkpoints de las investigaciones.
+AGENT_STATE_URL = os.getenv(
+    "AGENT_STATE_URL",
+    f"postgresql://{AGENT_DB_USER}:{AGENT_DB_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/agent_state",
+)

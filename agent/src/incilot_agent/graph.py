@@ -1,13 +1,19 @@
 """El grafo de investigación.
 
-    triage ──► agent ⇄ tools ──► finish
-                 └──────────────► force_diagnosis   (límite de pasos o de tokens)
+    triage ──► agent ⇄ tools ──► finish ───────────┐
+                 └──────────────► force_diagnosis ─┴──► approval (pausa)
+                                  (límite de pasos o de tokens)
 
 - triage: resumen del sistema sin LLM (triage.py).
 - agent: el LLM decide qué herramienta usar o, cuando tiene la causa raíz con
   evidencia, llama a `submit_diagnosis`.
 - tools: ejecuta las herramientas de solo lectura y devuelve los resultados.
 - finish / force_diagnosis: dejan el diagnóstico estructurado en el estado.
+- approval: pausa el grafo (interrupt) hasta que un humano apruebe o rechace la
+  acción propuesta. El estado queda en el checkpointer: se retoma desde otro proceso.
+
+Con un checkpointer (Postgres en producción) cada paso queda guardado: una
+investigación cortada a mitad se retoma desde el último paso completo.
 """
 
 import asyncio
@@ -17,8 +23,10 @@ from typing import Annotated, TypedDict
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from langgraph.types import interrupt
 from pydantic import ValidationError
 
 from incilot_agent.diagnosis import Diagnosis
@@ -59,6 +67,7 @@ class State(TypedDict):
     tokens: int
     diagnosis: dict | None
     stop_reason: str | None
+    approval: dict | None  # {"approved": bool, "by": str, "note": str}
 
 
 TOOLS = {
@@ -81,7 +90,7 @@ SUBMIT_TOOL = StructuredTool.from_function(
 )
 
 
-def build(llm: BaseChatModel):
+def build(llm: BaseChatModel, checkpointer: BaseCheckpointSaver | None = None):
     agent_llm = llm.bind_tools([*TOOLS.values(), SUBMIT_TOOL])
     diagnosis_llm = llm.with_structured_output(Diagnosis)
 
@@ -146,19 +155,26 @@ def build(llm: BaseChatModel):
             return "tools"
         return "force_diagnosis"
 
+    def approval(state: State) -> dict:
+        # Se pausa acá; al retomar con Command(resume=decisión), interrupt la devuelve.
+        decision = interrupt({"diagnosis": state["diagnosis"]})
+        return {"approval": decision}
+
     graph = StateGraph(State)
     graph.add_node("triage", triage)
     graph.add_node("agent", agent)
     graph.add_node("tools", tools)
     graph.add_node("finish", finish)
     graph.add_node("force_diagnosis", force_diagnosis)
+    graph.add_node("approval", approval)
     graph.add_edge(START, "triage")
     graph.add_edge("triage", "agent")
     graph.add_conditional_edges("agent", route, ["tools", "finish", "force_diagnosis"])
     graph.add_edge("tools", "agent")
-    graph.add_edge("finish", END)
-    graph.add_edge("force_diagnosis", END)
-    return graph.compile()
+    graph.add_edge("finish", "approval")
+    graph.add_edge("force_diagnosis", "approval")
+    graph.add_edge("approval", END)
+    return graph.compile(checkpointer=checkpointer)
 
 
 def _over_limits(state: State) -> bool:

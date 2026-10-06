@@ -6,6 +6,8 @@ from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.runnables import RunnableLambda
 from langchain_core.tools import StructuredTool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
 
 from incilot_agent import graph
 
@@ -34,7 +36,10 @@ class FakeLLM(BaseChatModel):
         return "fake"
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-        return ChatResult(generations=[ChatGeneration(message=self.replies.pop(0))])
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):  # simula que el proceso se corta acá
+            raise reply
+        return ChatResult(generations=[ChatGeneration(message=reply)])
 
     def bind_tools(self, tools, **kwargs):
         return self
@@ -47,13 +52,19 @@ def call(name, args, id_):
     return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": id_}])
 
 
+TOOL_CALLS = []
+
+
 @pytest.fixture(autouse=True)
 def fake_sources(monkeypatch):
+    TOOL_CALLS.clear()
+
     async def overview():
         return "todo tranquilo"
 
     async def query_metrics(promql: str) -> str:
         """Métricas falsas."""
+        TOOL_CALLS.append(promql)
         return f"resultado de {promql}"
 
     monkeypatch.setattr(graph, "overview", overview)
@@ -62,8 +73,16 @@ def fake_sources(monkeypatch):
     )
 
 
-def investigate(*replies):
-    return asyncio.run(graph.build(FakeLLM(replies=list(replies))).ainvoke({"alert": "test"}))
+THREAD = {"configurable": {"thread_id": "t1"}}
+
+
+NEW = {"alert": "test"}
+
+
+def investigate(*replies, checkpointer=None, graph_input=NEW):
+    """graph_input=None retoma la investigación del thread desde su último checkpoint."""
+    app = graph.build(FakeLLM(replies=list(replies)), checkpointer or InMemorySaver())
+    return asyncio.run(app.ainvoke(graph_input, THREAD))
 
 
 def test_tools_then_submitted_diagnosis():
@@ -98,3 +117,40 @@ def test_invalid_arguments_are_reported_to_the_agent():
 def test_malformed_submission_falls_back_to_forced_diagnosis():
     state = investigate(call("submit_diagnosis", {"service": "x"}, "1"))
     assert state["diagnosis"]["service"] == "forzado"
+
+
+def test_diagnosis_pauses_for_approval_and_records_the_decision():
+    checkpointer = InMemorySaver()
+    paused = investigate(call("submit_diagnosis", DIAGNOSIS, "1"), checkpointer=checkpointer)
+    assert paused["__interrupt__"][0].value["diagnosis"]["service"] == "inventory"
+    assert paused.get("approval") is None
+
+    decision = {"approved": True, "by": "toni", "note": ""}
+    done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
+    assert done["approval"] == decision
+
+
+def test_rejection_is_recorded():
+    checkpointer = InMemorySaver()
+    investigate(call("submit_diagnosis", DIAGNOSIS, "1"), checkpointer=checkpointer)
+    decision = {"approved": False, "by": "toni", "note": "no"}
+    done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
+    assert done["approval"]["approved"] is False
+
+
+def test_interrupted_investigation_resumes_without_repeating_steps():
+    checkpointer = InMemorySaver()
+    with pytest.raises(RuntimeError):
+        investigate(
+            call("query_metrics", {"promql": "up"}, "1"),
+            RuntimeError("se cortó el proceso"),
+            checkpointer=checkpointer,
+        )
+    assert TOOL_CALLS == ["up"]
+
+    resumed = investigate(
+        call("submit_diagnosis", DIAGNOSIS, "2"), checkpointer=checkpointer, graph_input=None
+    )
+    assert TOOL_CALLS == ["up"]  # la herramienta no se volvió a ejecutar
+    assert resumed["steps"] == 1
+    assert resumed["diagnosis"]["service"] == "inventory"
