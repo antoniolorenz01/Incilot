@@ -2,7 +2,7 @@
 name = "incilot"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["incilot-sim"]
+dependencies = ["incilot-sim", "incilot-agent"]
 
 [dependency-groups]
 dev = ["ruff>=0.14", "pytest>=8"]
@@ -12,9 +12,10 @@ package = false
 
 [tool.uv.sources]
 incilot-sim = { workspace = true }
+incilot-agent = { workspace = true }
 
 [tool.uv.workspace]
-members = ["sim"]
+members = ["sim", "agent"]
 
 [tool.ruff]
 line-length = 100
@@ -24,7 +25,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["incilot_sim"]
+known-first-party = ["incilot_sim", "incilot_agent"]
 
 [tool.pytest.ini_options]
-testpaths = ["sim/tests"]
+testpaths = ["sim/tests", "agent/tests"]

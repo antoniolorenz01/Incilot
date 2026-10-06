@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "incilot",
+    "incilot-agent",
     "incilot-sim",
 ]
 
@@ -319,6 +320,7 @@ name = "incilot"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "incilot-agent" },
     { name = "incilot-sim" },
 ]
 
@@ -329,12 +331,32 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "incilot-sim", editable = "sim" }]
+requires-dist = [
+    { name = "incilot-agent", editable = "agent" },
+    { name = "incilot-sim", editable = "sim" },
+]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.14" },
+]
+
+[[package]]
+name = "incilot-agent"
+version = "0.1.0"
+source = { editable = "agent" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "pydantic", specifier = ">=2.13.5" },
 ]
 
 [[package]]
