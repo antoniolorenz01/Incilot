@@ -13,6 +13,8 @@ Tipos de evento:
 
 from collections.abc import AsyncIterator
 
+from incilot_agent.graph import SUBMIT
+
 TERMINAL = {"done", "error"}
 
 
@@ -30,6 +32,8 @@ async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[
                 yield {"type": "triage"}
             elif node == "agent":
                 for call in change["messages"][-1].tool_calls:
+                    if call["name"] == SUBMIT:
+                        continue  # lo cubre el evento `diagnosis`
                     yield {
                         "type": "tool_call",
                         "name": call["name"],
