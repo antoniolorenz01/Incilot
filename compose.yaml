@@ -130,6 +130,8 @@ services:
     volumes:
       - ${INCILOT_DATA:-../incilot-data}:/data:ro
       - company-repo:/company-repo
+      # Para los fallos de infraestructura (parar y arrancar contenedores).
+      - /var/run/docker.sock:/var/run/docker.sock
     ports: ["8100:8000"]
     depends_on: *db-and-cache
 

@@ -15,6 +15,7 @@ class Variant:
     service: str
     culprit: dict | None
     faults: dict[str, dict]
+    infra: dict
     ground_truth: dict
 
 
@@ -38,6 +39,7 @@ def load(data: Path) -> dict[str, list[Variant]]:
                     service=v["service"],
                     culprit=culprit,
                     faults=v.get("faults", {}),
+                    infra=v.get("infra", {}),
                     ground_truth=v["ground_truth"],
                 )
             )

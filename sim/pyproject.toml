@@ -5,6 +5,7 @@ description = "Mini-empresa simulada que IncidentPilot investiga"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",
+    "docker>=7.2.0",
     "fastapi>=0.142.2",
     "httpx>=0.28.1",
     "prometheus-client>=0.26.0",
