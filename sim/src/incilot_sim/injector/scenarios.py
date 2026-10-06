@@ -19,9 +19,14 @@ class Variant:
     ground_truth: dict
 
 
+def authors(data: Path) -> dict[str, str]:
+    """Autores ficticios de la empresa (history.toml), por clave."""
+    return tomllib.loads((data / "history.toml").read_text())["authors"]
+
+
 def load(data: Path) -> dict[str, list[Variant]]:
     """Escenarios por id. Los autores de los commits culpables se resuelven con history.toml."""
-    authors = tomllib.loads((data / "history.toml").read_text())["authors"]
+    authors_by_key = authors(data)
     scenarios = {}
     for path in sorted((data / "scenarios").glob("*.toml")):
         spec = tomllib.loads(path.read_text())
@@ -29,7 +34,7 @@ def load(data: Path) -> dict[str, list[Variant]]:
         for v in spec["variants"]:
             culprit = v.get("culprit")
             if culprit:
-                culprit = culprit | {"author": authors[culprit["author"]]}
+                culprit = culprit | {"author": authors_by_key[culprit["author"]]}
             variants.append(
                 Variant(
                     scenario=spec["id"],

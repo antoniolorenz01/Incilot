@@ -1,7 +1,8 @@
 """Inyección y recuperación de fallos, con el ground truth guardado en Postgres.
 
 Una inyección:
-  1. commitea el cambio culpable en el repo de la empresa (si el escenario lo tiene);
+  1. commitea el cambio culpable en el repo de la empresa (si el escenario lo tiene),
+     mezclado con commits señuelo (ver timeline.py);
   2. activa los interruptores de los servicios afectados en Redis (`faults:{service}`)
      y, en fallos de infraestructura, para contenedores o deja una sesión de
      Postgres trabada con un lock;
@@ -15,8 +16,9 @@ Hay como mucho una inyección activa a la vez, para que cada incidente tenga una
 
 import asyncio
 import json
+import random
 import socket
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -24,7 +26,8 @@ import asyncpg
 import docker
 from redis.asyncio import Redis
 
-from incilot_sim.company_repo import apply_edit, commit, revert
+from incilot_sim.company_repo import revert
+from incilot_sim.injector import timeline
 from incilot_sim.injector.scenarios import Variant
 
 SCHEMA = """
@@ -37,12 +40,14 @@ CREATE TABLE IF NOT EXISTS injections (
     root_cause TEXT NOT NULL,
     action TEXT NOT NULL,
     culprit_sha TEXT,
+    decoy_shas TEXT[] NOT NULL DEFAULT '{}',
     faults JSONB NOT NULL,
     infra JSONB NOT NULL DEFAULT '{}',
     injected_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     recovered_at TIMESTAMPTZ
 );
 ALTER TABLE injections ADD COLUMN IF NOT EXISTS infra JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE injections ADD COLUMN IF NOT EXISTS decoy_shas TEXT[] NOT NULL DEFAULT '{}';
 """
 # Quien hace el rollback en el repo de la empresa: la guardia de turno.
 ON_CALL = "Guardia SRE <sre@tienda.example>"
@@ -69,18 +74,6 @@ async def connect_groundtruth(url: str) -> asyncpg.Pool:
         pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
     await pool.execute(SCHEMA)
     return pool
-
-
-def commit_culprit(repo: Path, culprit: dict, now: datetime) -> str:
-    for edit in culprit["edits"]:
-        path = repo / edit["file"]
-        if "content" in edit:  # archivo nuevo
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(edit["content"])
-        else:
-            apply_edit(path, edit["old"], edit["new"])
-    when = now - timedelta(minutes=culprit["minutes_ago"])
-    return commit(repo, culprit["author"], culprit["message"], when)
 
 
 async def activate_faults(redis: Redis, faults: dict[str, dict]) -> None:
@@ -173,11 +166,19 @@ class Injector:
         )
         return [_decode(r) for r in rows]
 
-    async def inject(self, variant: Variant) -> dict:
+    async def inject(self, variant: Variant, decoys: list[dict] = ()) -> dict:
         if current := await self.active():
             raise InjectionError(f"ya hay una inyección activa: {current['id']}")
-        now = datetime.now(UTC)
-        sha = commit_culprit(self.repo, variant.culprit, now) if variant.culprit else None
+        steps = timeline.plan(
+            self.repo, variant.culprit, list(decoys), datetime.now(UTC), random.Random()
+        )
+        sha, decoy_shas = None, []
+        for step in steps:
+            step_sha = timeline.apply(self.repo, step)
+            if step.culprit:
+                sha = step_sha
+            else:
+                decoy_shas.append(step_sha)
         await activate_faults(self.redis, variant.faults)
         if stop := variant.infra.get("stop"):
             for container in compose_containers(self.docker, stop):
@@ -187,8 +188,8 @@ class Injector:
         row = await self.db.fetchrow(
             "INSERT INTO injections "
             "(scenario, variant, category, service, root_cause, action, culprit_sha, "
-            "faults, infra) "
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+            "decoy_shas, faults, infra) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
             variant.scenario,
             variant.id,
             variant.category,
@@ -196,6 +197,7 @@ class Injector:
             variant.ground_truth["root_cause"],
             variant.ground_truth["action"],
             sha,
+            decoy_shas,
             json.dumps(variant.faults),
             json.dumps(variant.infra),
         )

@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from redis.asyncio import Redis
 
 from incilot_sim.company_repo import build
-from incilot_sim.injector import scenarios
+from incilot_sim.injector import scenarios, timeline
 from incilot_sim.injector.core import InjectionError, Injector, connect_groundtruth
 
 DATA = Path(os.getenv("INJECTOR_DATA", "../incilot-data"))
@@ -70,7 +70,8 @@ async def inject(request: InjectionRequest):
     except KeyError as exc:
         raise HTTPException(404, exc.args[0]) from None
     try:
-        return await injector.inject(variant)
+        decoys = timeline.load_decoys(DATA, scenarios.authors(DATA))
+        return await injector.inject(variant, decoys)
     except InjectionError as exc:
         raise HTTPException(409, str(exc)) from None
 

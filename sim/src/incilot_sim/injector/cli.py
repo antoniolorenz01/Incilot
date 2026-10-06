@@ -17,7 +17,7 @@ from pathlib import Path
 
 from redis.asyncio import Redis
 
-from incilot_sim.injector import scenarios
+from incilot_sim.injector import scenarios, timeline
 from incilot_sim.injector.core import InjectionError, Injector, connect_groundtruth
 
 
@@ -43,6 +43,7 @@ def show(injection: dict) -> None:
     print(f"  causa raíz   {injection['root_cause']}")
     print(f"  acción       {injection['action']}")
     print(f"  commit       {injection['culprit_sha'] or '—'}")
+    print(f"  señuelos     {', '.join(s[:7] for s in injection['decoy_shas']) or '—'}")
     print(f"  inyectado    {injection['injected_at']:%Y-%m-%d %H:%M:%S}")
     if injection["recovered_at"]:
         print(f"  recuperado   {injection['recovered_at']:%Y-%m-%d %H:%M:%S}")
@@ -57,8 +58,9 @@ def cmd_list(_args) -> None:
 
 async def cmd_inject(args) -> None:
     variant = scenarios.pick(scenarios.load(data_dir()), args.scenario, args.variant)
+    decoys = timeline.load_decoys(data_dir(), scenarios.authors(data_dir()))
     async with connect() as injector:
-        show(await injector.inject(variant))
+        show(await injector.inject(variant, decoys))
 
 
 async def cmd_status(_args) -> None:
