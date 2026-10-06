@@ -23,7 +23,7 @@ def build(data: Path, out: Path, now: datetime) -> None:
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    _git(out, "init", "-q", "-b", "main")
+    git(out, "init", "-q", "-b", "main")
 
     for entry in history["commits"]:
         for path in entry.get("add", []):
@@ -49,8 +49,20 @@ def apply_edit(path: Path, old: str, new: str) -> None:
 
 def commit(repo: Path, author: str, message: str, when: datetime) -> str:
     """Commitea todo lo pendiente con el autor y la fecha dados. Devuelve el sha."""
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", message, env=_identity(author, when))
+    return git(repo, "rev-parse", "HEAD").strip()
+
+
+def revert(repo: Path, sha: str, author: str, when: datetime) -> str:
+    """Revierte un commit (el rollback de un deploy). Devuelve el sha del revert."""
+    git(repo, "revert", "--no-edit", sha, env=_identity(author, when))
+    return git(repo, "rev-parse", "HEAD").strip()
+
+
+def _identity(author: str, when: datetime) -> dict:
     name, email = author.removesuffix(">").split(" <")
-    env = {
+    return {
         "GIT_AUTHOR_NAME": name,
         "GIT_AUTHOR_EMAIL": email,
         "GIT_AUTHOR_DATE": when.isoformat(),
@@ -58,12 +70,9 @@ def commit(repo: Path, author: str, message: str, when: datetime) -> str:
         "GIT_COMMITTER_EMAIL": email,
         "GIT_COMMITTER_DATE": when.isoformat(),
     }
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "-q", "-m", message, env=env)
-    return _git(repo, "rev-parse", "HEAD").strip()
 
 
-def _git(repo: Path, *args: str, env: dict | None = None) -> str:
+def git(repo: Path, *args: str, env: dict | None = None) -> str:
     # Aislado de la config global del usuario (firmas, hooks, plantillas).
     base_env = {
         "PATH": os.environ["PATH"],
