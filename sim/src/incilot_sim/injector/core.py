@@ -1,6 +1,7 @@
 """Inyección y recuperación de fallos, con el ground truth guardado en Postgres.
 
 Una inyección:
+  0. regenera desde cero el repo de la empresa (historial limpio, fechas relativas a ahora);
   1. commitea el cambio culpable en el repo de la empresa (si el escenario lo tiene),
      mezclado con commits señuelo (ver timeline.py);
   2. activa los interruptores de los servicios afectados en Redis (`faults:{service}`)
@@ -26,8 +27,8 @@ import asyncpg
 import docker
 from redis.asyncio import Redis
 
-from incilot_sim.company_repo import revert
-from incilot_sim.injector import timeline
+from incilot_sim.company_repo import build, revert
+from incilot_sim.injector import scenarios, timeline
 from incilot_sim.injector.scenarios import Variant
 
 SCHEMA = """
@@ -136,8 +137,9 @@ def compose_containers(client: docker.DockerClient, services: list[str]) -> list
 
 
 class Injector:
-    def __init__(self, db: asyncpg.Pool, redis: Redis, repo: Path, postgres_url: str):
+    def __init__(self, db: asyncpg.Pool, redis: Redis, data: Path, repo: Path, postgres_url: str):
         self.db = db
+        self.data = data  # incilot-data
         self.redis = redis
         self.repo = repo
         self.postgres_url = postgres_url  # cualquier base del servidor de la empresa
@@ -166,12 +168,13 @@ class Injector:
         )
         return [_decode(r) for r in rows]
 
-    async def inject(self, variant: Variant, decoys: list[dict] = ()) -> dict:
+    async def inject(self, variant: Variant) -> dict:
         if current := await self.active():
             raise InjectionError(f"ya hay una inyección activa: {current['id']}")
-        steps = timeline.plan(
-            self.repo, variant.culprit, list(decoys), datetime.now(UTC), random.Random()
-        )
+        now = datetime.now(UTC)
+        build(self.data, self.repo, now)
+        decoys = timeline.load_decoys(self.data, scenarios.authors(self.data))
+        steps = timeline.plan(self.repo, variant.culprit, decoys, now, random.Random())
         sha, decoy_shas = None, []
         for step in steps:
             step_sha = timeline.apply(self.repo, step)

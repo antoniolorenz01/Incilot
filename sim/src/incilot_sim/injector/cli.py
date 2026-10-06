@@ -17,7 +17,7 @@ from pathlib import Path
 
 from redis.asyncio import Redis
 
-from incilot_sim.injector import scenarios, timeline
+from incilot_sim.injector import scenarios
 from incilot_sim.injector.core import InjectionError, Injector, connect_groundtruth
 
 
@@ -30,7 +30,7 @@ async def connect():
     db = await connect_groundtruth(os.environ["GROUNDTRUTH_DATABASE_URL"])
     redis = Redis.from_url(os.environ["FAULTS_REDIS_URL"], decode_responses=True)
     repo = Path(os.getenv("COMPANY_REPO", "build/company-repo"))
-    injector = Injector(db, redis, repo, os.environ["GROUNDTRUTH_DATABASE_URL"])
+    injector = Injector(db, redis, data_dir(), repo, os.environ["GROUNDTRUTH_DATABASE_URL"])
     try:
         yield injector
     finally:
@@ -58,9 +58,8 @@ def cmd_list(_args) -> None:
 
 async def cmd_inject(args) -> None:
     variant = scenarios.pick(scenarios.load(data_dir()), args.scenario, args.variant)
-    decoys = timeline.load_decoys(data_dir(), scenarios.authors(data_dir()))
     async with connect() as injector:
-        show(await injector.inject(variant, decoys))
+        show(await injector.inject(variant))
 
 
 async def cmd_status(_args) -> None:

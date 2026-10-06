@@ -15,7 +15,7 @@ from redis.asyncio import Redis
 
 from incilot_sim.agent_access import ensure_postgres_access
 from incilot_sim.company_repo import build
-from incilot_sim.injector import scenarios, timeline
+from incilot_sim.injector import scenarios
 from incilot_sim.injector.core import InjectionError, Injector, connect_groundtruth
 
 DATA = Path(os.getenv("INJECTOR_DATA", "../incilot-data"))
@@ -37,7 +37,7 @@ async def lifespan(_):
     db = await connect_groundtruth(os.environ["GROUNDTRUTH_DATABASE_URL"])
     await ensure_postgres_access(os.environ["GROUNDTRUTH_DATABASE_URL"])
     redis = Redis.from_url(os.environ["FAULTS_REDIS_URL"], decode_responses=True)
-    injector = Injector(db, redis, COMPANY_REPO, os.environ["GROUNDTRUTH_DATABASE_URL"])
+    injector = Injector(db, redis, DATA, COMPANY_REPO, os.environ["GROUNDTRUTH_DATABASE_URL"])
     yield
     await injector.aclose()
 
@@ -72,8 +72,7 @@ async def inject(request: InjectionRequest):
     except KeyError as exc:
         raise HTTPException(404, exc.args[0]) from None
     try:
-        decoys = timeline.load_decoys(DATA, scenarios.authors(DATA))
-        return await injector.inject(variant, decoys)
+        return await injector.inject(variant)
     except InjectionError as exc:
         raise HTTPException(409, str(exc)) from None
 
