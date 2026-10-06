@@ -120,7 +120,17 @@ services:
     command:
       - redis-server
       - --user
-      - agent on >agent ~user:* ~catalog +@read +select +ping -scan -keys -randomkey
+      - "agent"
+      - "on"
+      - ">agent"
+      - "~user:*"
+      - "~catalog"
+      - "+@read"
+      - "+select"
+      - "+ping"
+      - "-scan"
+      - "-keys"
+      - "-randomkey"
     labels:
       incilot.logs: "true"
     healthcheck:
