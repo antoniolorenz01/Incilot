@@ -108,6 +108,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Usuario del agente: solo lee las cachés (user:*, catalog); no ve faults:* ni lista claves.
+    command:
+      - redis-server
+      - --user
+      - agent on >agent ~user:* ~catalog +@read +select +ping -scan -keys -randomkey
     labels:
       incilot.logs: "true"
     healthcheck:

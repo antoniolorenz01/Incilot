@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from redis.asyncio import Redis
 
+from incilot_sim.agent_access import ensure_postgres_access
 from incilot_sim.company_repo import build
 from incilot_sim.injector import scenarios, timeline
 from incilot_sim.injector.core import InjectionError, Injector, connect_groundtruth
@@ -34,6 +35,7 @@ async def lifespan(_):
     if not (COMPANY_REPO / ".git").exists():
         build(DATA, COMPANY_REPO, datetime.now(UTC))
     db = await connect_groundtruth(os.environ["GROUNDTRUTH_DATABASE_URL"])
+    await ensure_postgres_access(os.environ["GROUNDTRUTH_DATABASE_URL"])
     redis = Redis.from_url(os.environ["FAULTS_REDIS_URL"], decode_responses=True)
     injector = Injector(db, redis, COMPANY_REPO, os.environ["GROUNDTRUTH_DATABASE_URL"])
     yield
