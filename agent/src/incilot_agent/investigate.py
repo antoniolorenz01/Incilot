@@ -55,7 +55,7 @@ async def investigate(alert: str) -> None:
             elif node == "agent":
                 for call in change["messages"][-1].tool_calls:
                     args = json.dumps(call["args"], ensure_ascii=False)
-                    print(f"\n[paso {final.get('steps', 0) + 1}] {call['name']}({args[:200]})")
+                    print(f"\n[ronda {final.get('steps', 0) + 1}] {call['name']}({args[:200]})")
             elif node == "tools":
                 for message in change["messages"]:
                     print(short(message.content))
