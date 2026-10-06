@@ -31,7 +31,11 @@ logs:
 injector:
 	docker compose exec injector python -m incilot_sim.injector.cli $(ARGS)
 
+# make smoke [ARGS="escenario ..."]: inyecta cada escenario, mide el síntoma y recupera.
+smoke:
+	uv run python scripts/smoke_scenarios.py $(ARGS)
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke company-repo
