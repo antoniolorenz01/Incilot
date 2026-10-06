@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from incilot_sim.common import faults
+from incilot_sim.common import faults, noise
 from incilot_sim.common.log import configure_logging, get_logger, request_id
 from incilot_sim.common.metrics import HTTP_LATENCY, HTTP_REQUESTS
 
@@ -35,7 +35,8 @@ def create_app(service: str, lifespan=None) -> FastAPI:
     app = FastAPI(
         title=service,
         lifespan=lifespan_with_faults,
-        dependencies=[Depends(faults.switchboard.disrupt)],
+        dependencies=[Depends(faults.switchboard.disrupt)]
+        + ([Depends(noise.disturb)] if noise.ENABLED else []),
     )
 
     @app.middleware("http")

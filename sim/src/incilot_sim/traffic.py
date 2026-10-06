@@ -16,6 +16,10 @@ THINK_TIME_SECONDS = (0.2, 1.5)
 # Hay 500 usuarios: los IDs 501-520 no existen y generan algún 404 realista.
 USER_IDS = (1, 520)
 REPORT_INTERVAL_SECONDS = 30
+# Ruido de fondo: cada 3-8 min el tráfico se duplica durante 30-60 s.
+BURSTS = os.getenv("BACKGROUND_NOISE", "on") != "off"
+BURST_EVERY_SECONDS = (180, 480)
+BURST_DURATION_SECONDS = (30, 60)
 
 log = get_logger("traffic")
 
@@ -41,6 +45,15 @@ async def shopper(client: httpx.AsyncClient, stats: Counter) -> None:
         await asyncio.sleep(random.uniform(*THINK_TIME_SECONDS))
 
 
+async def bursts(client: httpx.AsyncClient, stats: Counter) -> None:
+    while True:
+        await asyncio.sleep(random.uniform(*BURST_EVERY_SECONDS))
+        extra = [asyncio.create_task(shopper(client, stats)) for _ in range(SHOPPERS)]
+        await asyncio.sleep(random.uniform(*BURST_DURATION_SECONDS))
+        for task in extra:
+            task.cancel()
+
+
 async def report(stats: Counter) -> None:
     while True:
         await asyncio.sleep(REPORT_INTERVAL_SECONDS)
@@ -53,7 +66,10 @@ async def main() -> None:
     log.info("traffic started", shop_url=SHOP_URL, shoppers=SHOPPERS)
     stats: Counter = Counter()
     async with httpx.AsyncClient(base_url=SHOP_URL, timeout=5) as client:
-        await asyncio.gather(report(stats), *(shopper(client, stats) for _ in range(SHOPPERS)))
+        tasks = [report(stats), *(shopper(client, stats) for _ in range(SHOPPERS))]
+        if BURSTS:
+            tasks.append(bursts(client, stats))
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

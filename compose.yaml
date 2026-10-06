@@ -5,6 +5,9 @@
 #   Loki        http://localhost:3100
 #   Grafana     http://localhost:3000
 #   Injector    http://localhost:8100/docs
+#
+# Ruido de fondo (errores transitorios, picos de latencia y de tráfico) encendido
+# por defecto; `BACKGROUND_NOISE=off make up` para depurar el agente en limpio.
 
 # Todos los servicios usan la misma imagen; solo `shop` la construye.
 x-service: &service
@@ -36,6 +39,7 @@ services:
     command: uvicorn incilot_sim.services.shop:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/shop
+      BACKGROUND_NOISE: ${BACKGROUND_NOISE:-on}
       FAULTS_REDIS_URL: redis://redis:6379/2
       REDIS_URL: redis://redis:6379/1
       USERS_URL: http://users:8000
@@ -56,6 +60,7 @@ services:
     command: uvicorn incilot_sim.services.users:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/users
+      BACKGROUND_NOISE: ${BACKGROUND_NOISE:-on}
       FAULTS_REDIS_URL: redis://redis:6379/2
       REDIS_URL: redis://redis:6379/0
     depends_on: *db-and-cache
@@ -65,6 +70,7 @@ services:
     command: uvicorn incilot_sim.services.inventory:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/inventory
+      BACKGROUND_NOISE: ${BACKGROUND_NOISE:-on}
       FAULTS_REDIS_URL: redis://redis:6379/2
     depends_on: *db-and-cache
 
@@ -73,6 +79,7 @@ services:
     command: uvicorn incilot_sim.services.payments:app --host 0.0.0.0 --port 8000 --no-access-log
     environment:
       DATABASE_URL: postgresql://incilot:incilot@postgres:5432/payments
+      BACKGROUND_NOISE: ${BACKGROUND_NOISE:-on}
       FAULTS_REDIS_URL: redis://redis:6379/2
     depends_on: *db-and-cache
 
@@ -81,6 +88,7 @@ services:
     command: python -m incilot_sim.traffic
     environment:
       SHOP_URL: http://shop:8000
+      BACKGROUND_NOISE: ${BACKGROUND_NOISE:-on}
       TRAFFIC_SHOPPERS: "5"
     healthcheck:
       disable: true
