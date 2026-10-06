@@ -32,6 +32,9 @@ async def _git(*args: str) -> str:
         "-C",
         str(config.COMPANY_REPO),
         "--no-pager",
+        # El repo es de otro usuario (montado en solo lectura): confiar en él.
+        "-c",
+        "safe.directory=*",
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

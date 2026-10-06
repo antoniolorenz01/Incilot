@@ -160,6 +160,32 @@ services:
     ports: ["8100:8000"]
     depends_on: *db-and-cache
 
+  # --- Agente ------------------------------------------------------------------
+  # Sandbox: imagen sin el código de la simulación, usuario sin privilegios, solo las
+  # credenciales `agent` y el repo de la empresa y los runbooks en solo lectura. Sin
+  # socket de Docker ni incilot-data/scenarios. No arranca con `make up`:
+  # `make investigate` lo corre a demanda.
+
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    image: incilot-agent
+    profiles: ["agent"]
+    command: python -m incilot_agent.investigate
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      COMPANY_REPO: /company-repo
+      RUNBOOKS_DIR: /runbooks
+      POSTGRES_HOST: postgres
+    volumes:
+      - company-repo:/company-repo:ro
+      - ${INCILOT_DATA:-../incilot-data}/runbooks:/runbooks:ro
+
   # --- Observabilidad ---------------------------------------------------------
 
   prometheus:

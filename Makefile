@@ -39,7 +39,17 @@ smoke:
 agent-access:
 	docker compose exec -T injector python -m incilot_sim.agent_access
 
+# make investigate [ARGS="descripción de la alerta"]: el agente investiga lo que esté pasando.
+investigate:
+	docker compose --profile agent build -q agent
+	docker compose run --rm agent python -m incilot_agent.investigate $(ARGS)
+
+# Corre cada herramienta del agente una vez desde su contenedor (incluida la base).
+agent-tools:
+	docker compose --profile agent build -q agent
+	docker compose run --rm agent python -m incilot_agent.investigate --check-tools
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools company-repo
