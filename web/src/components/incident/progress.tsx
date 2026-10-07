@@ -4,12 +4,19 @@ import { useEffect, useState } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { type Phase, STEPS, stepOf } from "@/lib/incident";
 
-/** Pasos del flujo: dónde está el usuario y qué sigue. */
+/** Columnas de la pantalla: una por paso, alineadas con la barra de pasos. */
+export const COLUMNS = "xl:grid-cols-[270px_minmax(0,1fr)_360px_310px]";
+
+/** Pasos del flujo: dónde está el usuario y qué sigue. En pantallas anchas cada
+ * paso queda arriba de su columna. */
 export function Steps({ phase }: { phase: Phase }) {
   const current = stepOf(phase);
   const finished = phase === "done";
   return (
-    <ol className="grid grid-cols-2 border-2 border-foreground text-xs md:grid-cols-4" aria-label="Pasos">
+    <ol
+      className={`grid grid-cols-2 border-2 border-foreground text-xs md:grid-cols-4 xl:gap-3 xl:border-0 ${COLUMNS}`}
+      aria-label="Pasos"
+    >
       {STEPS.map((step, i) => {
         const done = i < current || (finished && i === current);
         const active = i === current && !finished;
@@ -17,7 +24,7 @@ export function Steps({ phase }: { phase: Phase }) {
           <li
             key={step}
             aria-current={active ? "step" : undefined}
-            className={`flex items-center gap-2 border-foreground px-3 py-2 not-last:border-r-2 max-md:nth-2:border-r-0 max-md:nth-[-n+2]:border-b-2 ${
+            className={`flex items-center gap-2 border-foreground px-3 py-2 not-last:border-r-2 xl:border-2 max-md:nth-2:border-r-0 max-md:nth-[-n+2]:border-b-2 ${
               active ? "bg-accent text-accent-foreground" : done ? "text-foreground" : "text-muted-foreground"
             }`}
           >

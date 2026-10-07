@@ -14,13 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { actionLabel, shortTarget } from "@/components/incident/terminal";
-import { grade, type Investigation, type Truth } from "@/lib/incident";
+import type { Investigation } from "@/lib/incident";
 
 const CONFIDENCE = { low: "baja", medium: "media", high: "alta" } as const;
 
 export type Decision = { approved: boolean; note: string; action?: { kind: string; target: string } };
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-border pt-3">
       <h3 className="mb-2 text-xs text-muted-foreground">{title}</h3>
@@ -90,20 +90,15 @@ function CorrectDialog({ open, onOpenChange, kind, target, onConfirm }: {
 
 export function DiagnosisPanel({
   investigation,
-  truth,
   readOnly,
   onDecide,
-  onEnd,
 }: {
   investigation: Investigation;
-  truth: Truth | null;
   readOnly: boolean;
   onDecide: (decision: Decision) => void;
-  onEnd: () => void;
 }) {
   const [correcting, setCorrecting] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const { diagnosis, phase, verification, execution } = investigation;
+  const { diagnosis, phase } = investigation;
 
   if (!diagnosis) {
     return (
@@ -119,11 +114,10 @@ export function DiagnosisPanel({
   }
 
   const { action } = diagnosis;
-  const result = truth ? grade(truth, diagnosis) : null;
   const deciding = phase === "awaiting_approval" && !readOnly;
   return (
     <section aria-label="Diagnóstico" className="flex min-h-0 flex-col border-2 border-foreground text-xs">
-      {/* Contenido con scroll propio; la acción y los botones quedan fijos abajo. */}
+      {/* Paso 3. Contenido con scroll propio; la acción y los botones quedan fijos abajo. */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -154,66 +148,6 @@ export function DiagnosisPanel({
           </ol>
         </Section>
 
-        {(execution || verification || phase === "executing") && (
-          <Section title="Resultado">
-            {phase === "executing" && !verification && (
-              <p className="text-muted-foreground">Aplicando y midiendo la tienda durante un minuto…</p>
-            )}
-            {verification && !verification.skipped && (
-              <>
-                <p className={`font-pixel text-xl ${verification.recovered ? "text-success" : "text-destructive"}`}>
-                  {verification.recovered ? "Resuelto" : "Sigue el problema"}
-                </p>
-                <table className="mt-2 w-full">
-                  <tbody>
-                    {verification.checks.map((check) => (
-                      <tr key={check.name} className="border-b border-border last:border-none">
-                        <td className="py-1 text-muted-foreground">{check.name}</td>
-                        <td className="py-1 text-right tabular-nums text-foreground">{check.value}</td>
-                        <td className={`py-1 pl-2 text-right ${check.ok ? "text-success" : "text-destructive"}`}>
-                          {check.ok ? "ok" : `> ${check.max}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-          </Section>
-        )}
-
-        {result && truth && (
-          <Section title="¿Acertó el agente?">
-            {diagnosis.service === "dry-run" && (
-              <p className="mb-2 text-muted-foreground">
-                Modo prueba: el diagnóstico es un ejemplo fijo, así que no puede acertar. Apagá el modo
-                prueba para ver al agente investigar de verdad.
-              </p>
-            )}
-            {!revealed ? (
-              <Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
-                Ver la respuesta correcta
-              </Button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="break-words text-muted-foreground">{truth.root_cause}</p>
-                <ul className="flex flex-col gap-1">
-                  {[
-                    ["Acción que arregla el problema", result.action],
-                    ["Servicio", result.service],
-                    [truth.culprit_sha ? "Commit culpable" : "No culpar a ningún commit", result.commit],
-                  ].map(([label, ok]) => (
-                    <li key={label as string} className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className={ok ? "text-success" : "text-destructive"}>{ok ? "acertó" : "falló"}</span>
-                    </li>
-                  ))}
-                </ul>
-                {result.decoy && <p className="text-destructive">Culpó a un commit inocente (un señuelo).</p>}
-              </div>
-            )}
-          </Section>
-        )}
       </div>
 
       <footer className="shrink-0 border-t-2 border-foreground p-4">
@@ -242,11 +176,6 @@ export function DiagnosisPanel({
             </div>
           )}
         </div>
-        {(phase === "done" || phase === "error" || readOnly) && (
-          <Button variant="ghost" size="sm" className="mt-2" onClick={onEnd}>
-            {readOnly ? "Volver" : "Terminar y simular otro"}
-          </Button>
-        )}
       </footer>
 
       <CorrectDialog

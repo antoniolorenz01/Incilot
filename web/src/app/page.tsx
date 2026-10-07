@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
 import { History } from "@/components/incident/history";
-import { Status, Steps } from "@/components/incident/progress";
+import { COLUMNS, Status, Steps } from "@/components/incident/progress";
+import { ResultPanel } from "@/components/incident/result-panel";
 import { ShopHealth } from "@/components/incident/shop-health";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
 import { Terminal } from "@/components/incident/terminal";
@@ -177,7 +178,7 @@ export default function Home() {
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-[1500px] flex-col gap-3 overflow-hidden p-3 md:p-4">
+    <main className="mx-auto flex h-dvh w-full max-w-[1920px] flex-col gap-3 overflow-hidden p-3 md:p-4">
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
         <div className="min-w-0">
           <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
@@ -209,21 +210,24 @@ export default function Home() {
       </div>
 
       {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
-      <div className="grid min-h-0 flex-1 gap-3 max-lg:overflow-y-auto lg:grid-cols-[290px_minmax(0,1fr)_400px]">
-        {/* Simular y la salud de la tienda, completos; el historial ocupa lo que sobra. */}
+      {/* Una columna por paso: romper, investigar, decidir, resultado. */}
+      <div className={`grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}>
         <div className="flex min-h-0 flex-col gap-3">
           <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
           <ShopHealth />
-          <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
         </div>
         <Terminal events={investigation.events} phase={investigation.phase} />
-        <DiagnosisPanel
-          investigation={investigation}
-          truth={truth}
-          readOnly={readOnly}
-          onDecide={decide}
-          onEnd={end}
-        />
+        <DiagnosisPanel investigation={investigation} readOnly={readOnly} onDecide={decide} />
+        <div className="flex min-h-0 flex-col gap-3">
+          <ResultPanel
+            key={investigationId ?? "none"}
+            investigation={investigation}
+            truth={truth}
+            readOnly={readOnly}
+            onEnd={end}
+          />
+          <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
+        </div>
       </div>
     </main>
   );
