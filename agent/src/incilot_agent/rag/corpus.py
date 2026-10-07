@@ -6,6 +6,10 @@
     repo: config/*.env         un fragmento por archivo               kind=config
     repo: el resto (texto)     un fragmento por archivo               kind=file
 
+A cada fragmento de código y config se le antepone una línea que dice qué es
+(contextual retrieval): un `.env` suelto es casi invisible para la búsqueda por
+significado, "Configuración del servicio shop: …" no.
+
 El id de cada fragmento es un hash de su origen y su contenido, en formato UUID (el que
 usa pgvector): si el contenido no cambia, su embedding se reutiliza.
 """
@@ -80,7 +84,8 @@ def python_functions(path: Path, source: str) -> list[Document]:
             chunks.append(
                 _doc(
                     f"{source}::{node.name}",
-                    f"# {source} — {header}\n{body}",
+                    f"Código del servicio {_service(path)}: función {node.name} en {source}. "
+                    f"{header}\n{body}",
                     "code",
                     service=_service(path),
                     function=node.name,
@@ -99,7 +104,12 @@ def company_repo(root: Path) -> list[Document]:
         if path.suffix == ".py":
             chunks += python_functions(path, source)
         elif path.suffix == ".env":
-            chunks.append(_doc(source, path.read_text(), "config", service=_service(relative)))
+            service = _service(relative)
+            content = (
+                f"Configuración del servicio {service}: variables de entorno ({source}).\n"
+                f"{path.read_text()}"
+            )
+            chunks.append(_doc(source, content, "config", service=service))
         else:
             chunks.append(_doc(source, path.read_text(), "file", service=_service(relative)))
     return chunks

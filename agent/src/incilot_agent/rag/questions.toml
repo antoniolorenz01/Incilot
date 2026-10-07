@@ -1,6 +1,10 @@
 # Examen del RAG: preguntas como las que hace el agente en un incidente, con los
 # fragmentos correctos conocidos. Una pregunta acierta si recupera cualquiera de sus
 # `expected`. Los ids de fragmento son los `source` de corpus.py.
+#
+# `expected` incluye toda sección que de verdad responde la pregunta (verificado a mano),
+# no solo la que uno tenía en mente. Las preguntas de "dónde está en el código" son
+# estrictas: miden si el RAG encuentra código.
 
 [[questions]]
 query = "las consultas a products quedan esperando un lock y postgres loguea still waiting"
@@ -40,7 +44,11 @@ expected = ["runbooks/tasa-de-errores.md"]
 
 [[questions]]
 query = "redis no responde, connection refused desde users y shop"
-expected = ["runbooks/dependencia-caida.md"]
+expected = [
+    "runbooks/dependencia-caida.md",
+    "docs/services/shop.md#Comportamiento ante fallos",
+    "docs/services/users.md#Comportamiento ante fallos",
+]
 
 [[questions]]
 query = "dónde se libera la reserva de stock cuando se rechaza un cobro"
@@ -60,15 +68,15 @@ expected = ["services/inventory/handlers.py::list_products"]
 
 [[questions]]
 query = "caché de perfiles de usuario en redis y su TTL"
-expected = ["services/users/handlers.py::get_user", "config/users.env"]
+expected = ["services/users/handlers.py::get_user", "config/users.env", "docs/services/users.md#Datos"]
 
 [[questions]]
 query = "qué hace shop cuando una dependencia responde 429 o un error 5xx"
-expected = ["services/shop/handlers.py::call"]
+expected = ["services/shop/handlers.py::call", "docs/services/shop.md#Endpoints"]
 
 [[questions]]
 query = "timeout de shop hacia los servicios internos UPSTREAM_TIMEOUT_SECONDS"
-expected = ["config/shop.env"]
+expected = ["config/shop.env", "docs/services/shop.md#Dependencias"]
 
 [[questions]]
 query = "tamaño del pool de conexiones a la base de inventory"
@@ -80,7 +88,7 @@ expected = ["config/payments.env"]
 
 [[questions]]
 query = "qué pasa si se cobra dos veces el mismo pedido"
-expected = ["services/payments/handlers.py::charge"]
+expected = ["services/payments/handlers.py::charge", "docs/services/payments.md#Datos"]
 
 [[questions]]
 query = "qué métricas exponen los servicios y cómo calcular la latencia p95"

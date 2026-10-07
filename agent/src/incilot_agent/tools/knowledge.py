@@ -42,7 +42,8 @@ async def search_knowledge(query: str, limit: int = 3) -> str:
     if not 1 <= limit <= 5:
         raise ToolError("limit tiene que estar entre 1 y 5")
     state = await _ready_index()
-    retriever = index.build_retriever(state["docs"], state["store"], top_n=limit)
+    # Sin reranker: en rag-eval empeoraba recall y MRR y era 10x más lento (TONI-100).
+    retriever = index.build_retriever(state["docs"], state["store"], top_n=limit, rerank=False)
     results = await retriever.ainvoke(query)
     if not results:
         return f"nada relevante para {query!r}"
