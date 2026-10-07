@@ -10,6 +10,8 @@ nuevos (el código de la empresa cambia con cada inyección) y se borran los que
 """
 
 import functools
+import re
+import unicodedata
 
 from langchain_classic.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain_community.document_compressors import FlashrankRerank
@@ -22,6 +24,7 @@ from incilot_agent import config
 
 CANDIDATES = 10  # cuántos trae cada método antes de fusionar y rerankear
 TABLE = "knowledge"
+WORDS = re.compile(r"\w+")
 
 
 def build_retriever(
@@ -33,7 +36,7 @@ def build_retriever(
     mode: str = "hybrid",
 ) -> BaseRetriever:
     """mode: hybrid (BM25 + vectores), bm25 o vector. rerank: FlashRank sobre el resultado."""
-    bm25 = BM25Retriever.from_documents(docs, k=CANDIDATES)
+    bm25 = BM25Retriever.from_documents(docs, k=CANDIDATES, preprocess_func=tokenize)
     vector = vector_store.as_retriever(search_kwargs={"k": CANDIDATES})
     base = {
         "bm25": bm25,
@@ -57,6 +60,13 @@ def _ranker():
     onnxruntime.set_default_logger_severity(3)  # solo errores
 
     return Ranker(model_name=config.RERANK_MODEL, cache_dir=config.RERANK_CACHE_DIR)
+
+
+def tokenize(text: str) -> list[str]:
+    """Para BM25: minúsculas, sin acentos y separado por palabras (no por espacios), así
+    "Latencia," y "latencia" cuentan como el mismo término."""
+    plain = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+    return WORDS.findall(plain)
 
 
 class _TopN(BaseRetriever):

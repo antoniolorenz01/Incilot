@@ -6,13 +6,14 @@
     repo: config/*.env         un fragmento por archivo               kind=config
     repo: el resto (texto)     un fragmento por archivo               kind=file
 
-El id de cada fragmento es un hash de su origen y su contenido: si el contenido no
-cambia, su embedding se reutiliza.
+El id de cada fragmento es un hash de su origen y su contenido, en formato UUID (el que
+usa pgvector): si el contenido no cambia, su embedding se reutiliza.
 """
 
 import ast
 import hashlib
 import re
+import uuid
 from pathlib import Path
 
 from langchain_core.documents import Document
@@ -26,7 +27,9 @@ TEXT_SUFFIXES = {".md", ".py", ".env", ".sql", ".yml", ".yaml", ".toml", ".txt"}
 def _doc(source: str, content: str, kind: str, **metadata) -> Document:
     digest = hashlib.sha256(f"{source}\n{content}".encode()).hexdigest()[:32]
     return Document(
-        id=digest, page_content=content, metadata={"source": source, "kind": kind, **metadata}
+        id=str(uuid.UUID(digest)),
+        page_content=content,
+        metadata={"source": source, "kind": kind, **metadata},
     )
 
 

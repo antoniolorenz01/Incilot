@@ -88,3 +88,22 @@ def test_sync_adds_new_fragments_and_deletes_stale_ones(tmp_path):
     new = corpus.runbooks(tmp_path)
     added, deleted = asyncio.run(index.sync(store, new, {d.id for d in old}))
     assert (added, deleted) == (1, 1)
+
+
+def test_fragment_ids_are_canonical_uuids(tmp_path):
+    """pgvector guarda los ids como UUID: si no coinciden al leerlos, la sincronización
+    cree que todo es viejo y borra el índice (pasó)."""
+    import uuid
+
+    write(tmp_path / "a.md", "uno")
+    [doc] = corpus.runbooks(tmp_path)
+    assert doc.id == str(uuid.UUID(doc.id))
+
+
+def test_tokenize_ignores_case_accents_and_punctuation():
+    assert index.tokenize("Latencia alta, reposición: DB_POOL_SIZE") == [
+        "latencia",
+        "alta",
+        "reposicion",
+        "db_pool_size",
+    ]
