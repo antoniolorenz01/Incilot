@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
 import { Terminal } from "@/components/incident/terminal";
@@ -29,6 +30,15 @@ export default function Home() {
   const [investigationId, setInvestigationId] = useState<string | null>(null);
   const [truth, setTruth] = useState<Truth | null>(null);
   const source = useRef<EventSource | null>(null);
+  // Una simulación que ya estaba activa al abrir la página (p. ej. de otra pestaña).
+  const [leftover, setLeftover] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/incidents/active")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((active) => active && setLeftover(String(active.injected_at)))
+      .catch(() => {});
+  }, []);
 
   const listen = useCallback((id: string) => {
     source.current?.close();
@@ -73,6 +83,7 @@ export default function Home() {
     const body = await response.json();
     if (!response.ok) {
       dispatch({ type: "reset" });
+      if (response.status === 409) setLeftover(new Date().toISOString());
       toast.error(`No se pudo simular: ${body.detail}`);
       return;
     }
@@ -93,6 +104,7 @@ export default function Home() {
 
   async function end() {
     await fetch("/api/incidents/active/recover", { method: "POST" });
+    setLeftover(null);
     source.current?.close();
     setInvestigationId(null);
     setTruth(null);
@@ -116,6 +128,19 @@ export default function Home() {
           {status.text}
         </p>
       </header>
+
+      {leftover && investigation.phase === "idle" && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs">
+          <p className="text-foreground">
+            Hay una simulación activa desde las{" "}
+            {new Date(leftover).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}. Terminala
+            para simular otra.
+          </p>
+          <Button size="sm" variant="outline" onClick={end}>
+            Terminarla
+          </Button>
+        </div>
+      )}
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_400px]">
         <SimulatePanel busy={busy} onSimulate={simulate} />
