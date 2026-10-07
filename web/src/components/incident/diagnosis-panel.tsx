@@ -200,6 +200,12 @@ export function DiagnosisPanel({
 
       {result && truth && (
         <Section title="¿Acertó el agente?">
+          {diagnosis.service === "dry-run" && (
+            <p className="mb-2 text-muted-foreground">
+              Modo prueba: el diagnóstico es un ejemplo fijo, así que no puede acertar. Apagá el modo
+              prueba para ver al agente investigar de verdad.
+            </p>
+          )}
           {!revealed ? (
             <Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
               Ver la respuesta correcta

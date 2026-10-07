@@ -62,7 +62,12 @@ export function SimulatePanel({
 
       <label className="flex flex-col gap-2 text-xs text-muted-foreground">
         Tipo de fallo
-        <Select value={scenario} onValueChange={(value) => setScenario(value as string)}>
+        {/* items: el texto a mostrar por cada valor (si no, se ve el id técnico) */}
+        <Select
+          value={scenario}
+          onValueChange={(value) => setScenario(value as string)}
+          items={Object.fromEntries(Object.entries(catalog).map(([id, spec]) => [id, spec.title]))}
+        >
           <SelectTrigger className="w-full min-w-0" aria-label="Tipo de fallo">
             <SelectValue placeholder="Elegí qué romper" className="truncate" />
           </SelectTrigger>
