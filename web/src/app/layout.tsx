@@ -19,6 +19,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       className={`dark ${jetbrainsMono.variable} ${GeistPixelGrid.variable} h-full antialiased`}
+      // Extensiones como Dark Reader agregan atributos al <html> antes de que cargue React.
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-mono">
         {children}

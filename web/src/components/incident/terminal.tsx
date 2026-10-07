@@ -87,7 +87,9 @@ function Line({ event }: { event: AgentEvent }) {
 
 export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase }) {
   const bottom = useRef<HTMLDivElement>(null);
-  useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [events.length]);
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [events.length]);
 
   const working = phase === "investigating" || phase === "executing";
   return (
