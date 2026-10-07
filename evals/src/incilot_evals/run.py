@@ -24,7 +24,9 @@ from incilot_evals.scoring import score
 
 INJECTOR = os.getenv("INJECTOR_URL", "http://localhost:8100")
 AGENT = os.getenv("AGENT_API_URL", "http://localhost:8200")
-ALERT = "[eval] Se reportó una degradación en la tienda: hay quejas de clientes."
+# Como una alerta real: dice desde cuándo. Sin la hora, el agente mezclaba restos del
+# escenario anterior (sus logs siguen en la ventana de búsqueda) con el incidente actual.
+ALERT = "[eval] Degradación en la tienda desde las {since} UTC: hay quejas de clientes."
 INVESTIGATION_TIMEOUT = 600
 # Dificultad por tipo de incidente (ver TONI-82).
 DIFFICULTY = {
@@ -55,12 +57,13 @@ def variants(scenario_ids: list[str] | None, split: str) -> list[dict]:
     ]
 
 
-def investigate(client: httpx.Client) -> dict:
+def investigate(client: httpx.Client, since: str) -> dict:
     """Lanza una investigación y sigue sus eventos hasta el diagnóstico.
 
     Si el streaming se corta, se reconecta: la API reenvía la historia desde el principio.
     """
-    investigation_id = client.post("/investigations", json={"alert": ALERT}).json()["id"]
+    alert = ALERT.format(since=since)
+    investigation_id = client.post("/investigations", json={"alert": alert}).json()["id"]
     result = {"id": investigation_id, "rounds": 0, "diagnosis": None, "error": None}
     url = f"/investigations/{investigation_id}/events"
     deadline = time.monotonic() + INVESTIGATION_TIMEOUT
@@ -91,10 +94,11 @@ def run_one(item: dict, warmup: int, cooldown: int) -> dict:
     agent = httpx.Client(base_url=AGENT, timeout=30)
     started = time.monotonic()
     injector.post("/injections", json={"scenario": item["scenario"], "variant": item["variant"]})
+    since = datetime.now(UTC).strftime("%H:%M")
     try:
         time.sleep(warmup)
         investigated = time.monotonic()
-        outcome = investigate(agent)
+        outcome = investigate(agent, since)
         elapsed = time.monotonic() - investigated
         truth = injector.get("/injections/active").json()  # recién ahora: después del diagnóstico
         if outcome["id"]:  # cerrar la investigación sin ejecutar nada

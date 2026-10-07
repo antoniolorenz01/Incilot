@@ -63,7 +63,9 @@ Cómo investigar:
 3. Revisá los cambios recientes, pero no asumas que el último commit es el culpable:
    relacioná el contenido del cambio con el síntoma y con el momento en que empezó.
 4. Hay ruido de fondo: errores transitorios sueltos y picos aislados pasan siempre y no
-   son el incidente. Buscá lo que cambió de forma sostenida.
+   son el incidente. Buscá lo que cambió de forma sostenida. Si la alerta dice desde
+   cuándo, concentrate en lo que empezó o cambió a partir de ese momento: lo anterior
+   puede ser de otro incidente ya resuelto.
 5. La causa puede ser externa (un proveedor) o de infraestructura, sin commit culpable.
 
 Usá solo datos que obtuviste con las herramientas; no inventes. Cuando tengas la causa
