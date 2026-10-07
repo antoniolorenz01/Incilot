@@ -92,6 +92,21 @@ export function Status({
       <div className="flex-1 text-xs">
         <p className="text-sm text-foreground">{message.title}</p>
         <p className="mt-0.5 text-muted-foreground">{message.detail}</p>
+        {phase === "breaking" && (
+          // Qué pasa mientras esperamos, para alguien que no es técnico.
+          <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {[
+              ["Aplicamos el fallo en la tienda", true],
+              ["Los clientes empiezan a notarlo: mirá «Salud de la tienda»", remaining !== 0],
+              ["Llega la alerta y el agente empieza a investigar", false],
+            ].map(([text, current], i) => (
+              <li key={i} className={i === 0 ? "text-foreground" : current ? "text-accent" : "text-muted-foreground"}>
+                {i + 1}. {text}
+                {i === 0 && " ✓"}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
       {waiting && (
         <p className="shrink-0 text-xs tabular-nums text-muted-foreground">

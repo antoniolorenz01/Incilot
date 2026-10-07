@@ -2,6 +2,7 @@
 
 const INJECTOR_URL = process.env.INJECTOR_URL ?? "http://localhost:8100";
 const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8200";
+const PROMETHEUS_URL = process.env.PROMETHEUS_URL ?? "http://localhost:9090";
 
 export function injector(path: string, init?: RequestInit) {
   return fetch(`${INJECTOR_URL}${path}`, { cache: "no-store", ...init });
@@ -9,6 +10,10 @@ export function injector(path: string, init?: RequestInit) {
 
 export function agent(path: string, init?: RequestInit) {
   return fetch(`${AGENT_API_URL}${path}`, { cache: "no-store", ...init });
+}
+
+export function prometheus(path: string) {
+  return fetch(`${PROMETHEUS_URL}${path}`, { cache: "no-store" });
 }
 
 export const json = { "content-type": "application/json" };

@@ -3,6 +3,7 @@
     POST /investigations                {alert?, dry_run?}  → 202 {id}
     GET  /investigations/{id}           estado y diagnóstico
     GET  /investigations/{id}/events    eventos en vivo (Server-Sent Events)
+    GET  /incidents                     incidentes ya decididos (historial)
     POST /investigations/{id}/approval  {approved, note?}
 
 No corre el agente: encola trabajos que procesan los workers.
@@ -13,6 +14,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import asyncpg
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -109,6 +111,45 @@ async def events(investigation_id: str, last_event_id: str | None = Header(defau
                     return
 
     return StreamingResponse(sse(), media_type="text/event-stream")
+
+
+@app.get("/incidents")
+async def incidents(limit: int = 20):
+    """Historial: incidentes ya decididos (aprobados o rechazados), del más nuevo al más viejo."""
+    conn = await asyncpg.connect(config.AGENT_STATE_URL)
+    try:
+        exists = await conn.fetchval("SELECT to_regclass('incidents') IS NOT NULL")
+        rows = (
+            await conn.fetch(
+                "SELECT id, alert, diagnosis, approval, action, verification, tokens, recorded_at "
+                "FROM incidents ORDER BY recorded_at DESC LIMIT $1",
+                min(limit, 100),
+            )
+            if exists
+            else []
+        )
+    finally:
+        await conn.close()
+    history = []
+    for row in rows:
+        diagnosis, approval, action, verification = (
+            json.loads(row[key]) if row[key] else None
+            for key in ("diagnosis", "approval", "action", "verification")
+        )
+        history.append(
+            {
+                "id": row["id"],
+                "recorded_at": row["recorded_at"].isoformat(),
+                "alert": row["alert"],
+                "service": (diagnosis or {}).get("service"),
+                "proposed": (diagnosis or {}).get("action"),
+                "executed": action,
+                "approved": (approval or {}).get("approved"),
+                "recovered": (verification or {}).get("recovered"),
+                "tokens": row["tokens"],
+            }
+        )
+    return history
 
 
 @app.post("/investigations/{investigation_id}/approval", status_code=202)

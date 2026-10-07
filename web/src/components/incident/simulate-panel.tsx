@@ -103,7 +103,7 @@ export function SimulatePanel({
         {busy ? "Incidente en curso" : "Simular incidente"}
       </Button>
       {busy && (
-        <Button variant="ghost" size="sm" onClick={onCancel}>
+        <Button variant="destructive" size="sm" onClick={onCancel}>
           Cancelar simulación
         </Button>
       )}

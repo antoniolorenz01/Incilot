@@ -42,8 +42,8 @@ async def search_knowledge(query: str, limit: int = 3) -> str:
     por significado. Devuelve los fragmentos más relevantes con su origen:
     p. ej. un runbook, una sección de doc o una función como
     services/inventory/handlers.py::list_products."""
-    if not 1 <= limit <= 5:
-        raise ToolError("limit tiene que estar entre 1 y 5")
+    if not 1 <= limit <= 8:
+        raise ToolError("limit tiene que estar entre 1 y 8")
     state = await _ready_index()
     # Configuración elegida con `make rag-eval` (TONI-100): vectores solos daban el mejor
     # recall@3 (91 %, lo que ve el agente) frente a híbrido (77 %) y BM25 (64 %); el

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
+import { History } from "@/components/incident/history";
 import { Status, Steps } from "@/components/incident/progress";
+import { ShopHealth } from "@/components/incident/shop-health";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
 import { Terminal } from "@/components/incident/terminal";
 import { type AgentEvent, type Investigation, type Truth, initial, reduce } from "@/lib/incident";
@@ -49,6 +51,8 @@ export default function Home() {
   const [countdownTo, setCountdownTo] = useState<number | null>(null);
   // Una simulación que ya estaba activa al abrir la página (p. ej. de otra pestaña).
   const [leftover, setLeftover] = useState<string | null>(null);
+  // Mirando una investigación anterior (se reproduce, no se puede decidir).
+  const [readOnly, setReadOnly] = useState(false);
 
   useEffect(() => {
     fetch("/api/incidents/active")
@@ -87,16 +91,27 @@ export default function Home() {
   // La respuesta correcta se guarda en cuanto hay diagnóstico: después de resolver,
   // el injector ya no tiene un incidente activo para consultar.
   useEffect(() => {
-    if (investigation.diagnosis && !truth) {
+    if (investigation.diagnosis && !truth && !readOnly) {
       fetch("/api/incidents/active")
         .then((r) => (r.ok ? r.json() : null))
         .then(setTruth)
         .catch(() => {});
     }
-  }, [investigation.diagnosis, truth]);
+  }, [investigation.diagnosis, truth, readOnly]);
+
+  function openPast(id: string) {
+    clearTimeout(warmupTimer.current);
+    setCountdownTo(null);
+    setTruth(null);
+    setReadOnly(true);
+    setInvestigationId(id);
+    dispatch({ type: "investigating" });
+    listen(id); // el stream reenvía la historia completa
+  }
 
   async function simulate(scenario: string, dryRun: boolean) {
     dispatch({ type: "breaking" });
+    setReadOnly(false);
     setTruth(null);
     const response = await fetch("/api/incidents", {
       method: "POST",
@@ -149,7 +164,8 @@ export default function Home() {
   async function end() {
     clearTimeout(warmupTimer.current);
     setCountdownTo(null);
-    await fetch("/api/incidents/active/recover", { method: "POST" });
+    if (!readOnly) await fetch("/api/incidents/active/recover", { method: "POST" });
+    setReadOnly(false);
     setLeftover(null);
     source.current?.close();
     setInvestigationId(null);
@@ -161,41 +177,52 @@ export default function Home() {
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
   return (
-    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-4 p-4 md:p-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-foreground pb-4">
-        <div>
-          <h1 className="font-pixel text-4xl leading-none text-foreground md:text-5xl">IncidentPilot</h1>
-          <p className="mt-2 max-w-[60ch] text-xs text-muted-foreground">
+    <main className="mx-auto flex h-dvh w-full max-w-[1500px] flex-col gap-3 overflow-hidden p-3 md:p-4">
+      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
+        <div className="min-w-0">
+          <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
+          <p className="mt-1.5 max-w-[70ch] text-xs text-muted-foreground">
             Un agente investiga incidentes en una tienda de prueba, propone cómo arreglarlos y lo hace
             solo si vos lo aprobás.
           </p>
         </div>
-        <p className={`font-pixel text-2xl ${status.tone}`} aria-live="polite">
-          {status.text}
+        <p className={`font-pixel text-xl ${readOnly ? "text-muted-foreground" : status.tone}`} aria-live="polite">
+          {readOnly ? "Investigación anterior" : status.text}
         </p>
       </header>
 
-      {leftover && investigation.phase === "idle" && (
-        <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs">
-          <p className="text-foreground">
-            Hay una simulación activa desde las{" "}
-            {new Date(leftover).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}. Terminala
-            para simular otra.
-          </p>
-          <Button size="sm" variant="outline" onClick={end}>
-            Terminarla
-          </Button>
+      <div className="shrink-0 space-y-2">
+        <Steps phase={investigation.phase} />
+        {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
+        {leftover && investigation.phase === "idle" && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs">
+            <p className="text-foreground">
+              Hay una simulación activa desde las{" "}
+              {new Date(leftover).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}. Terminala
+              para simular otra.
+            </p>
+            <Button size="sm" variant="outline" onClick={end}>
+              Terminarla
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
+      <div className="grid min-h-0 flex-1 gap-3 max-lg:overflow-y-auto lg:grid-cols-[290px_minmax(0,1fr)_400px]">
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
+          <ShopHealth />
+          <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
         </div>
-      )}
-
-      <Steps phase={investigation.phase} />
-      {/* key: el reloj de cada fase arranca de cero */}
-      <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />
-
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_400px]">
-        <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
         <Terminal events={investigation.events} phase={investigation.phase} />
-        <DiagnosisPanel investigation={investigation} truth={truth} onDecide={decide} onEnd={end} />
+        <DiagnosisPanel
+          investigation={investigation}
+          truth={truth}
+          readOnly={readOnly}
+          onDecide={decide}
+          onEnd={end}
+        />
       </div>
     </main>
   );
