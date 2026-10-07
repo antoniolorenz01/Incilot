@@ -51,7 +51,10 @@ def reranker(top_n: int) -> FlashrankRerank:
 
 @functools.cache
 def _ranker():
+    import onnxruntime
     from flashrank import Ranker  # carga el modelo una sola vez por proceso
+
+    onnxruntime.set_default_logger_severity(3)  # solo errores
 
     return Ranker(model_name=config.RERANK_MODEL, cache_dir=config.RERANK_CACHE_DIR)
 

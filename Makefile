@@ -55,7 +55,13 @@ agent-tools:
 agent-api-check:
 	uv run python -m incilot_agent.apicheck
 
+# Examen del RAG: recall@k y MRR por configuración (BM25, vectores, híbrido, + reranker).
+rag-eval:
+	docker compose build -q agent-api
+	docker compose up -d --quiet-pull
+	docker compose run --rm agent python -m incilot_agent.rag.evaluate
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval company-repo

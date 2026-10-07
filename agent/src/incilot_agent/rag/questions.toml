@@ -1,0 +1,91 @@
+# Examen del RAG: preguntas como las que hace el agente en un incidente, con los
+# fragmentos correctos conocidos. Una pregunta acierta si recupera cualquiera de sus
+# `expected`. Los ids de fragmento son los `source` de corpus.py.
+
+[[questions]]
+query = "las consultas a products quedan esperando un lock y postgres loguea still waiting"
+expected = ["runbooks/locks-en-postgres.md"]
+
+[[questions]]
+query = "timeouts en todas las rutas de inventory sin errores de postgres, conexiones idle"
+expected = ["runbooks/pool-de-conexiones-agotado.md"]
+
+[[questions]]
+query = "la memoria de shop sube sin parar aunque el tráfico es estable"
+expected = ["runbooks/memoria-creciente.md"]
+
+[[questions]]
+query = "muchos pedidos fallan con payment_declined"
+expected = ["runbooks/rechazos-de-pago-y-429.md"]
+
+[[questions]]
+query = "payments responde 429 y los pedidos fallan con payments_unavailable"
+expected = ["runbooks/rechazos-de-pago-y-429.md", "config/payments.env"]
+
+[[questions]]
+query = "los cobros tardan y dan timeout pero no hubo cambios propios en payments"
+expected = ["runbooks/proveedor-externo-degradado.md"]
+
+[[questions]]
+query = "aumentan los out_of_stock aunque las ventas no crecieron"
+expected = ["runbooks/stock-que-no-se-recupera.md"]
+
+[[questions]]
+query = "el p95 de inventory subió a 900 ms"
+expected = ["runbooks/latencia-alta.md"]
+
+[[questions]]
+query = "tasa de errores 500 con un traceback KeyError en users"
+expected = ["runbooks/tasa-de-errores.md"]
+
+[[questions]]
+query = "redis no responde, connection refused desde users y shop"
+expected = ["runbooks/dependencia-caida.md"]
+
+[[questions]]
+query = "dónde se libera la reserva de stock cuando se rechaza un cobro"
+expected = ["services/shop/handlers.py::create_order"]
+
+[[questions]]
+query = "código que descuenta el stock al reservar un producto"
+expected = ["services/inventory/handlers.py::reserve"]
+
+[[questions]]
+query = "cómo se repone el stock automáticamente"
+expected = ["services/inventory/handlers.py::restock", "docs/services/inventory.md#Reposición de stock"]
+
+[[questions]]
+query = "consulta SQL que devuelve el catálogo de productos"
+expected = ["services/inventory/handlers.py::list_products"]
+
+[[questions]]
+query = "caché de perfiles de usuario en redis y su TTL"
+expected = ["services/users/handlers.py::get_user", "config/users.env"]
+
+[[questions]]
+query = "qué hace shop cuando una dependencia responde 429 o un error 5xx"
+expected = ["services/shop/handlers.py::call"]
+
+[[questions]]
+query = "timeout de shop hacia los servicios internos UPSTREAM_TIMEOUT_SECONDS"
+expected = ["config/shop.env"]
+
+[[questions]]
+query = "tamaño del pool de conexiones a la base de inventory"
+expected = ["config/inventory.env"]
+
+[[questions]]
+query = "URL del proveedor de pagos y límite de requests por segundo"
+expected = ["config/payments.env"]
+
+[[questions]]
+query = "qué pasa si se cobra dos veces el mismo pedido"
+expected = ["services/payments/handlers.py::charge"]
+
+[[questions]]
+query = "qué métricas exponen los servicios y cómo calcular la latencia p95"
+expected = ["docs/observability.md#Métricas"]
+
+[[questions]]
+query = "flujo de un pedido paso a paso entre los servicios"
+expected = ["docs/architecture.md#Flujo de un pedido"]
