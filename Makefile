@@ -64,6 +64,7 @@ rag-eval:
 # Evals: corre el catálogo y corrige al agente contra el ground truth (gasta tokens).
 # make eval ARGS="--split dev --limit 5"
 eval:
+	docker compose build -q agent-api
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.run $(ARGS)
 

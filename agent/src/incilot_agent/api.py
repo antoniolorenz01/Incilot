@@ -42,7 +42,13 @@ class ApprovalRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(_):
     global redis
-    redis = Redis.from_url(config.AGENT_REDIS_URL, decode_responses=True)
+    # El timeout de lectura (5 s por defecto) tiene que superar la espera del XREAD del
+    # streaming: si no, se corta en cuanto el LLM tarda más de 5 s entre pasos.
+    redis = Redis.from_url(
+        config.AGENT_REDIS_URL,
+        decode_responses=True,
+        socket_timeout=SSE_KEEPALIVE_MS / 1000 + 10,
+    )
     yield
     await redis.aclose()
 

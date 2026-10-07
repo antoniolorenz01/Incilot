@@ -56,26 +56,34 @@ def variants(scenario_ids: list[str] | None, split: str) -> list[dict]:
 
 
 def investigate(client: httpx.Client) -> dict:
-    """Lanza una investigación y sigue sus eventos hasta el diagnóstico."""
+    """Lanza una investigación y sigue sus eventos hasta el diagnóstico.
+
+    Si el streaming se corta, se reconecta: la API reenvía la historia desde el principio.
+    """
     investigation_id = client.post("/investigations", json={"alert": ALERT}).json()["id"]
     result = {"id": investigation_id, "rounds": 0, "diagnosis": None, "error": None}
     url = f"/investigations/{investigation_id}/events"
-    with client.stream("GET", url, timeout=INVESTIGATION_TIMEOUT) as response:
-        for line in response.iter_lines():
-            if not line.startswith("data: "):
-                continue
-            event = json.loads(line.removeprefix("data: "))
-            if event["type"] == "tool_call":
-                result["rounds"] = max(result["rounds"], event["round"])
-            elif event["type"] == "diagnosis":
-                result |= {"diagnosis": event["diagnosis"], "tokens": event["tokens"],
-                           "stop_reason": event["stop_reason"]}  # fmt: skip
-            elif event["type"] == "error":
-                result["error"] = event["error"]
-                break
-            elif event["type"] == "awaiting_approval":
-                break
-    return result
+    deadline = time.monotonic() + INVESTIGATION_TIMEOUT
+    while time.monotonic() < deadline:
+        try:
+            with client.stream("GET", url, timeout=INVESTIGATION_TIMEOUT) as response:
+                for line in response.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    event = json.loads(line.removeprefix("data: "))
+                    if event["type"] == "tool_call":
+                        result["rounds"] = max(result["rounds"], event["round"])
+                    elif event["type"] == "diagnosis":
+                        result |= {"diagnosis": event["diagnosis"], "tokens": event["tokens"],
+                                   "stop_reason": event["stop_reason"]}  # fmt: skip
+                    elif event["type"] == "error":
+                        return result | {"error": event["error"]}
+                    elif event["type"] == "awaiting_approval":
+                        return result
+        except httpx.TransportError as exc:
+            print(f"      (streaming cortado: {type(exc).__name__}; reconectando)", flush=True)
+            time.sleep(2)
+    return result | {"error": "timeout esperando el diagnóstico"}
 
 
 def run_one(item: dict, warmup: int, cooldown: int) -> dict:
