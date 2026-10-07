@@ -69,7 +69,7 @@ export function ShopHealth() {
           <div key={m.key} className="flex flex-1 flex-col border-t border-border pt-2">
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="text-muted-foreground">{m.label}</span>
-              <span className="tabular-nums text-foreground">{format(m.current, m.unit)}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">{format(m.current, m.unit)}</span>
             </div>
             <div className="my-1 grid min-h-10 flex-1 text-foreground/70">
               <Sparkline values={m.values} label={m.label} />
