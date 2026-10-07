@@ -17,7 +17,7 @@ const REFRESH_MS = 10_000;
 /** Línea de 2 px con los últimos 15 minutos. Una sola serie: sin leyenda. Se estira
  * al alto disponible para que la columna llene la pantalla como las demás. */
 function Sparkline({ values, label }: { values: number[]; label: string }) {
-  if (values.length < 2) return <div className="h-6" />;
+  if (values.length < 2) return <div className="h-10" />;
   const width = 120;
   const height = 32;
   const max = Math.max(...values, 1e-9);
@@ -61,17 +61,17 @@ export function ShopHealth() {
   }, []);
 
   return (
-    <section aria-label="Salud de la tienda" className="flex min-h-0 flex-1 flex-col border-2 border-foreground p-4">
+    <section aria-label="Salud de la tienda" className="flex flex-1 flex-col border-2 border-foreground p-4">
       <h2 className="text-sm text-foreground">Salud de la tienda</h2>
       <p className="mt-1 text-xs text-muted-foreground">Lo que notan los clientes, en vivo.</p>
-      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3">
+      <div className="mt-2 flex flex-1 flex-col gap-3">
         {metrics.map((m) => (
-          <div key={m.key} className="flex min-h-0 flex-1 flex-col border-t border-border pt-2">
+          <div key={m.key} className="flex flex-1 flex-col border-t border-border pt-2">
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="text-muted-foreground">{m.label}</span>
               <span className="tabular-nums text-foreground">{format(m.current, m.unit)}</span>
             </div>
-            <div className="my-1 grid min-h-6 flex-1 text-foreground/70">
+            <div className="my-1 grid min-h-10 flex-1 text-foreground/70">
               <Sparkline values={m.values} label={m.label} />
             </div>
             {m.healthy !== null && (

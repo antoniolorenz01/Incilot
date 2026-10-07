@@ -212,7 +212,9 @@ export default function Home() {
       {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
       {/* Una columna por paso: romper, investigar, decidir, resultado. */}
       <div className={`grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}>
-        <div className="flex min-h-0 flex-col gap-3">
+        {/* Si el alto no alcanza (p. ej. con el aviso de «Rompiendo la tienda»), la
+            columna scrollea en vez de aplastar los gráficos. */}
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
           <ShopHealth />
         </div>
