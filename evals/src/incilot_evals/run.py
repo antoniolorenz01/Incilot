@@ -50,9 +50,9 @@ def variants(scenario_ids: list[str] | None, split: str) -> list[dict]:
     catalog = httpx.get(f"{INJECTOR}/scenarios", timeout=10).json()
     return [
         {"scenario": scenario, "variant": v["variant"], "split": v["split"]}
-        for scenario, items in sorted(catalog.items())
+        for scenario, spec in sorted(catalog.items())
         if not scenario_ids or scenario in scenario_ids
-        for v in items
+        for v in spec["variants"]
         if split == "all" or v["split"] == split
     ]
 

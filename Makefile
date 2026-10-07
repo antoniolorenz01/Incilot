@@ -68,7 +68,11 @@ eval:
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.run $(ARGS)
 
+# Interfaz web (Next.js) en http://localhost:3001, contra el entorno de `make up`.
+web:
+	cd web && npm run dev
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval web company-repo

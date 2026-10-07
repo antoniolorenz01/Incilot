@@ -63,7 +63,13 @@ async def execute(request: ActionRequest, x_ops_token: str | None = Header(defau
 @app.get("/scenarios")
 async def list_scenarios():
     return {
-        scenario_id: [{"variant": v.id, "service": v.service, "split": v.split} for v in variants]
+        scenario_id: {
+            "title": variants[0].title,
+            "category": variants[0].category,
+            "variants": [
+                {"variant": v.id, "service": v.service, "split": v.split} for v in variants
+            ],
+        }
         for scenario_id, variants in scenarios.load(DATA).items()
     }
 

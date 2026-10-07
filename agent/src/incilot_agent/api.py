@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from redis.asyncio import Redis
@@ -88,12 +88,14 @@ async def get(investigation_id: str):
 
 
 @app.get("/investigations/{investigation_id}/events")
-async def events(investigation_id: str):
+async def events(investigation_id: str, last_event_id: str | None = Header(default=None)):
     await _meta(investigation_id)
     stream = jobs.events_key(investigation_id)
 
     async def sse():
-        last_id = "0"  # desde el principio: quien se conecta tarde ve la historia
+        # Desde el principio (quien se conecta tarde ve la historia) o, si el navegador se
+        # reconecta, desde el último evento que ya recibió (estándar SSE: Last-Event-ID).
+        last_id = last_event_id or "0"
         while True:
             result = await redis.xread({stream: last_id}, block=SSE_KEEPALIVE_MS, count=100)
             if not result:
