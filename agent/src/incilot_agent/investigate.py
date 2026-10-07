@@ -30,7 +30,7 @@ CHECKS = {
     "list_commits": {"since_minutes": 60 * 24 * 7, "limit": 3},
     "show_commit": {"sha": "HEAD"},
     "read_file": {"path": "config/shop.env"},
-    "search_runbooks": {"query": "latencia", "limit": 1},
+    "search_knowledge": {"query": "latencia alta en inventory", "limit": 1},
     "query_database": {"database": "inventory", "sql": "SELECT count(*) FROM pg_stat_activity"},
 }
 

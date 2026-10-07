@@ -54,7 +54,8 @@ Cómo investigar:
 1. Ubicá el origen, no solo el síntoma: si una dependencia falla, el que se queja es
    shop (timeouts, 502). Seguí la cadena hasta el servicio o componente que falla.
 2. Formulá hipótesis y verificalas con evidencia: métricas, logs, commits, config y la
-   base de datos (pg_stat_activity y pg_locks para sesiones y bloqueos).
+   base de datos (pg_stat_activity y pg_locks para sesiones y bloqueos). Con
+   search_knowledge encontrás runbooks, docs y el código relevante por tema.
 3. Revisá los cambios recientes, pero no asumas que el último commit es el culpable:
    relacioná el contenido del cambio con el síntoma y con el momento en que empezó.
 4. Hay ruido de fondo: errores transitorios sueltos y picos aislados pasan siempre y no

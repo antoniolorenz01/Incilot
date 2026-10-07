@@ -43,6 +43,12 @@ async def ensure_postgres_access(admin_url: str) -> None:
         await conn.execute(f"GRANT pg_read_all_stats TO {AGENT_USER}")
         if not await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", STATE_DATABASE):
             await conn.execute(f"CREATE DATABASE {STATE_DATABASE} OWNER {AGENT_USER}")
+    finally:
+        await conn.close()
+    # pgvector para el RAG del agente: crear la extensión requiere ser administrador.
+    conn = await asyncpg.connect(_url(admin_url, STATE_DATABASE))
+    try:
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         for db in FORBIDDEN_DATABASES:
             await conn.execute(f"REVOKE ALL ON DATABASE {db} FROM PUBLIC, {AGENT_USER}")
     finally:

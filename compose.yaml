@@ -35,11 +35,13 @@ x-agent: &agent
     LOKI_URL: http://loki:3100
     COMPANY_REPO: /company-repo
     RUNBOOKS_DIR: /runbooks
+    DOCS_DIR: /docs
     POSTGRES_HOST: postgres
     AGENT_REDIS_URL: redis://agent:agent@redis:6379/3
   volumes:
     - company-repo:/company-repo:ro
     - ${INCILOT_DATA:-../incilot-data}/runbooks:/runbooks:ro
+    - ./docs:/docs:ro
   depends_on:
     postgres:
       condition: service_healthy
@@ -121,7 +123,8 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16-alpine
+    # Postgres 16 con pgvector: los embeddings del RAG del agente (base agent_state).
+    image: pgvector/pgvector:0.8.7-pg16
     restart: unless-stopped
     # Loguea las esperas por locks de más de 1 s (deadlock_timeout).
     command: postgres -c log_lock_waits=on

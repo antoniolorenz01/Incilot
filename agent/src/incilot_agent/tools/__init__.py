@@ -7,9 +7,9 @@ tamaño de respuesta y devuelven los errores como texto ("error: ...").
 
 from incilot_agent.tools.database import query_database
 from incilot_agent.tools.git import list_commits, read_file, show_commit
+from incilot_agent.tools.knowledge import search_knowledge
 from incilot_agent.tools.logs import search_logs
 from incilot_agent.tools.metrics import query_metrics
-from incilot_agent.tools.runbooks import search_runbooks
 
 READ_ONLY_TOOLS = [
     query_metrics,
@@ -17,7 +17,7 @@ READ_ONLY_TOOLS = [
     list_commits,
     show_commit,
     read_file,
-    search_runbooks,
+    search_knowledge,
     query_database,
 ]
 

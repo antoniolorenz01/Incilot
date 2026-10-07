@@ -15,7 +15,6 @@ from incilot_agent.tools import (
     query_metrics,
     read_file,
     search_logs,
-    search_runbooks,
     show_commit,
 )
 from incilot_agent.tools._guard import MAX_CHARS, ToolError, fit_to_budget, guarded
@@ -163,14 +162,6 @@ def test_git_tools_reject_unsafe_arguments(repo, call):
 # --- runbooks ------------------------------------------------------------------
 
 
-def test_search_runbooks_ranks_by_relevance(tmp_path, monkeypatch):
-    (tmp_path / "latencia-alta.md").write_text("# Latencia alta\nRevisar el p95 de la latencia.")
-    (tmp_path / "dependencia-caida.md").write_text("# Dependencia caída\nRedis o Postgres.")
-    monkeypatch.setattr(config, "RUNBOOKS_DIR", tmp_path)
-    assert run(search_runbooks("latencia inventory", limit=1)).startswith("[latencia-alta.md]")
-    assert "Disponibles" in run(search_runbooks("kubernetes"))
-
-
 # --- base de datos -------------------------------------------------------------
 
 
@@ -226,7 +217,7 @@ def test_tools_are_read_only():
         "list_commits",
         "show_commit",
         "read_file",
-        "search_runbooks",
+        "search_knowledge",
         "query_database",
     }
 

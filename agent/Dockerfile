@@ -17,4 +17,8 @@ RUN uv sync --frozen --no-dev --package incilot-agent --no-install-workspace
 COPY agent/src agent/src
 RUN uv sync --frozen --no-dev --package incilot-agent
 
+# Modelo del reranker (FlashRank, multilingüe), descargado al construir la imagen.
+ENV RERANK_CACHE_DIR=/opt/flashrank
+RUN python -c "from flashrank import Ranker; Ranker(model_name='ms-marco-MultiBERT-L-12', cache_dir='/opt/flashrank')"
+
 USER nobody
