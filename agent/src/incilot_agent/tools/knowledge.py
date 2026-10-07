@@ -4,6 +4,8 @@ Antes de buscar comprueba si el corpus cambió (el repo de la empresa cambia con
 deploy) y, si cambió, sincroniza el índice: solo se calculan embeddings de lo nuevo.
 """
 
+import os
+
 import asyncpg
 
 from incilot_agent import config
@@ -11,6 +13,7 @@ from incilot_agent.rag import corpus, index
 from incilot_agent.tools._guard import ToolError, guarded
 
 MAX_FRAGMENT = 1500
+SEARCH_MODE = os.getenv("KNOWLEDGE_SEARCH_MODE", "vector")  # vector, hybrid o bm25
 _state: dict = {"signature": None, "docs": [], "store": None}
 
 
@@ -36,14 +39,18 @@ async def _ready_index() -> dict:
 @guarded(timeout=90)  # la primera vez calcula los embeddings de todo el corpus
 async def search_knowledge(query: str, limit: int = 3) -> str:
     """Busca en runbooks, docs de los servicios y el código y la config de la empresa
-    (por palabras y por significado). Devuelve los fragmentos más relevantes con su origen:
+    por significado. Devuelve los fragmentos más relevantes con su origen:
     p. ej. un runbook, una sección de doc o una función como
     services/inventory/handlers.py::list_products."""
     if not 1 <= limit <= 5:
         raise ToolError("limit tiene que estar entre 1 y 5")
     state = await _ready_index()
-    # Sin reranker: en rag-eval empeoraba recall y MRR y era 10x más lento (TONI-100).
-    retriever = index.build_retriever(state["docs"], state["store"], top_n=limit, rerank=False)
+    # Configuración elegida con `make rag-eval` (TONI-100): vectores solos daban el mejor
+    # recall@3 (91 %, lo que ve el agente) frente a híbrido (77 %) y BM25 (64 %); el
+    # reranker empeoraba recall y MRR y era ~10x más lento.
+    retriever = index.build_retriever(
+        state["docs"], state["store"], top_n=limit, rerank=False, mode=SEARCH_MODE
+    )
     results = await retriever.ainvoke(query)
     if not results:
         return f"nada relevante para {query!r}"
