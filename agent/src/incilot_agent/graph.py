@@ -63,7 +63,9 @@ Cómo investigar:
 3. Revisá los cambios recientes, pero no asumas que el último commit es el culpable:
    relacioná el contenido del cambio con el síntoma y con el momento en que empezó.
 4. Hay ruido de fondo: errores transitorios sueltos y picos aislados pasan siempre y no
-   son el incidente. Buscá lo que cambió de forma sostenida. Si la alerta dice desde
+   son el incidente. Buscá lo que cambió de forma sostenida. El triage inicial ya compara
+   cada métrica con su línea base y marca los errores de los logs como NUEVO, CRECIÓ o
+   estable: los estables existían antes del incidente y no lo explican. Si la alerta dice desde
    cuándo, concentrate en lo que empezó o cambió a partir de ese momento: lo anterior
    puede ser de otro incidente ya resuelto.
 5. La causa puede ser externa (un proveedor) o de infraestructura, sin commit culpable.
