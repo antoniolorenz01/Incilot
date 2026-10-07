@@ -177,7 +177,7 @@ export default function Home() {
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-[1920px] flex-col gap-3 overflow-hidden p-3 md:p-4">
+    <main className="mx-auto flex h-dvh w-full max-w-[1500px] flex-col gap-3 overflow-hidden p-3 md:p-4">
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
         <div className="min-w-0">
           <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
@@ -209,30 +209,21 @@ export default function Home() {
       </div>
 
       {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
-      {/* Las zonas se ubican en globals.css (.incident-grid): en pantallas anchas el
-          historial pasa a su propia columna. */}
-      <div className="incident-grid max-lg:overflow-y-auto">
-        <div className="area area-sim">
+      <div className="grid min-h-0 flex-1 gap-3 max-lg:overflow-y-auto lg:grid-cols-[290px_minmax(0,1fr)_400px]">
+        {/* Simular y la salud de la tienda, completos; el historial ocupa lo que sobra. */}
+        <div className="flex min-h-0 flex-col gap-3">
           <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
-        </div>
-        <div className="area area-health">
           <ShopHealth />
-        </div>
-        <div className="area area-term">
-          <Terminal events={investigation.events} phase={investigation.phase} />
-        </div>
-        <div className="area area-diag">
-          <DiagnosisPanel
-            investigation={investigation}
-            truth={truth}
-            readOnly={readOnly}
-            onDecide={decide}
-            onEnd={end}
-          />
-        </div>
-        <div className="area area-hist">
           <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
         </div>
+        <Terminal events={investigation.events} phase={investigation.phase} />
+        <DiagnosisPanel
+          investigation={investigation}
+          truth={truth}
+          readOnly={readOnly}
+          onDecide={decide}
+          onEnd={end}
+        />
       </div>
     </main>
   );
