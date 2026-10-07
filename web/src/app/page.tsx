@@ -34,6 +34,9 @@ export default function Home() {
     source.current?.close();
     const events = new EventSource(`/api/investigations/${id}/events`);
     events.onmessage = (message) => {
+      // Un evento `error` sin datos es el de EventSource (conexión caída), no el del
+      // agente: el navegador reintenta solo y retomamos desde el último evento.
+      if (!message.data) return;
       const event = JSON.parse(message.data) as AgentEvent;
       dispatch({ type: "event", event });
       if (event.type === "done" || event.type === "error") events.close();

@@ -1,7 +1,5 @@
 import { agent } from "@/lib/backend";
 
-export const dynamic = "force-dynamic";
-
 /** Reenvía en vivo los eventos (SSE) de la investigación. */
 export async function GET(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
