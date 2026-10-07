@@ -3,6 +3,8 @@
 python -m incilot_agent.investigate ["descripción de la alerta"]   # nueva
 python -m incilot_agent.investigate --resume ID     # retoma desde el último paso
 python -m incilot_agent.investigate --approve ID    # aprueba la acción propuesta
+python -m incilot_agent.investigate --approve ID --target SHA [--kind K] [--note N]
+                                                   # aprueba corrigiendo la acción
 python -m incilot_agent.investigate --reject ID     # la rechaza
 python -m incilot_agent.investigate --check-tools   # prueba cada herramienta una vez
 python -m incilot_agent.investigate --selftest      # estado duradero, sin LLM
@@ -97,6 +99,9 @@ def main() -> None:
     group.add_argument("--reject", metavar="ID")
     group.add_argument("--check-tools", action="store_true")
     group.add_argument("--selftest", action="store_true")
+    parser.add_argument("--kind", help="al aprobar: corregir el tipo de acción")
+    parser.add_argument("--target", help="al aprobar: corregir el objetivo (commit, servicio…)")
+    parser.add_argument("--note", default="", help="al aprobar o rechazar: comentario")
     parser.add_argument("alert", nargs="*", help="descripción de la alerta")
     args = parser.parse_args()
 
@@ -108,7 +113,13 @@ def main() -> None:
         print(f"Retomando la investigación {args.resume}")
         asyncio.run(run(None, args.resume))
     elif args.approve or args.reject:
-        decision = {"approved": bool(args.approve), "by": os.getenv("USER", "guardia"), "note": ""}
+        override = {k: v for k, v in {"kind": args.kind, "target": args.target}.items() if v}
+        decision = {
+            "approved": bool(args.approve),
+            "by": os.getenv("USER", "guardia"),
+            "note": args.note,
+            "action": override or None,
+        }
         asyncio.run(run(Command(resume=decision), args.approve or args.reject))
     else:
         thread_id = uuid4().hex[:12]

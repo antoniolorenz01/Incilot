@@ -15,4 +15,7 @@ class Diagnosis(BaseModel):
     )
     evidence: list[str] = Field(description="Hechos concretos observados que lo demuestran")
     confidence: Literal["low", "medium", "high"]
+    plan: list[str] = Field(
+        description="Pasos para resolver el incidente y verificar que se resolvió"
+    )
     action: ActionProposal

@@ -158,3 +158,26 @@ def test_investigation_events_sequence():
     ]
     decision = Command(resume={"approved": True, "by": "toni", "note": ""})
     assert asyncio.run(collect(app, decision)) == ["approval", "done"]
+
+
+def test_human_can_correct_the_action_when_approving():
+    checkpointer = InMemorySaver()
+    investigate(call("submit_diagnosis", DIAGNOSIS, "1"), checkpointer=checkpointer)
+    decision = {
+        "approved": True,
+        "by": "toni",
+        "note": "era otro commit",
+        "action": {"target": "def5678"},
+    }
+    done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
+    action = done["approved_action"]
+    assert action["kind"] == "rollback" and action["target"] == "def5678"
+    assert "corregida por un humano: era otro commit" in action["reason"]
+
+
+def test_rejected_investigation_has_no_action_to_execute():
+    checkpointer = InMemorySaver()
+    investigate(call("submit_diagnosis", DIAGNOSIS, "1"), checkpointer=checkpointer)
+    decision = {"approved": False, "by": "toni", "note": "no"}
+    done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
+    assert done["approved_action"] is None

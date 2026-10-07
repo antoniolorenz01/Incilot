@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from redis.asyncio import Redis
 
 from incilot_agent import config, jobs
+from incilot_agent.actions import ActionOverride
 from incilot_agent.events import TERMINAL
 
 DEFAULT_ALERT = "Se reportó una degradación en la tienda: hay quejas de clientes."
@@ -35,6 +36,7 @@ class InvestigationRequest(BaseModel):
 class ApprovalRequest(BaseModel):
     approved: bool
     note: str = ""
+    action: ActionOverride | None = None  # corregir la acción propuesta
 
 
 @asynccontextmanager
@@ -106,6 +108,11 @@ async def approve(investigation_id: str, request: ApprovalRequest):
     meta = await _meta(investigation_id)
     if meta.get("status") != "awaiting_approval":
         raise HTTPException(409, f"la investigación no espera aprobación ({meta.get('status')})")
-    decision = {"approved": request.approved, "by": "api", "note": request.note}
+    decision = {
+        "approved": request.approved,
+        "by": "api",
+        "note": request.note,
+        "action": request.action.model_dump(exclude_none=True) if request.action else None,
+    }
     await jobs.enqueue(redis, {"id": investigation_id, "kind": "decision", "decision": decision})
     return {"id": investigation_id, "status": "queued"}

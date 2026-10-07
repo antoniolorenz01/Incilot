@@ -30,6 +30,7 @@ from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 from pydantic import ValidationError
 
+from incilot_agent.actions import ActionOverride, ActionProposal
 from incilot_agent.diagnosis import Diagnosis
 from incilot_agent.llm import invoke_with_fallback, model_name
 from incilot_agent.tools import READ_ONLY_TOOLS
@@ -73,7 +74,8 @@ class State(TypedDict):
     tokens: int
     diagnosis: dict | None
     stop_reason: str | None
-    approval: dict | None  # {"approved": bool, "by": str, "note": str}
+    approval: dict | None  # {"approved": bool, "by": str, "note": str, "action": override}
+    approved_action: dict | None  # la acción a ejecutar (con la corrección humana, si hubo)
     llm_events: Annotated[list, operator.add]  # fallos del LLM y caídas al respaldo
 
 
@@ -173,7 +175,12 @@ def build(
     def approval(state: State) -> dict:
         # Se pausa acá; al retomar con Command(resume=decisión), interrupt la devuelve.
         decision = interrupt({"diagnosis": state["diagnosis"]})
-        return {"approval": decision}
+        if not decision["approved"]:
+            return {"approval": decision, "approved_action": None}
+        proposed = ActionProposal(**state["diagnosis"]["action"])
+        override = ActionOverride(**decision["action"]) if decision.get("action") else None
+        action = proposed.corrected(override, decision.get("note", ""))
+        return {"approval": decision, "approved_action": action.model_dump()}
 
     graph = StateGraph(State)
     graph.add_node("triage", triage)

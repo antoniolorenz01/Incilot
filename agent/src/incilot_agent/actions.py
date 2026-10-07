@@ -17,9 +17,23 @@ ActionKind = Literal[
 ]
 
 
+class ActionOverride(BaseModel):
+    """Corrección humana de la acción propuesta (p. ej. revertir otro commit)."""
+
+    kind: ActionKind | None = None
+    target: str | None = None
+
+
 class ActionProposal(BaseModel):
     kind: ActionKind
     target: str = Field(description="Servicio, commit (SHA) o sesión sobre la que actuar")
     reason: str = Field(description="Por qué esta acción resuelve la causa raíz")
     evidence: list[str] = Field(description="Hechos concretos que la justifican")
     requires_approval: Literal[True] = True
+
+    def corrected(self, override: ActionOverride | None, note: str = "") -> "ActionProposal":
+        if override is None or (override.kind is None and override.target is None):
+            return self
+        changes = override.model_dump(exclude_none=True)
+        reason = f"{self.reason} [corregida por un humano: {note or 'sin nota'}]"
+        return self.model_copy(update=changes | {"reason": reason})

@@ -11,6 +11,7 @@ DIAGNOSIS = {
     "culprit_commit": "abc1234",
     "evidence": ["p95 de inventory a 950 ms"],
     "confidence": "high",
+    "plan": ["revertir el commit", "verificar que el p95 de inventory vuelve a la normalidad"],
     "action": {
         "kind": "rollback",
         "target": "abc1234",
