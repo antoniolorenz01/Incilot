@@ -23,6 +23,7 @@ from typing import Annotated, TypedDict
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
@@ -37,6 +38,7 @@ from incilot_agent.llm import invoke_with_fallback, model_name
 from incilot_agent.tools import READ_ONLY_TOOLS
 from incilot_agent.tools._guard import fit_to_budget
 from incilot_agent.triage import overview
+from incilot_agent.verification import NullRecorder, NullVerifier
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "12"))
 MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", "150000"))
@@ -78,6 +80,7 @@ class State(TypedDict):
     approval: dict | None  # {"approved": bool, "by": str, "note": str, "action": override}
     approved_action: dict | None  # la acción a ejecutar (con la corrección humana, si hubo)
     execution: dict | None  # resultado del ejecutor
+    verification: dict | None  # ¿se recuperó la tienda? (recovered, checks)
     llm_events: Annotated[list, operator.add]  # fallos del LLM y caídas al respaldo
 
 
@@ -106,10 +109,15 @@ def build(
     checkpointer: BaseCheckpointSaver | None = None,
     *,
     executor: Executor | None = None,
+    verifier=None,
+    recorder=None,
 ):
-    """`llms`: un modelo, o varios en orden de preferencia (fallback). `executor`: quién
-    ejecuta la acción aprobada (por defecto, nadie: NoopExecutor)."""
+    """`llms`: un modelo, o varios en orden de preferencia (fallback). `executor`,
+    `verifier` y `recorder`: quién ejecuta la acción aprobada, cómo se verifica y dónde se
+    registra el incidente (por defecto, nada: para tests y dry_run)."""
     executor = executor or NoopExecutor()
+    verifier = verifier or NullVerifier()
+    recorder = recorder or NullRecorder()
     llms = llms if isinstance(llms, list) else [llms]
     agent_llms = [(model_name(m), m.bind_tools([*TOOLS.values(), SUBMIT_TOOL])) for m in llms]
     diagnosis_llms = [(model_name(m), m.with_structured_output(Diagnosis)) for m in llms]
@@ -194,8 +202,17 @@ def build(
         result = await executor.execute(ActionProposal(**state["approved_action"]))
         return {"execution": result.model_dump()}
 
+    async def verify(state: State) -> dict:
+        if state["execution"]["status"] != "executed":
+            return {"verification": {"recovered": False, "checks": [], "skipped": True}}
+        return {"verification": await verifier.verify()}
+
+    async def record(state: State, config: RunnableConfig) -> dict:
+        await recorder.record(config["configurable"]["thread_id"], state)
+        return {}
+
     def after_approval(state: State) -> str:
-        return "execute" if state.get("approved_action") else END
+        return "execute" if state.get("approved_action") else "record"
 
     graph = StateGraph(State)
     graph.add_node("triage", triage)
@@ -205,14 +222,18 @@ def build(
     graph.add_node("force_diagnosis", force_diagnosis)
     graph.add_node("approval", approval)
     graph.add_node("execute", execute)
+    graph.add_node("verify", verify)
+    graph.add_node("record", record)
     graph.add_edge(START, "triage")
     graph.add_edge("triage", "agent")
     graph.add_conditional_edges("agent", route, ["tools", "finish", "force_diagnosis"])
     graph.add_edge("tools", "agent")
     graph.add_edge("finish", "approval")
     graph.add_edge("force_diagnosis", "approval")
-    graph.add_conditional_edges("approval", after_approval, ["execute", END])
-    graph.add_edge("execute", END)
+    graph.add_conditional_edges("approval", after_approval, ["execute", "record"])
+    graph.add_edge("execute", "verify")
+    graph.add_edge("verify", "record")
+    graph.add_edge("record", END)
     return graph.compile(checkpointer=checkpointer)
 
 

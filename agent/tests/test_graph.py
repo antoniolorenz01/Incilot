@@ -157,7 +157,7 @@ def test_investigation_events_sequence():
         "awaiting_approval",
     ]
     decision = Command(resume={"approved": True, "by": "toni", "note": ""})
-    assert asyncio.run(collect(app, decision)) == ["approval", "execution", "done"]
+    assert asyncio.run(collect(app, decision)) == ["approval", "execution", "verification", "done"]
 
 
 def test_human_can_correct_the_action_when_approving():
@@ -212,3 +212,44 @@ def test_approved_action_is_executed_and_rejected_is_not():
         if approved:
             assert executor.actions[0].target == "def5678"
             assert done["execution"]["status"] == "executed"
+
+
+class FakeVerifier:
+    async def verify(self):
+        return {"recovered": True, "checks": [{"name": "x", "value": 0, "max": 1, "ok": True}]}
+
+
+class FakeRecorder:
+    def __init__(self):
+        self.records = {}
+
+    async def record(self, incident_id, state):
+        self.records[incident_id] = state
+
+
+def test_executed_action_is_verified_and_the_incident_recorded():
+    recorder, checkpointer = FakeRecorder(), InMemorySaver()
+    llm = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
+    app = graph.build(
+        llm, checkpointer, executor=RecordingExecutor(), verifier=FakeVerifier(), recorder=recorder
+    )
+    asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
+    decision = {"approved": True, "by": "toni", "note": ""}
+    done = asyncio.run(app.ainvoke(Command(resume=decision), THREAD))
+
+    assert done["verification"]["recovered"] is True
+    recorded = recorder.records["t1"]
+    assert recorded["diagnosis"]["service"] == "inventory"
+    assert recorded["approval"]["by"] == "toni"
+    assert recorded["execution"]["status"] == "executed"
+
+
+def test_rejected_incident_is_recorded_without_execution():
+    recorder, checkpointer = FakeRecorder(), InMemorySaver()
+    llm = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
+    app = graph.build(llm, checkpointer, executor=RecordingExecutor(), recorder=recorder)
+    asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
+    decision = {"approved": False, "by": "toni", "note": "no"}
+    asyncio.run(app.ainvoke(Command(resume=decision), THREAD))
+    assert recorder.records["t1"]["approval"]["approved"] is False
+    assert recorder.records["t1"].get("execution") is None

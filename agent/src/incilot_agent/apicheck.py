@@ -50,7 +50,10 @@ def main() -> bool:
         check("el worker usó una herramienta real", "tool_result" in seen),
         check("SSE transmitió el diagnóstico", "diagnosis" in seen),
         check("la investigación se pausó para aprobación", "awaiting_approval" in seen),
-        check("la aprobación quedó registrada y terminó", seen[-2:] == ["approval", "done"]),
+        check(
+            "aprobada → ejecución (dry_run: no ejecuta) → terminó",
+            seen[-4:] == ["approval", "execution", "verification", "done"],
+        ),
     ]
     final = client.get(f"/investigations/{investigation_id}").json()
     results.append(check("GET muestra el estado final", final.get("status") == "done"))

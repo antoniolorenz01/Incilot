@@ -18,6 +18,7 @@ from incilot_agent import config, graph, jobs
 from incilot_agent.events import investigation_events
 from incilot_agent.executor import NoopExecutor, default_executor
 from incilot_agent.llm import dry_run_models, openai_models
+from incilot_agent.verification import NullVerifier, PostgresRecorder, PrometheusVerifier
 
 log = logging.getLogger("agent.worker")
 BLPOP_SECONDS = 5
@@ -31,6 +32,8 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
         dry_run_models() if dry_run else openai_models(),
         checkpointer,
         executor=NoopExecutor() if dry_run else default_executor(),
+        verifier=NullVerifier() if dry_run else PrometheusVerifier(),
+        recorder=PostgresRecorder(),
     )
     run_config = {"configurable": {"thread_id": investigation_id}}
     graph_input = (

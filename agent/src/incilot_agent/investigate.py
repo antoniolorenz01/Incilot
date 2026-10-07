@@ -25,6 +25,7 @@ from incilot_agent.executor import default_executor
 from incilot_agent.llm import openai_models
 from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
+from incilot_agent.verification import PostgresRecorder, PrometheusVerifier
 
 DEFAULT_ALERT = "Se reportó una degradación en la tienda: hay quejas de clientes."
 CHECKS = {
@@ -75,6 +76,15 @@ def render(event: dict) -> str | None:
             return f"\nAcción {verdict} por {event['by']}"
         case "execution":
             return f"[ejecución] {event['status']} ({event['connector']}): {event['detail']}"
+        case "verification":
+            if event.get("skipped"):
+                return "[verificación] no se verificó: la acción no se ejecutó"
+            lines = [
+                f"  {'OK' if c['ok'] else '✗ '} {c['name']}: {c['value']} (máx {c['max']})"
+                for c in event["checks"]
+            ]
+            verdict = "RESUELTO" if event["recovered"] else "SIGUE EL PROBLEMA"
+            return f"[verificación] {verdict}\n" + "\n".join(lines)
     return None
 
 
@@ -82,7 +92,13 @@ async def run(graph_input, thread_id: str) -> None:
     run_config = {"configurable": {"thread_id": thread_id}}
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
-        app = graph.build(openai_models(), checkpointer, executor=default_executor())
+        app = graph.build(
+            openai_models(),
+            checkpointer,
+            executor=default_executor(),
+            verifier=PrometheusVerifier(),
+            recorder=PostgresRecorder(),
+        )
         if graph_input is None and not (await app.aget_state(run_config)).values:
             print(f"no existe la investigación {thread_id}")
             return

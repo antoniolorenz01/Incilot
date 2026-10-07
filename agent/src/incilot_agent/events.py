@@ -9,6 +9,7 @@ Tipos de evento:
     awaiting_approval la investigación se pausó esperando aprobación humana
     approval          decisión registrada (approved, by, note, action)
     execution         resultado de ejecutar la acción aprobada (status, detail, connector)
+    verification      ¿se recuperó la tienda? (recovered, checks)
     done              la investigación terminó
 """
 
@@ -25,7 +26,7 @@ async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[
 
     async for update in app.astream(graph_input, config, stream_mode="updates"):
         for node, change in update.items():
-            if node == "__interrupt__" or not change:
+            if node in ("__interrupt__", "record") or not change:
                 continue
             for event in change.get("llm_events", []):
                 yield {"type": "llm_fallback", **event}
@@ -57,6 +58,8 @@ async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[
                 yield {"type": "approval", **change["approval"]}
             elif node == "execute":
                 yield {"type": "execution", **change["execution"]}
+            elif node == "verify":
+                yield {"type": "verification", **change["verification"]}
 
     snapshot = await app.aget_state(config)
     if "approval" in snapshot.next:
