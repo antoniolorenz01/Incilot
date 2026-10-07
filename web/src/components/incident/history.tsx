@@ -31,12 +31,12 @@ export function History({ refreshKey, onOpen }: { refreshKey: string; onOpen: (i
   }, [refreshKey]);
 
   return (
-    <section aria-label="Investigaciones anteriores" className="border-2 border-foreground p-4">
-      <h2 className="text-sm text-foreground">Anteriores</h2>
+    <section aria-label="Investigaciones anteriores" className="flex min-h-[120px] flex-1 flex-col border-2 border-foreground p-4">
+      <h2 className="shrink-0 text-sm text-foreground">Anteriores</h2>
       {items.length === 0 ? (
         <p className="mt-1 text-xs text-muted-foreground">Las investigaciones que termines van a aparecer acá.</p>
       ) : (
-        <ul className="mt-2 flex flex-col">
+        <ul className="mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
           {items.map((p) => {
             const result = outcome(p);
             const action = p.executed ?? p.proposed;

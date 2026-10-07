@@ -16,7 +16,7 @@ const REFRESH_MS = 10_000;
 
 /** Línea de 2 px con los últimos 15 minutos. Una sola serie: sin leyenda. */
 function Sparkline({ values, label }: { values: number[]; label: string }) {
-  if (values.length < 2) return <div className="h-8" />;
+  if (values.length < 2) return <div className="h-6" />;
   const width = 120;
   const height = 32;
   const max = Math.max(...values, 1e-9);
@@ -24,7 +24,7 @@ function Sparkline({ values, label }: { values: number[]; label: string }) {
     .map((v, i) => `${(i / (values.length - 1)) * width},${height - 2 - (v / max) * (height - 4)}`)
     .join(" ");
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-8 w-full" role="img" aria-label={`${label}, últimos 15 minutos`}>
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-6 w-full" role="img" aria-label={`${label}, últimos 15 minutos`}>
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -56,10 +56,10 @@ export function ShopHealth() {
   }, []);
 
   return (
-    <section aria-label="Salud de la tienda" className="border-2 border-foreground p-4">
+    <section aria-label="Salud de la tienda" className="shrink-0 border-2 border-foreground p-4">
       <h2 className="text-sm text-foreground">Salud de la tienda</h2>
       <p className="mt-1 text-xs text-muted-foreground">Lo que notan los clientes, en vivo.</p>
-      <div className="mt-3 flex flex-col gap-3">
+      <div className="mt-2 flex flex-col gap-2">
         {metrics.map((m) => (
           <div key={m.key} className="border-t border-border pt-2">
             <div className="flex items-baseline justify-between gap-2 text-xs">

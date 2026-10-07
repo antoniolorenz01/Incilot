@@ -52,7 +52,7 @@ export function SimulatePanel({
   );
 
   return (
-    <section aria-label="Simular un incidente" className="flex flex-col gap-5 border-2 border-foreground p-4">
+    <section aria-label="Simular un incidente" className="flex shrink-0 flex-col gap-4 border-2 border-foreground p-4">
       <div>
         <h2 className="text-sm text-foreground">Simular un incidente</h2>
         <p className="mt-1 text-xs text-muted-foreground">

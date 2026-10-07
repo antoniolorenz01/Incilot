@@ -210,7 +210,8 @@ export default function Home() {
 
       {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
       <div className="grid min-h-0 flex-1 gap-3 max-lg:overflow-y-auto lg:grid-cols-[290px_minmax(0,1fr)_400px]">
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+        {/* Simular y la salud de la tienda, completos; el historial ocupa lo que sobra. */}
+        <div className="flex min-h-0 flex-col gap-3">
           <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
           <ShopHealth />
           <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
