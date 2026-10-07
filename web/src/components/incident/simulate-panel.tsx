@@ -61,10 +61,11 @@ export function SimulatePanel({
       <label className="flex flex-col gap-2 text-xs text-muted-foreground">
         Tipo de fallo
         <Select value={scenario} onValueChange={(value) => setScenario(value as string)}>
-          <SelectTrigger className="w-full" aria-label="Tipo de fallo">
-            <SelectValue placeholder="Elegí qué romper" />
+          <SelectTrigger className="w-full min-w-0" aria-label="Tipo de fallo">
+            <SelectValue placeholder="Elegí qué romper" className="truncate" />
           </SelectTrigger>
-          <SelectContent>
+          {/* Más ancho que el botón: los nombres de los fallos son largos. */}
+          <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(26rem,90vw)]">
             {Object.entries(byCategory).map(([category, items]) => (
               <SelectGroup key={category}>
                 <SelectLabel>{CATEGORIES[category] ?? category}</SelectLabel>
