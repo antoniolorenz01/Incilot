@@ -42,11 +42,13 @@ agent-access:
 # make investigate [ARGS="descripción de la alerta"]: el agente investiga lo que esté pasando.
 investigate:
 	docker compose build -q agent-api
+	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.investigate $(ARGS)
 
 # Corre cada herramienta del agente una vez desde su contenedor (incluida la base).
 agent-tools:
 	docker compose build -q agent-api
+	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.investigate --check-tools
 
 # Lanza una investigación dry_run por la API, la sigue por SSE y la aprueba (sin tokens).

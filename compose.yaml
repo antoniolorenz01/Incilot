@@ -122,6 +122,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     # Loguea las esperas por locks de más de 1 s (deadlock_timeout).
     command: postgres -c log_lock_waits=on
     environment:
@@ -140,6 +141,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     # Usuario del agente: solo lee las cachés (user:*, catalog), lee y escribe su cola y
     # sus eventos (investigation:*); no ve faults:*, no lista claves ni borra bases.
     command:
@@ -221,17 +223,20 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.2.1
+    restart: unless-stopped
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports: ["9090:9090"]
 
   loki:
     image: grafana/loki:3.4.2
+    restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
     ports: ["3100:3100"]
 
   alloy:
     image: grafana/alloy:v1.7.1
+    restart: unless-stopped
     command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
       - ./infra/alloy/config.alloy:/etc/alloy/config.alloy:ro
@@ -240,6 +245,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.5.2
+    restart: unless-stopped
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin

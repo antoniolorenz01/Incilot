@@ -12,12 +12,14 @@ import logging
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from incilot_agent import config, graph, jobs
 from incilot_agent.events import investigation_events
 from incilot_agent.llm import dry_run_models, openai_models
 
 log = logging.getLogger("agent.worker")
+BLPOP_SECONDS = 5
 
 
 async def handle(job: dict, checkpointer, redis: Redis) -> None:
@@ -51,12 +53,21 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    redis = Redis.from_url(config.AGENT_REDIS_URL, decode_responses=True)
+    # El timeout de lectura tiene que superar la espera de BLPOP: si no, el cliente corta
+    # antes de que Redis conteste "cola vacía".
+    redis = Redis.from_url(
+        config.AGENT_REDIS_URL, decode_responses=True, socket_timeout=BLPOP_SECONDS + 10
+    )
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
         log.info("esperando investigaciones en %s", jobs.QUEUE)
         while True:
-            item = await redis.blpop([jobs.QUEUE], timeout=5)
+            try:
+                item = await redis.blpop([jobs.QUEUE], timeout=BLPOP_SECONDS)
+            except RedisError as exc:  # Redis reiniciándose: esperar y seguir
+                log.warning("redis no disponible (%s); reintento en 2 s", exc)
+                await asyncio.sleep(2)
+                continue
             if item is None:
                 continue
             job = json.loads(item[1])
