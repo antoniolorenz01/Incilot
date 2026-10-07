@@ -25,9 +25,11 @@ const CATEGORIES: Record<string, string> = {
 export function SimulatePanel({
   busy,
   onSimulate,
+  onCancel,
 }: {
   busy: boolean;
   onSimulate: (scenario: string, dryRun: boolean) => void;
+  onCancel: () => void;
 }) {
   const [catalog, setCatalog] = useState<Catalog>({});
   const [scenario, setScenario] = useState<string | null>(null);
@@ -95,6 +97,11 @@ export function SimulatePanel({
       >
         {busy ? "Incidente en curso" : "Simular incidente"}
       </Button>
+      {busy && (
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancelar simulación
+        </Button>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>

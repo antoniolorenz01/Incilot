@@ -27,7 +27,21 @@ export type AgentEvent =
   | { type: "error"; error: string }
   | { type: "done" };
 
-export type Phase = "idle" | "investigating" | "awaiting_approval" | "executing" | "done" | "error";
+export type Phase =
+  | "idle"
+  | "breaking" // la tienda está rota; esperamos a que aparezcan los síntomas
+  | "investigating"
+  | "awaiting_approval"
+  | "executing"
+  | "done"
+  | "error";
+
+/** Los pasos que ve el usuario (la barra de progreso). */
+export const STEPS = ["Romper la tienda", "El agente investiga", "Vos decidís", "Resultado"] as const;
+
+export function stepOf(phase: Phase): number {
+  return { idle: -1, breaking: 0, investigating: 1, awaiting_approval: 2, executing: 3, done: 3, error: 1 }[phase];
+}
 
 export type Investigation = {
   phase: Phase;

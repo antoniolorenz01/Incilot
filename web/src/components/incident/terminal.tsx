@@ -11,6 +11,17 @@ const ACTIONS: Record<string, string> = {
   escalate: "escalar",
 };
 
+// Qué hace cada herramienta, en palabras de una persona.
+const TOOLS: Record<string, string> = {
+  query_metrics: "consulta métricas",
+  search_logs: "busca en los logs",
+  list_commits: "lista los cambios recientes",
+  show_commit: "revisa un cambio",
+  read_file: "lee un archivo",
+  search_knowledge: "busca en la documentación",
+  query_database: "consulta la base de datos",
+};
+
 function summarizeArgs(args: Record<string, unknown>) {
   return Object.entries(args)
     .filter(([, value]) => value !== null && value !== undefined && value !== "")
@@ -26,9 +37,9 @@ function Line({ event }: { event: AgentEvent }) {
     case "tool_call":
       return (
         <p className="mt-3 text-foreground">
-          <span className="text-muted-foreground">ronda {event.round} </span>
-          <span className="text-accent">{event.name}</span>
-          <span className="text-muted-foreground"> {summarizeArgs(event.args)}</span>
+          <span className="text-muted-foreground">paso {event.round} · </span>
+          <span className="text-accent">{TOOLS[event.name] ?? event.name}</span>
+          <span className="block truncate text-muted-foreground opacity-70">{summarizeArgs(event.args)}</span>
         </p>
       );
     case "tool_result": {
@@ -104,11 +115,18 @@ export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase
         className="dot-grid-bg min-h-[420px] flex-1 overflow-y-auto p-4 text-xs leading-relaxed"
         aria-live="polite"
       >
-        {events.length === 0 ? (
-          <p className="text-muted-foreground">
-            Elegí un tipo de fallo y simulá un incidente: acá vas a ver cómo lo investiga el agente,
-            paso a paso.
-          </p>
+        {events.length === 0 && phase === "idle" ? (
+          <div className="max-w-[60ch] space-y-3 text-muted-foreground">
+            <p className="text-foreground">Cómo funciona</p>
+            <ol className="list-decimal space-y-1.5 pl-4">
+              <li>Elegí un tipo de fallo y apretá «Simular incidente»: rompemos algo de verdad en una tienda de prueba.</li>
+              <li>El agente investiga solo, sin saber qué rompimos. Acá ves cada paso que da.</li>
+              <li>Te propone una solución. No hace nada hasta que vos la aprobás.</li>
+              <li>Si aprobás, la aplica y verifica que la tienda se recuperó. Al final podés ver si acertó.</li>
+            </ol>
+          </div>
+        ) : events.length === 0 ? (
+          <p className="text-muted-foreground">&gt; esperando el primer paso del agente…</p>
         ) : (
           events.map((event, i) => <Line key={i} event={event} />)
         )}
