@@ -61,7 +61,13 @@ rag-eval:
 	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.rag.evaluate
 
+# Evals: corre el catálogo y corrige al agente contra el ground truth (gasta tokens).
+# make eval ARGS="--split dev --limit 5"
+eval:
+	docker compose up -d --quiet-pull
+	uv run python -m incilot_evals.run $(ARGS)
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval company-repo

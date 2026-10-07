@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "incilot",
     "incilot-agent",
+    "incilot-evals",
     "incilot-sim",
 ]
 
@@ -797,6 +798,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "incilot-agent" },
+    { name = "incilot-evals" },
     { name = "incilot-sim" },
 ]
 
@@ -809,6 +811,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "incilot-agent", editable = "agent" },
+    { name = "incilot-evals", editable = "evals" },
     { name = "incilot-sim", editable = "sim" },
 ]
 
@@ -855,6 +858,21 @@ requires-dist = [
     { name = "rank-bm25", specifier = ">=0.2.2" },
     { name = "redis", specifier = ">=8.1.0" },
     { name = "uvicorn", specifier = ">=0.54.0" },
+]
+
+[[package]]
+name = "incilot-evals"
+version = "0.1.0"
+source = { editable = "evals" }
+dependencies = [
+    { name = "httpx" },
+    { name = "incilot-sim" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx" },
+    { name = "incilot-sim", editable = "sim" },
 ]
 
 [[package]]
