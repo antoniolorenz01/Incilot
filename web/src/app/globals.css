@@ -174,3 +174,41 @@
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Grilla principal. Cada zona es una grilla de una celda para que su panel la llene. */
+.incident-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  gap: 0.75rem;
+}
+.area {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+@media (min-width: 64rem) {
+  .incident-grid {
+    grid-template-columns: 290px minmax(0, 1fr) 380px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "sim term diag"
+      "health term diag"
+      "hist term diag";
+  }
+  .area-sim { grid-area: sim; }
+  .area-health { grid-area: health; }
+  .area-term { grid-area: term; }
+  .area-diag { grid-area: diag; }
+  .area-hist { grid-area: hist; }
+}
+/* Pantallas anchas: el historial en su propia columna, entero a la vista. */
+@media (min-width: 80rem) {
+  .incident-grid {
+    grid-template-columns: 290px minmax(0, 1fr) 380px 270px;
+    grid-template-areas:
+      "sim term diag hist"
+      "health term diag hist"
+      ". term diag hist";
+  }
+}
