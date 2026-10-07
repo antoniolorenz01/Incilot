@@ -38,6 +38,9 @@ x-agent: &agent
     DOCS_DIR: /docs
     POSTGRES_HOST: postgres
     AGENT_REDIS_URL: redis://agent:agent@redis:6379/3
+    # Ejecutor de acciones aprobadas: lo usa el nodo `execute` del grafo, nunca el LLM.
+    OPS_URL: http://injector:8000/ops/execute
+    OPS_TOKEN: ${OPS_TOKEN:-incilot-ops-dev}
   volumes:
     - company-repo:/company-repo:ro
     - ${INCILOT_DATA:-../incilot-data}/runbooks:/runbooks:ro
@@ -187,6 +190,7 @@ services:
       INJECTOR_DATA: /data
       COMPANY_REPO: /company-repo
       GROUNDTRUTH_DATABASE_URL: postgresql://incilot:incilot@postgres:5432/groundtruth
+      OPS_TOKEN: ${OPS_TOKEN:-incilot-ops-dev}
       FAULTS_REDIS_URL: redis://redis:6379/2
     volumes:
       - ${INCILOT_DATA:-../incilot-data}:/data:ro

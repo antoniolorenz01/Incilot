@@ -7,7 +7,8 @@ Tipos de evento:
     llm_fallback      un modelo falló y se pasó al siguiente (model, error, fallback_to)
     diagnosis         diagnóstico estructurado (diagnosis, stop_reason, tokens)
     awaiting_approval la investigación se pausó esperando aprobación humana
-    approval          decisión registrada (approved, by, note)
+    approval          decisión registrada (approved, by, note, action)
+    execution         resultado de ejecutar la acción aprobada (status, detail, connector)
     done              la investigación terminó
 """
 
@@ -54,6 +55,8 @@ async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[
                 }
             elif node == "approval":
                 yield {"type": "approval", **change["approval"]}
+            elif node == "execute":
+                yield {"type": "execution", **change["execution"]}
 
     snapshot = await app.aget_state(config)
     if "approval" in snapshot.next:

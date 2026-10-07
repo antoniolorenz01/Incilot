@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from redis.asyncio import Redis
 
@@ -20,6 +20,8 @@ from incilot_sim.injector.core import InjectionError, Injector, connect_groundtr
 
 DATA = Path(os.getenv("INJECTOR_DATA", "../incilot-data"))
 COMPANY_REPO = Path(os.getenv("COMPANY_REPO", "build/company-repo"))
+# Token del ejecutor de acciones aprobadas (lo tiene solo el worker del agente).
+OPS_TOKEN = os.getenv("OPS_TOKEN")
 
 injector: Injector
 
@@ -43,6 +45,19 @@ async def lifespan(_):
 
 
 app = FastAPI(title="injector", lifespan=lifespan)
+
+
+class ActionRequest(BaseModel):
+    kind: str
+    target: str
+
+
+@app.post("/ops/execute")
+async def execute(request: ActionRequest, x_ops_token: str | None = Header(default=None)):
+    """Ejecuta una acción aprobada por un humano. Solo con el token de operaciones."""
+    if not OPS_TOKEN or x_ops_token != OPS_TOKEN:
+        raise HTTPException(403, "token de operaciones inválido")
+    return await injector.execute_action(request.kind, request.target)
 
 
 @app.get("/scenarios")

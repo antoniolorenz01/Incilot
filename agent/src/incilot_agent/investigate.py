@@ -21,6 +21,7 @@ from langgraph.types import Command
 
 from incilot_agent import config, graph
 from incilot_agent.events import investigation_events
+from incilot_agent.executor import default_executor
 from incilot_agent.llm import openai_models
 from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
@@ -72,6 +73,8 @@ def render(event: dict) -> str | None:
         case "approval":
             verdict = "APROBADA" if event["approved"] else "RECHAZADA"
             return f"\nAcción {verdict} por {event['by']}"
+        case "execution":
+            return f"[ejecución] {event['status']} ({event['connector']}): {event['detail']}"
     return None
 
 
@@ -79,7 +82,7 @@ async def run(graph_input, thread_id: str) -> None:
     run_config = {"configurable": {"thread_id": thread_id}}
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
-        app = graph.build(openai_models(), checkpointer)
+        app = graph.build(openai_models(), checkpointer, executor=default_executor())
         if graph_input is None and not (await app.aget_state(run_config)).values:
             print(f"no existe la investigación {thread_id}")
             return

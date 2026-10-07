@@ -18,6 +18,7 @@ Hay como mucho una inyección activa a la vez, para que cada incidente tenga una
 import asyncio
 import json
 import random
+import re
 import socket
 from datetime import UTC, datetime
 from pathlib import Path
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS injections (
 );
 ALTER TABLE injections ADD COLUMN IF NOT EXISTS infra JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE injections ADD COLUMN IF NOT EXISTS decoy_shas TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE injections ADD COLUMN IF NOT EXISTS resolved_by TEXT;
 """
 # Quien hace el rollback en el repo de la empresa: la guardia de turno.
 ON_CALL = "Guardia SRE <sre@tienda.example>"
@@ -206,7 +208,7 @@ class Injector:
         )
         return _decode(row)
 
-    async def recover(self) -> dict:
+    async def recover(self, resolved_by: str = "manual") -> dict:
         current = await self.active()
         if current is None:
             raise InjectionError("no hay ninguna inyección activa")
@@ -224,9 +226,80 @@ class Injector:
         if current["culprit_sha"]:
             revert(self.repo, current["culprit_sha"], ON_CALL, datetime.now(UTC))
         row = await self.db.fetchrow(
-            "UPDATE injections SET recovered_at = now() WHERE id = $1 RETURNING *", current["id"]
+            "UPDATE injections SET recovered_at = now(), resolved_by = $2 "
+            "WHERE id = $1 RETURNING *",
+            current["id"],
+            resolved_by,
         )
         return _decode(row)
+
+    async def execute_action(self, kind: str, target: str) -> dict:
+        """Ejecuta una acción aprobada sobre la mini-empresa (el conector de simulación).
+
+        Si es la acción correcta para el incidente activo, lo resuelve. Si no, aplica el
+        efecto literal (revertir *ese* commit, reiniciar *ese* servicio) y el incidente
+        sigue. La respuesta es la misma en los dos casos: no le dice al agente si acertó.
+        """
+        current = await self.active()
+        if current and resolves(current, kind, target):
+            await self.recover(resolved_by="agent")
+            return {"status": "executed", "detail": EXECUTED[kind].format(target=target)}
+        try:
+            await self._literal_effect(kind, target)
+        except Exception as exc:
+            return {"status": "failed", "detail": f"{type(exc).__name__}: {exc}"[:300]}
+        return {"status": "executed", "detail": EXECUTED[kind].format(target=target)}
+
+    async def _literal_effect(self, kind: str, target: str) -> None:
+        if kind in ("rollback", "revert_config"):
+            if not SHA.match(target):
+                raise ValueError(f"commit inválido: {target}")
+            revert(self.repo, target, ON_CALL, datetime.now(UTC))
+        elif kind == "restart":
+            containers = compose_containers(self.docker, [target])
+            if not containers:
+                raise ValueError(f"servicio desconocido: {target}")
+            for container in containers:
+                container.restart()
+        elif kind == "terminate_session":
+            conn = await asyncpg.connect(with_database(self.postgres_url, "postgres"))
+            try:
+                pids = [int(p) for p in re.findall(r"\d+", target)]
+                await conn.fetch(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE pid = ANY($1::int[]) OR application_name = $2",
+                    pids,
+                    target,
+                )
+            finally:
+                await conn.close()
+        elif kind != "escalate":
+            raise ValueError(f"acción desconocida: {kind}")
+
+
+SHA = re.compile(r"^[0-9a-f]{7,40}$")
+EXECUTED = {
+    "rollback": "revert de {target} commiteado y desplegado",
+    "revert_config": "revert de la config de {target} commiteado y desplegado",
+    "restart": "{target} reiniciado",
+    "terminate_session": "sesión {target} terminada",
+    "escalate": "escalado al responsable externo ({target}); sin acción técnica",
+}
+REVERTS = {"rollback", "revert_config"}
+
+
+def resolves(injection: dict, kind: str, target: str) -> bool:
+    """¿La acción resuelve el incidente activo? (rollback y revert_config son equivalentes)."""
+    expected = injection["action"]
+    if kind != expected and not (kind in REVERTS and expected in REVERTS):
+        return False
+    target = target.strip().lower()
+    if kind in REVERTS:
+        culprit = injection["culprit_sha"] or ""
+        return len(target) >= 7 and culprit.startswith(target)
+    if kind == "restart":
+        return injection["service"] in target
+    return True  # terminate_session y escalate: con el tipo correcto alcanza
 
 
 def _decode(row: asyncpg.Record | None) -> dict | None:

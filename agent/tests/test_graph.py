@@ -157,7 +157,7 @@ def test_investigation_events_sequence():
         "awaiting_approval",
     ]
     decision = Command(resume={"approved": True, "by": "toni", "note": ""})
-    assert asyncio.run(collect(app, decision)) == ["approval", "done"]
+    assert asyncio.run(collect(app, decision)) == ["approval", "execution", "done"]
 
 
 def test_human_can_correct_the_action_when_approving():
@@ -181,3 +181,34 @@ def test_rejected_investigation_has_no_action_to_execute():
     decision = {"approved": False, "by": "toni", "note": "no"}
     done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
     assert done["approved_action"] is None
+
+
+class RecordingExecutor:
+    name = "fake"
+
+    def __init__(self):
+        self.actions = []
+
+    async def execute(self, action):
+        from incilot_agent.executor import ExecutionResult
+
+        self.actions.append(action)
+        return ExecutionResult(status="executed", detail="ok", connector=self.name)
+
+
+def test_approved_action_is_executed_and_rejected_is_not():
+    from incilot_agent import graph as g
+
+    for approved, expected_calls in ((True, 1), (False, 0)):
+        executor, checkpointer = RecordingExecutor(), InMemorySaver()
+        llm = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
+        app = g.build(llm, checkpointer, executor=executor)
+        asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
+        assert executor.actions == []  # nada se ejecuta antes de la aprobación
+
+        decision = {"approved": approved, "by": "toni", "note": "", "action": {"target": "def5678"}}
+        done = asyncio.run(app.ainvoke(Command(resume=decision), THREAD))
+        assert len(executor.actions) == expected_calls
+        if approved:
+            assert executor.actions[0].target == "def5678"
+            assert done["execution"]["status"] == "executed"

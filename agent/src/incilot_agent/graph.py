@@ -32,6 +32,7 @@ from pydantic import ValidationError
 
 from incilot_agent.actions import ActionOverride, ActionProposal
 from incilot_agent.diagnosis import Diagnosis
+from incilot_agent.executor import Executor, NoopExecutor
 from incilot_agent.llm import invoke_with_fallback, model_name
 from incilot_agent.tools import READ_ONLY_TOOLS
 from incilot_agent.tools._guard import fit_to_budget
@@ -76,6 +77,7 @@ class State(TypedDict):
     stop_reason: str | None
     approval: dict | None  # {"approved": bool, "by": str, "note": str, "action": override}
     approved_action: dict | None  # la acción a ejecutar (con la corrección humana, si hubo)
+    execution: dict | None  # resultado del ejecutor
     llm_events: Annotated[list, operator.add]  # fallos del LLM y caídas al respaldo
 
 
@@ -100,9 +102,14 @@ SUBMIT_TOOL = StructuredTool.from_function(
 
 
 def build(
-    llms: BaseChatModel | list[BaseChatModel], checkpointer: BaseCheckpointSaver | None = None
+    llms: BaseChatModel | list[BaseChatModel],
+    checkpointer: BaseCheckpointSaver | None = None,
+    *,
+    executor: Executor | None = None,
 ):
-    """`llms`: un modelo, o varios en orden de preferencia (fallback)."""
+    """`llms`: un modelo, o varios en orden de preferencia (fallback). `executor`: quién
+    ejecuta la acción aprobada (por defecto, nadie: NoopExecutor)."""
+    executor = executor or NoopExecutor()
     llms = llms if isinstance(llms, list) else [llms]
     agent_llms = [(model_name(m), m.bind_tools([*TOOLS.values(), SUBMIT_TOOL])) for m in llms]
     diagnosis_llms = [(model_name(m), m.with_structured_output(Diagnosis)) for m in llms]
@@ -182,6 +189,14 @@ def build(
         action = proposed.corrected(override, decision.get("note", ""))
         return {"approval": decision, "approved_action": action.model_dump()}
 
+    async def execute(state: State) -> dict:
+        # Solo se llega acá con una acción aprobada por un humano.
+        result = await executor.execute(ActionProposal(**state["approved_action"]))
+        return {"execution": result.model_dump()}
+
+    def after_approval(state: State) -> str:
+        return "execute" if state.get("approved_action") else END
+
     graph = StateGraph(State)
     graph.add_node("triage", triage)
     graph.add_node("agent", agent)
@@ -189,13 +204,15 @@ def build(
     graph.add_node("finish", finish)
     graph.add_node("force_diagnosis", force_diagnosis)
     graph.add_node("approval", approval)
+    graph.add_node("execute", execute)
     graph.add_edge(START, "triage")
     graph.add_edge("triage", "agent")
     graph.add_conditional_edges("agent", route, ["tools", "finish", "force_diagnosis"])
     graph.add_edge("tools", "agent")
     graph.add_edge("finish", "approval")
     graph.add_edge("force_diagnosis", "approval")
-    graph.add_edge("approval", END)
+    graph.add_conditional_edges("approval", after_approval, ["execute", END])
+    graph.add_edge("execute", END)
     return graph.compile(checkpointer=checkpointer)
 
 

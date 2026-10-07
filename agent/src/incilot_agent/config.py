@@ -22,6 +22,9 @@ AGENT_STATE_URL = os.getenv(
 # Redis del agente (usuario `agent`, db 3): cola de trabajos y eventos de cada
 # investigación. Solo puede escribir claves `investigation:*`.
 AGENT_REDIS_URL = os.getenv("AGENT_REDIS_URL", "redis://agent:agent@redis:6379/3")
+# Ejecutor de acciones aprobadas (conector de simulación): servicio de operaciones.
+OPS_URL = os.getenv("OPS_URL")
+OPS_TOKEN = os.getenv("OPS_TOKEN")
 # RAG: modelo de embeddings (OpenAI) y dimensión de sus vectores.
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
