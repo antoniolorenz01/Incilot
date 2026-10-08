@@ -1,0 +1,21 @@
+{
+  // GitHub Codespaces: the whole environment, ready for `make up` and `make web`.
+  "name": "IncidentPilot",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" }
+  },
+  // The shop, the agent and observability run about 15 containers.
+  "hostRequirements": { "cpus": 4, "memory": "16gb" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [3001],
+  "portsAttributes": {
+    "3001": { "label": "IncidentPilot", "onAutoForward": "openBrowser" }
+  },
+  "secrets": {
+    "OPENAI_API_KEY": {
+      "description": "Optional. For real investigations; dry runs need no key."
+    }
+  }
+}
