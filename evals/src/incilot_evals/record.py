@@ -72,9 +72,12 @@ def record(injector: httpx.Client, agent: httpx.Client, scenario: str, variant: 
         started.raise_for_status()
         investigation_id = started.json()["id"]
         events: list[dict] = []
-        if follow(agent, investigation_id, events, "awaiting_approval")["type"] == "error":
-            print(f"      failed: {events[-1].get('error')}")
-            return None
+        reached = follow(agent, investigation_id, events, "awaiting_approval")
+        if not reached or reached["type"] == "error":
+            # The agent itself failed (no model, no bridge…): the next ones would too.
+            error = reached.get("error") if reached else "timed out"
+            hint = " (is `make claude-bridge` running?)" if "Connect" in str(error) else ""
+            raise SystemExit(f"the agent failed: {error}{hint}")
         truth = {k: v for k, v in injector.get("/injections/active").json().items() if k in TRUTH}
         agent.post(
             f"/investigations/{investigation_id}/approval",
