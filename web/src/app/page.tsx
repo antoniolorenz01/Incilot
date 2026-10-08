@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
 import { History } from "@/components/incident/history";
 import { Architecture } from "@/components/incident/architecture";
-import { TechMode } from "@/components/incident/explain";
+import { Explain, TechMode } from "@/components/incident/explain";
 import { COLUMNS, Status, Steps } from "@/components/incident/progress";
 import { Switch } from "@/components/ui/switch";
 import { FOCUS } from "@/lib/explain";
@@ -213,6 +213,7 @@ export default function Home() {
               <Switch checked={tech} onCheckedChange={setTech} />
               Modo técnico
             </label>
+            <Explain topic="tech" />
           </div>
         </header>
 

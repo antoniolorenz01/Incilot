@@ -26,13 +26,15 @@ export function Explain({ topic, className = "" }: { topic: TopicId; className?:
       <PopoverContent className="w-80 rounded-none border-2 border-foreground bg-card text-xs shadow-none ring-0">
         <PopoverTitle className="text-sm text-foreground">{title}</PopoverTitle>
         <PopoverDescription className="leading-relaxed">{body}</PopoverDescription>
-        <ul className="flex flex-wrap gap-1.5 border-t border-border pt-2.5" aria-label="Herramientas">
-          {stack.map((item) => (
-            <li key={item} className="border border-accent px-1.5 py-0.5 text-[11px] text-accent">
-              {item}
-            </li>
-          ))}
-        </ul>
+        {stack.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5 border-t border-border pt-2.5" aria-label="Herramientas">
+            {stack.map((item) => (
+              <li key={item} className="border border-accent px-1.5 py-0.5 text-[11px] text-accent">
+                {item}
+              </li>
+            ))}
+          </ul>
+        )}
       </PopoverContent>
     </Popover>
   );

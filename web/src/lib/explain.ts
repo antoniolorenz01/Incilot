@@ -79,8 +79,9 @@ export const TOPICS = {
     title: "Nada se toca sin un humano",
     body:
       "El agente propone una acción y queda en pausa, guardado en la base. Puede esperar horas: " +
-      "cuando decidís, se retoma exactamente donde quedó. Podés aprobar, corregir la acción o rechazarla, " +
-      "y la decisión queda registrada.",
+      "cuando decidís, se retoma exactamente donde quedó. «Aprobar» ejecuta su propuesta; «Corregir» ejecuta " +
+      "tu versión si creés que se equivocó de acción o de objetivo; «Rechazar» no ejecuta nada. " +
+      "La decisión queda registrada.",
     stack: ["LangGraph interrupt", "checkpoints en Postgres", "salida estructurada"],
   },
   verification: {
@@ -101,6 +102,44 @@ export const TOPICS = {
     title: "Memoria de incidentes",
     body: "Cada investigación queda guardada con el diagnóstico, la decisión y si se resolvió. Podés volver a verla entera.",
     stack: ["Postgres"],
+  },
+  tech: {
+    title: "Modo técnico",
+    body:
+      "Muestra lo que normalmente queda escondido: el nombre real de cada herramienta, cuánto tardó cada paso, " +
+      "los tokens usados y el diagnóstico tal como lo devuelve el modelo (JSON). " +
+      "Apagado, todo se explica en palabras simples. Prendelo si sos técnico o querés ver cómo trabaja por dentro; " +
+      "dejalo apagado para una demo a alguien que no lo es. Se puede cambiar en cualquier momento.",
+    stack: [],
+  },
+  dry_run: {
+    title: "Modo prueba",
+    body:
+      "Recorre todo el flujo sin llamar a la IA: el diagnóstico es un ejemplo fijo y la acción no se ejecuta de verdad. " +
+      "Es rápido y no gasta nada. Sirve para ver cómo funciona la pantalla; " +
+      "para ver al agente investigar de verdad, dejalo apagado.",
+    stack: [],
+  },
+  scenario: {
+    title: "Tipos de fallo",
+    body:
+      "Son incidentes típicos de una empresa real, agrupados por origen: un deploy con un bug, un cambio de config, " +
+      "un problema de infraestructura o un proveedor externo caído. El agente nunca sabe cuál elegiste.",
+    stack: [],
+  },
+  confidence: {
+    title: "Confianza",
+    body:
+      "Qué tan seguro dice estar el agente, según cuánta evidencia encontró que apunte a la misma causa. " +
+      "La declara el propio modelo, así que es orientativa: por eso existe tu aprobación y la verificación posterior.",
+    stack: [],
+  },
+  evidence: {
+    title: "Evidencia",
+    body:
+      "Lo que el agente vio con sus herramientas y lo llevó a la conclusión. Cada punto debería poder comprobarse " +
+      "en la consola: si algo no aparece ahí, desconfiá.",
+    stack: [],
   },
 } satisfies Record<string, Topic>;
 

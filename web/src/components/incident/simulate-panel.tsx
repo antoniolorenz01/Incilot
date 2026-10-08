@@ -66,8 +66,11 @@ export function SimulatePanel({
         </p>
       </div>
 
-      <label className="flex flex-col gap-2 text-xs text-muted-foreground">
-        Tipo de fallo
+      {/* div y no label: el ícono de ayuda es un botón y se llevaría el clic del texto. */}
+      <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          Tipo de fallo <Explain topic="scenario" />
+        </span>
         {/* items: el texto a mostrar por cada valor (si no, se ve el id técnico) */}
         <Select
           value={scenario}
@@ -91,15 +94,18 @@ export function SimulatePanel({
             ))}
           </SelectContent>
         </Select>
-      </label>
+      </div>
 
-      <label className="flex items-start gap-3 text-xs text-muted-foreground">
-        <Switch checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
-        <span>
-          Modo prueba
-          <span className="block opacity-70">Sin IA: recorre el flujo con un diagnóstico de ejemplo.</span>
-        </span>
-      </label>
+      <div className="flex items-start gap-1.5">
+        <label className="flex flex-1 items-start gap-3 text-xs text-muted-foreground">
+          <Switch checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
+          <span>
+            Modo prueba
+            <span className="block opacity-70">Sin IA: recorre el flujo con un diagnóstico de ejemplo.</span>
+          </span>
+        </label>
+        <Explain topic="dry_run" className="mt-0.5" />
+      </div>
 
       <Button
         disabled={!scenario || busy}

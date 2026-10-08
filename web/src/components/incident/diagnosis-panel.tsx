@@ -146,13 +146,14 @@ export function DiagnosisPanel({
             <p className="text-muted-foreground">Causa en</p>
             <p className="font-pixel text-2xl leading-tight break-words text-foreground">{diagnosis.service}</p>
           </div>
-          <Badge variant="outline" className="shrink-0">
-            confianza {CONFIDENCE[diagnosis.confidence]}
-          </Badge>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <Badge variant="outline">confianza {CONFIDENCE[diagnosis.confidence]}</Badge>
+            <Explain topic="confidence" />
+          </span>
         </div>
         <p className="text-sm leading-relaxed break-words text-foreground">{diagnosis.root_cause}</p>
 
-        <Section title="Evidencia">
+        <Section title="Evidencia" topic="evidence">
           <ul className="flex flex-col gap-1.5 text-muted-foreground">
             {diagnosis.evidence.map((item, i) => (
               <li key={i} className="border-l border-border pl-2 break-words">
