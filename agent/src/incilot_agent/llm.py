@@ -30,6 +30,15 @@ def openai_models() -> list[BaseChatModel]:
     ]
 
 
+def agent_models() -> list[BaseChatModel]:
+    """The configured provider: OpenAI (default) or, locally, Claude Code."""
+    if os.getenv("LLM_PROVIDER", "openai") == "claude-code":
+        from incilot_agent.claude_code import claude_code_models
+
+        return claude_code_models()
+    return openai_models()
+
+
 def dry_run_models() -> list[BaseChatModel]:
     """Fake LLM for `dry_run`: uses one real tool and submits a test diagnosis.
     Zero tokens: for testing the API and the dashboard."""

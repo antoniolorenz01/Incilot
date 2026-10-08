@@ -22,7 +22,7 @@ from langgraph.types import Command
 from incilot_agent import config, graph
 from incilot_agent.events import investigation_events
 from incilot_agent.executor import default_executor
-from incilot_agent.llm import openai_models
+from incilot_agent.llm import agent_models, model_name
 from incilot_agent.selftest import selftest
 from incilot_agent.tools import READ_ONLY_TOOLS
 from incilot_agent.verification import PostgresRecorder, PrometheusVerifier
@@ -93,7 +93,7 @@ async def run(graph_input, thread_id: str) -> None:
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
         app = graph.build(
-            openai_models(),
+            agent_models(),
             checkpointer,
             executor=default_executor(),
             verifier=PrometheusVerifier(),
@@ -144,8 +144,8 @@ def main() -> None:
         thread_id = uuid4().hex[:12]
         alert = " ".join(args.alert) or DEFAULT_ALERT
         print(f"Investigation {thread_id} (if interrupted: --resume {thread_id})")
-        fallback = os.getenv("OPENAI_FALLBACK_MODEL") or "none"
-        print(f"Alert: {alert}\nModel: {os.environ['OPENAI_MODEL']} (fallback: {fallback})\n")
+        models = ", ".join(model_name(m) for m in agent_models())
+        print(f"Alert: {alert}\nModels (in order of preference): {models}\n")
         asyncio.run(run({"alert": alert}, thread_id))
 
 

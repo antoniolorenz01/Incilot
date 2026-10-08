@@ -17,7 +17,7 @@ from redis.exceptions import RedisError
 from incilot_agent import config, graph, jobs
 from incilot_agent.events import investigation_events
 from incilot_agent.executor import NoopExecutor, default_executor
-from incilot_agent.llm import dry_run_models, openai_models
+from incilot_agent.llm import agent_models, dry_run_models
 from incilot_agent.verification import NullVerifier, PostgresRecorder, PrometheusVerifier
 
 log = logging.getLogger("agent.worker")
@@ -29,7 +29,7 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
     meta = jobs.meta_key(investigation_id)
     dry_run = (await redis.hget(meta, "dry_run")) == "1"
     app = graph.build(
-        dry_run_models() if dry_run else openai_models(),
+        dry_run_models() if dry_run else agent_models(),
         checkpointer,
         executor=NoopExecutor() if dry_run else default_executor(),
         verifier=NullVerifier() if dry_run else PrometheusVerifier(),

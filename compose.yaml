@@ -30,6 +30,9 @@ x-agent: &agent
   env_file:
     - path: .env
       required: false
+  # LLM_PROVIDER=claude-code (local only): the model is Claude Code via the bridge that
+  # `make claude-bridge` runs on the host.
+  extra_hosts: ["host.docker.internal:host-gateway"]
   environment:
     PROMETHEUS_URL: http://prometheus:9090
     LOKI_URL: http://loki:3100
