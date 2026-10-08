@@ -64,7 +64,11 @@ def investigate(client: httpx.Client, since: datetime) -> dict:
     """
     alert = ALERT.format(since=since)
     request = {"alert": alert, "since": since.isoformat()}
-    investigation_id = client.post("/investigations", json=request).json()["id"]
+    started = client.post("/investigations", json=request)
+    if started.status_code != 202:
+        error = f"the agent API returned {started.status_code}: {started.text[:200]}"
+        return {"id": None, "rounds": 0, "diagnosis": None, "error": error}
+    investigation_id = started.json()["id"]
     result = {"id": investigation_id, "rounds": 0, "diagnosis": None, "error": None}
     url = f"/investigations/{investigation_id}/events"
     deadline = time.monotonic() + INVESTIGATION_TIMEOUT

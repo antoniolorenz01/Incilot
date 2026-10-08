@@ -19,9 +19,8 @@ AGENT_STATE_URL = os.getenv(
     "AGENT_STATE_URL",
     f"postgresql://{AGENT_DB_USER}:{AGENT_DB_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/agent_state",
 )
-# The agent's Redis (user `agent`, db 3): job queue and per-investigation events.
-# It can only write `investigation:*` keys.
-AGENT_REDIS_URL = os.getenv("AGENT_REDIS_URL", "redis://agent:agent@redis:6379/3")
+# The agent's own Redis (not the shop's): job queue and per-investigation events.
+AGENT_REDIS_URL = os.getenv("AGENT_REDIS_URL", "redis://default:agent@agent-redis:6379/0")
 # Executor of approved actions (simulation connector): the operations service.
 OPS_URL = os.getenv("OPS_URL")
 OPS_TOKEN = os.getenv("OPS_TOKEN")

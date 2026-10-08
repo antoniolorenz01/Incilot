@@ -40,7 +40,9 @@ x-agent: &agent
     RUNBOOKS_DIR: /runbooks
     DOCS_DIR: /docs
     POSTGRES_HOST: postgres
-    AGENT_REDIS_URL: redis://agent:agent@redis:6379/3
+    # Its own Redis for the queue and events: an incident that takes the shop's Redis
+    # down must not take the incident tooling with it.
+    AGENT_REDIS_URL: redis://default:agent@agent-redis:6379/0
     # Executor for approved actions: used by the graph's `execute` node, never by the LLM.
     OPS_URL: http://injector:8000/ops/execute
     OPS_TOKEN: ${OPS_TOKEN:-incilot-ops-dev}
@@ -51,7 +53,7 @@ x-agent: &agent
   depends_on:
     postgres:
       condition: service_healthy
-    redis:
+    agent-redis:
       condition: service_healthy
 
 x-db-and-cache: &db-and-cache
@@ -151,8 +153,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    # Agent user: read-only on the caches (user:*, catalog), read/write on its own queue
-    # and events (investigation:*); cannot see faults:*, list keys or flush databases.
+    # Agent user: read-only on the caches (user:*, catalog); cannot see faults:*, list
+    # keys or flush databases. Its queue and events live in agent-redis.
     command:
       - redis-server
       - --user
@@ -177,6 +179,17 @@ services:
       incilot.logs: "true"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The agent's own Redis (investigation queue and events), apart from the shop's.
+  agent-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "agent"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "agent", "--no-auth-warning", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
