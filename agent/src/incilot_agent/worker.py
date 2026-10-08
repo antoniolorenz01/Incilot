@@ -56,8 +56,9 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
     except Exception as exc:
         log.exception("investigation %s failed", investigation_id)
         status = "error"
-        await redis.hset(meta, "error", f"{type(exc).__name__}: {exc}"[:500])
-        await jobs.publish(redis, investigation_id, {"type": "error", "error": str(exc)[:500]})
+        error = f"{type(exc).__name__}: {exc}".rstrip(": ")[:500]
+        await redis.hset(meta, "error", error)
+        await jobs.publish(redis, investigation_id, {"type": "error", "error": error})
     await redis.hset(meta, "status", status)
 
 

@@ -14,6 +14,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 
+import httpx
+
 from incilot_agent import config
 from incilot_agent.tools import _http
 from incilot_agent.tools.logs import signature
@@ -22,6 +24,8 @@ RECENT_DEFAULT = 5 * 60  # seconds, when the start of the incident is unknown
 RECENT_MIN, RECENT_MAX = 60, 30 * 60
 BASELINE = "45m"  # the previous hour, leaving a 5-minute margin before the recent window
 BASELINE_MARGIN = 5 * 60
+# During a big incident Loki holds thousands of error lines a minute: give it time.
+LOGS_TIMEOUT_SECONDS = 30
 CHANGE_RATIO = 2.0  # changed if multiplied (or divided) by at least this…
 
 
@@ -141,6 +145,7 @@ async def log_changes(limit: int = 8, recent: int = RECENT_DEFAULT) -> list[str]
     recent_since = end - recent * 10**9
     start = recent_since - 60 * 60 * 10**9
     async with _http.client(config.LOKI_URL) as http:
+        http.timeout = httpx.Timeout(LOGS_TIMEOUT_SECONDS)
         response = await http.get(
             "/loki/api/v1/query_range",
             params={
@@ -178,6 +183,10 @@ async def log_changes(limit: int = 8, recent: int = RECENT_DEFAULT) -> list[str]
     ]
 
 
+def _failure(exc: BaseException) -> str:
+    return f"{type(exc).__name__}: {exc}".rstrip(": ")
+
+
 def _window(seconds: int) -> str:
     return f"last {seconds // 60} min" if seconds % 60 == 0 else f"last {seconds}s"
 
@@ -185,9 +194,18 @@ def _window(seconds: int) -> str:
 async def overview(since: datetime | None = None) -> str:
     """The triage summary. `since`: when the incident started, if the alert says so."""
     recent = recent_seconds(since)
-    (changes, stable), logs = await asyncio.gather(
-        metric_changes(recent), log_changes(recent=recent)
+    metrics, logs = await asyncio.gather(
+        metric_changes(recent), log_changes(recent=recent), return_exceptions=True
     )
+    # Triage only gives the agent a head start: if a source fails, it says so and the
+    # agent investigates with its tools anyway.
+    changes, stable = (
+        ([f"(metrics unavailable: {_failure(metrics)}; check them with the tools)"], [])
+        if isinstance(metrics, BaseException)
+        else metrics
+    )
+    if isinstance(logs, BaseException):
+        logs = [f"(logs unavailable: {_failure(logs)}; search them with the tools)"]
     window = f"since {since:%H:%M:%S} UTC" if since else _window(recent)
     sections = [
         f"## What changed {window} compared with the hour before (↑ up, ↓ down)",

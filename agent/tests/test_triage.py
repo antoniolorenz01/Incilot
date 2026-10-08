@@ -100,3 +100,17 @@ def test_the_recent_window_runs_from_the_start_of_the_incident(monkeypatch):
     assert triage.recent_seconds(None) == 300
     assert triage.recent_seconds(datetime.fromtimestamp(1_700_000_000 - 150, UTC)) == 150
     assert triage.recent_seconds(datetime.fromtimestamp(1_700_000_000 - 10, UTC)) == 60
+
+
+def test_a_failing_source_does_not_stop_the_triage(monkeypatch):
+    async def metric_changes(recent):
+        return ["↑ 5xx error rate · users: 0.9 (before 0.01)"], []
+
+    async def log_changes(limit=8, recent=300):
+        raise httpx.ReadTimeout("")
+
+    monkeypatch.setattr(triage, "metric_changes", metric_changes)
+    monkeypatch.setattr(triage, "log_changes", log_changes)
+    summary = asyncio.run(triage.overview())
+    assert "users: 0.9" in summary
+    assert "logs unavailable: ReadTimeout; search them with the tools" in summary
