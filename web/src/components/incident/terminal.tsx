@@ -11,6 +11,8 @@ import {
   ScrollTextIcon,
   type LucideIcon,
 } from "lucide-react";
+import { Explain, useTechMode } from "@/components/incident/explain";
+import type { TopicId } from "@/lib/explain";
 import type { AgentEvent, Phase } from "@/lib/incident";
 
 const ACTIONS: Record<string, string> = {
@@ -30,37 +32,66 @@ export function shortTarget(target: string) {
   return /^[0-9a-f]{12,}$/i.test(target.trim()) ? target.trim().slice(0, 7) : target;
 }
 
-// Qué hace cada herramienta, en palabras de una persona, y sobre qué.
-const TOOLS: Record<string, { icon: LucideIcon; label: string; subject: (a: Record<string, unknown>) => string }> = {
-  query_metrics: { icon: LineChartIcon, label: "Consulta métricas", subject: () => "" },
+// Qué hace cada herramienta, en palabras de una persona, sobre qué, y su explicación.
+type Tool = {
+  icon: LucideIcon;
+  label: string;
+  topic: TopicId;
+  subject: (a: Record<string, unknown>) => string;
+};
+const TOOLS: Record<string, Tool> = {
+  query_metrics: {
+    icon: LineChartIcon,
+    label: "Consulta métricas",
+    topic: "query_metrics",
+    subject: () => "",
+  },
   search_logs: {
     icon: ScrollTextIcon,
+    topic: "search_logs",
     label: "Busca en los logs",
     subject: (a) =>
       [a.service ?? "todos los servicios", a.level, a.contains && `«${a.contains}»`].filter(Boolean).join(" · "),
   },
   list_commits: {
     icon: GitPullRequestIcon,
+    topic: "git",
     label: "Lista los cambios recientes",
     subject: (a) => (a.path ? String(a.path) : ""),
   },
   show_commit: {
     icon: GitCommitHorizontalIcon,
+    topic: "git",
     label: "Revisa un cambio",
     subject: (a) => shortTarget(String(a.sha ?? "")),
   },
-  read_file: { icon: FileCodeIcon, label: "Lee un archivo", subject: (a) => String(a.path ?? "") },
+  read_file: {
+    icon: FileCodeIcon,
+    label: "Lee un archivo",
+    topic: "git",
+    subject: (a) => String(a.path ?? ""),
+  },
   search_knowledge: {
     icon: BookOpenIcon,
+    topic: "rag",
     label: "Busca en la documentación",
     subject: (a) => `«${a.query ?? ""}»`,
   },
-  query_database: { icon: DatabaseIcon, label: "Consulta la base de datos", subject: (a) => String(a.database ?? "") },
+  query_database: {
+    icon: DatabaseIcon,
+    label: "Consulta la base de datos",
+    topic: "query_database",
+    subject: (a) => String(a.database ?? ""),
+  },
 };
 
 type Call = Extract<AgentEvent, { type: "tool_call" }>;
 type Result = Extract<AgentEvent, { type: "tool_result" }>;
-type RoundBlock = { kind: "round"; round: number; items: { call: Call; result?: Result }[] };
+type RoundBlock = {
+  kind: "round";
+  round: number;
+  items: { call: Call; result?: Result }[];
+};
 type Block = RoundBlock | { kind: "event"; event: AgentEvent };
 
 /** Agrupa las herramientas por paso y empareja cada una con su resultado (llegan en orden). */
@@ -71,7 +102,12 @@ function toBlocks(events: AgentEvent[]): Block[] {
     if (event.type === "tool_call") {
       const last = blocks.at(-1);
       if (last?.kind === "round" && last.round === event.round) last.items.push({ call: event });
-      else blocks.push({ kind: "round", round: event.round, items: [{ call: event }] });
+      else
+        blocks.push({
+          kind: "round",
+          round: event.round,
+          items: [{ call: event }],
+        });
       pending = (blocks.at(-1) as RoundBlock).items;
     } else if (event.type === "tool_result") {
       const slot = pending.find((item) => !item.result);
@@ -88,13 +124,21 @@ function summary(content: string) {
   return first.replace(/:$/, "");
 }
 
+/** Segundos entre dos eventos, si los dos tienen hora. */
+function seconds(from?: number, to?: number) {
+  return from && to ? `${((to - from) / 1000).toFixed(1)} s` : null;
+}
+
 function Round({ round, items }: RoundBlock) {
+  const tech = useTechMode();
+  const took = seconds(items[0]?.call.at, items.at(-1)?.result?.at);
   return (
     <div className="mt-4 first:mt-0">
       <p className="mb-2 text-foreground">
         <span className="bg-foreground px-1.5 text-background">Paso {round}</span>
         <span className="ml-2 text-muted-foreground">
           {items.length} {items.length === 1 ? "consulta" : "consultas"}
+          {tech && took && ` · ${took}`}
         </span>
       </p>
       <ul className="flex flex-col gap-1.5 border-l border-border pl-3">
@@ -104,14 +148,22 @@ function Round({ round, items }: RoundBlock) {
           const subject = tool?.subject(call.args) ?? "";
           const failed = result?.content.startsWith("error:");
           return (
-            <li key={i}>
-              <details>
+            <li key={i} className="flex items-start gap-2">
+              <details className="min-w-0 flex-1">
                 <summary className="flex cursor-pointer list-none items-start gap-2 [&::-webkit-details-marker]:hidden">
                   <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="text-foreground">{tool?.label ?? call.name}</span>
                     {subject && <span className="text-muted-foreground"> · {subject}</span>}
-                    <span className={`block truncate ${failed ? "text-destructive" : "text-muted-foreground opacity-80"}`}>
+                    {tech && (
+                      <span className="block text-[11px] text-accent/80">
+                        {call.name}()
+                        {seconds(call.at, result?.at) && ` · ${seconds(call.at, result?.at)}`}
+                      </span>
+                    )}
+                    <span
+                      className={`block truncate ${failed ? "text-destructive" : "text-muted-foreground opacity-80"}`}
+                    >
                       {result ? `→ ${summary(result.content)}` : "→ …"}
                     </span>
                   </span>
@@ -122,6 +174,7 @@ function Round({ round, items }: RoundBlock) {
                   {result?.content.slice(0, 3000) ?? "esperando resultado…"}
                 </pre>
               </details>
+              {tool && <Explain topic={tool.topic} className="mt-0.5" />}
             </li>
           );
         })}
@@ -131,9 +184,14 @@ function Round({ round, items }: RoundBlock) {
 }
 
 function EventLine({ event }: { event: AgentEvent }) {
+  const tech = useTechMode();
   switch (event.type) {
     case "triage":
-      return <p className="mb-3 text-foreground">&gt; Comparó cada indicador de la tienda con la hora anterior</p>;
+      return (
+        <p className="mb-3 flex items-center gap-2 text-foreground">
+          &gt; Comparó cada indicador de la tienda con la hora anterior <Explain topic="triage" />
+        </p>
+      );
     case "llm_fallback":
       return (
         <p className="mt-3 text-accent">
@@ -144,7 +202,11 @@ function EventLine({ event }: { event: AgentEvent }) {
       return (
         <p className="mt-4 text-foreground">
           &gt; Diagnóstico listo: {event.diagnosis.service}
-          <span className="text-muted-foreground"> · {event.tokens.toLocaleString("es")} tokens</span>
+          <span className="text-muted-foreground">
+            {" "}
+            · {event.tokens.toLocaleString("es")} tokens
+            {tech && ` · fin: ${event.stop_reason}`}
+          </span>
         </p>
       );
     case "awaiting_approval":
@@ -189,9 +251,13 @@ export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase
         <span className={`h-2 w-2 ${working ? "bg-accent" : "bg-muted-foreground"}`} />
         <span className="h-2 w-2 bg-foreground" />
         <span className="h-2 w-2 border border-foreground" />
-        <h2 className="ml-auto truncate text-xs text-muted-foreground">
-          investigación en vivo · tocá una consulta para ver el detalle
+        <h2 className="ml-2 flex min-w-0 items-center gap-1.5 text-xs text-foreground">
+          El agente <Explain topic="agent" />
         </h2>
+        <p className="ml-auto flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="truncate">en vivo · tocá una consulta para ver el detalle</span>
+          <Explain topic="stream" />
+        </p>
       </header>
       <div
         ref={scroller}
@@ -202,7 +268,9 @@ export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase
           <div className="max-w-[60ch] space-y-3 text-muted-foreground">
             <p className="text-foreground">Cómo funciona</p>
             <ol className="list-decimal space-y-1.5 pl-4">
-              <li>Elegí un tipo de fallo y apretá «Simular incidente»: rompemos algo de verdad en una tienda de prueba.</li>
+              <li>
+                Elegí un tipo de fallo y apretá «Simular incidente»: rompemos algo de verdad en una tienda de prueba.
+              </li>
               <li>El agente investiga solo, sin saber qué rompimos. Acá ves cada paso que da.</li>
               <li>Te propone una solución. No hace nada hasta que vos la aprobás.</li>
               <li>Si aprobás, la aplica y verifica que la tienda se recuperó. Al final podés ver si acertó.</li>

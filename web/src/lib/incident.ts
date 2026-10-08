@@ -14,7 +14,8 @@ export type Diagnosis = {
 
 export type Check = { name: string; value: number; max: number; ok: boolean };
 
-export type AgentEvent =
+// `at`: cuándo lo publicó el agente (ms), sacado del id del evento en el stream.
+export type AgentEvent = (
   | { type: "triage" }
   | { type: "tool_call"; name: string; args: Record<string, unknown>; round: number }
   | { type: "tool_result"; name: string; content: string }
@@ -25,7 +26,8 @@ export type AgentEvent =
   | { type: "execution"; status: string; detail: string; connector: string }
   | { type: "verification"; recovered: boolean; checks: Check[]; skipped?: boolean }
   | { type: "error"; error: string }
-  | { type: "done" };
+  | { type: "done" }
+) & { at?: number };
 
 export type Phase =
   | "idle"

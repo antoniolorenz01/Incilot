@@ -174,3 +174,25 @@
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Foco guiado: en pantallas anchas, las columnas que no importan ahora quedan atenuadas
+   (vuelven al pasar el mouse o con el foco del teclado). */
+@media (min-width: 80rem) {
+  .focus-columns[data-focus] > * {
+    opacity: 0.5;
+    transition: opacity 200ms;
+  }
+  .focus-columns[data-focus~="c0"] > :nth-child(1),
+  .focus-columns[data-focus~="c1"] > :nth-child(2),
+  .focus-columns[data-focus~="c2"] > :nth-child(3),
+  .focus-columns[data-focus~="c3"] > :nth-child(4),
+  .focus-columns[data-focus] > :hover,
+  .focus-columns[data-focus] > :focus-within {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-columns[data-focus] > * {
+    transition: none;
+  }
+}

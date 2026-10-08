@@ -14,22 +14,37 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { actionLabel, shortTarget } from "@/components/incident/terminal";
+import { Explain, useTechMode } from "@/components/incident/explain";
+import type { TopicId } from "@/lib/explain";
 import type { Investigation } from "@/lib/incident";
 
 const CONFIDENCE = { low: "baja", medium: "media", high: "alta" } as const;
 
-export type Decision = { approved: boolean; note: string; action?: { kind: string; target: string } };
+export type Decision = {
+  approved: boolean;
+  note: string;
+  action?: { kind: string; target: string };
+};
 
-export function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, topic, children }: { title: string; topic?: TopicId; children: React.ReactNode }) {
   return (
     <div className="border-t border-border pt-3">
-      <h3 className="mb-2 text-xs text-muted-foreground">{title}</h3>
+      <h3 className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        {title}
+        {topic && <Explain topic={topic} />}
+      </h3>
       {children}
     </div>
   );
 }
 
-function CorrectDialog({ open, onOpenChange, kind, target, onConfirm }: {
+function CorrectDialog({
+  open,
+  onOpenChange,
+  kind,
+  target,
+  onConfirm,
+}: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kind: string;
@@ -78,7 +93,13 @@ function CorrectDialog({ open, onOpenChange, kind, target, onConfirm }: {
           <DialogClose render={<Button variant="ghost" />}>Cancelar</DialogClose>
           <Button
             className="bg-accent text-accent-foreground hover:bg-accent/85"
-            onClick={() => onConfirm({ approved: true, note, action: { kind: newKind, target: newTarget } })}
+            onClick={() =>
+              onConfirm({
+                approved: true,
+                note,
+                action: { kind: newKind, target: newTarget },
+              })
+            }
           >
             Ejecutar mi versión
           </Button>
@@ -98,6 +119,7 @@ export function DiagnosisPanel({
   onDecide: (decision: Decision) => void;
 }) {
   const [correcting, setCorrecting] = useState(false);
+  const tech = useTechMode();
   const { diagnosis, phase } = investigation;
 
   if (!diagnosis) {
@@ -148,11 +170,20 @@ export function DiagnosisPanel({
           </ol>
         </Section>
 
+        {tech && (
+          <Section title="Salida estructurada (JSON)">
+            <pre className="overflow-x-auto bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-words text-muted-foreground">
+              {JSON.stringify(diagnosis, null, 2)}
+            </pre>
+          </Section>
+        )}
       </div>
 
       <footer className="shrink-0 border-t-2 border-foreground p-4">
         <div className={deciding ? "border-2 border-accent p-3" : ""}>
-          <p className="text-muted-foreground">{deciding ? "El agente propone" : "Acción propuesta"}</p>
+          <p className="flex items-center gap-1.5 text-muted-foreground">
+            {deciding ? "El agente propone" : "Acción propuesta"} <Explain topic="approval" />
+          </p>
           <p className="mt-1 text-sm break-words text-foreground">
             {actionLabel(action.kind)} <span className="text-accent">{shortTarget(action.target)}</span>
           </p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangleIcon, CheckIcon } from "lucide-react";
+import { Explain } from "@/components/incident/explain";
 
 type Metric = {
   key: string;
@@ -29,8 +30,17 @@ function Sparkline({ values, label }: { values: number[]; label: string }) {
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
       className="h-full w-full"
-      role="img" aria-label={`${label}, últimos 15 minutos`}>
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      role="img"
+      aria-label={`${label}, últimos 15 minutos`}
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }
@@ -62,14 +72,18 @@ export function ShopHealth() {
 
   return (
     <section aria-label="Salud de la tienda" className="flex flex-1 flex-col border-2 border-foreground p-4">
-      <h2 className="text-sm text-foreground">Salud de la tienda</h2>
+      <h2 className="flex items-center gap-1.5 text-sm text-foreground">
+        Salud de la tienda <Explain topic="health" />
+      </h2>
       <p className="mt-1 text-xs text-muted-foreground">Lo que notan los clientes, en vivo.</p>
       <div className="mt-2 flex flex-1 flex-col gap-3">
         {metrics.map((m) => (
           <div key={m.key} className="flex flex-1 flex-col border-t border-border pt-2">
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="text-muted-foreground">{m.label}</span>
-              <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">{format(m.current, m.unit)}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
+                {format(m.current, m.unit)}
+              </span>
             </div>
             <div className="my-1 grid min-h-10 flex-1 text-foreground/70">
               <Sparkline values={m.values} label={m.label} />

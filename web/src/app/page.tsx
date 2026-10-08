@@ -5,7 +5,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
 import { History } from "@/components/incident/history";
+import { Architecture } from "@/components/incident/architecture";
+import { TechMode } from "@/components/incident/explain";
 import { COLUMNS, Status, Steps } from "@/components/incident/progress";
+import { Switch } from "@/components/ui/switch";
+import { FOCUS } from "@/lib/explain";
 import { ResultPanel } from "@/components/incident/result-panel";
 import { ShopHealth } from "@/components/incident/shop-health";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
@@ -13,10 +17,7 @@ import { Terminal } from "@/components/incident/terminal";
 import { type AgentEvent, type Investigation, type Truth, initial, reduce } from "@/lib/incident";
 
 type Action =
-  | { type: "reset" }
-  | { type: "breaking" }
-  | { type: "investigating" }
-  | { type: "event"; event: AgentEvent };
+  { type: "reset" } | { type: "breaking" } | { type: "investigating" } | { type: "event"; event: AgentEvent };
 
 function reducer(state: Investigation, action: Action): Investigation {
   if (action.type === "reset") return initial;
@@ -54,6 +55,7 @@ export default function Home() {
   const [leftover, setLeftover] = useState<string | null>(null);
   // Mirando una investigación anterior (se reproduce, no se puede decidir).
   const [readOnly, setReadOnly] = useState(false);
+  const [tech, setTech] = useState(false);
 
   useEffect(() => {
     fetch("/api/incidents/active")
@@ -69,13 +71,26 @@ export default function Home() {
       // Un evento `error` sin datos es el de EventSource (conexión caída), no el del
       // agente: el navegador reintenta solo y retomamos desde el último evento.
       if (!message.data) return;
-      const event = JSON.parse(message.data) as AgentEvent;
+      // El id del evento es el del stream de Redis: «<ms>-<n>», cuándo se publicó.
+      const at = Number(message.lastEventId.split("-")[0]) || undefined;
+      const event = { ...(JSON.parse(message.data) as AgentEvent), at };
       dispatch({ type: "event", event });
       if (event.type === "done" || event.type === "error") events.close();
     };
     // El servidor emite eventos con nombre (event: tool_call…): escuchamos todos.
-    for (const type of ["triage", "tool_call", "tool_result", "llm_fallback", "diagnosis",
-      "awaiting_approval", "approval", "execution", "verification", "error", "done"]) {
+    for (const type of [
+      "triage",
+      "tool_call",
+      "tool_result",
+      "llm_fallback",
+      "diagnosis",
+      "awaiting_approval",
+      "approval",
+      "execution",
+      "verification",
+      "error",
+      "done",
+    ]) {
       events.addEventListener(type, events.onmessage as EventListener);
     }
     source.current = events;
@@ -175,62 +190,81 @@ export default function Home() {
   }
 
   const status = STATUS[investigation.phase];
+  const focus = readOnly ? null : FOCUS[investigation.phase];
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-[1920px] flex-col gap-3 overflow-hidden p-3 md:p-4">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
-        <div className="min-w-0">
-          <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
-          <p className="mt-1.5 max-w-[70ch] text-xs text-muted-foreground">
-            Un agente investiga incidentes en una tienda de prueba, propone cómo arreglarlos y lo hace
-            solo si vos lo aprobás.
-          </p>
-        </div>
-        <p className={`font-pixel text-xl ${readOnly ? "text-muted-foreground" : status.tone}`} aria-live="polite">
-          {readOnly ? "Investigación anterior" : status.text}
-        </p>
-      </header>
-
-      <div className="shrink-0 space-y-2">
-        <Steps phase={investigation.phase} />
-        {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
-        {leftover && investigation.phase === "idle" && (
-          <div role="status" className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs">
-            <p className="text-foreground">
-              Hay una simulación activa desde las{" "}
-              {new Date(leftover).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}. Terminala
-              para simular otra.
+    <TechMode value={tech}>
+      <main className="mx-auto flex h-dvh w-full max-w-[1920px] flex-col gap-3 overflow-hidden p-3 md:p-4">
+        <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b-2 border-foreground pb-3">
+          <div className="min-w-0">
+            <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
+            <p className="mt-1.5 max-w-[70ch] text-xs text-muted-foreground">
+              Un agente investiga incidentes en una tienda de prueba, propone cómo arreglarlos y lo hace solo si vos lo
+              aprobás.
             </p>
-            <Button size="sm" variant="outline" onClick={end}>
-              Terminarla
-            </Button>
           </div>
-        )}
-      </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className={`font-pixel text-xl ${readOnly ? "text-muted-foreground" : status.tone}`} aria-live="polite">
+              {readOnly ? "Investigación anterior" : status.text}
+            </p>
+            <Architecture />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch checked={tech} onCheckedChange={setTech} />
+              Modo técnico
+            </label>
+          </div>
+        </header>
 
-      {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
-      {/* Una columna por paso: romper, investigar, decidir, resultado. */}
-      <div className={`grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}>
-        {/* Si el alto no alcanza (p. ej. con el aviso de «Rompiendo la tienda»), la
+        <div className="shrink-0 space-y-2">
+          <Steps phase={investigation.phase} hint={focus?.hint} />
+          {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
+          {leftover && investigation.phase === "idle" && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs"
+            >
+              <p className="text-foreground">
+                Hay una simulación activa desde las{" "}
+                {new Date(leftover).toLocaleTimeString("es", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                . Terminala para simular otra.
+              </p>
+              <Button size="sm" variant="outline" onClick={end}>
+                Terminarla
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
+        {/* Una columna por paso: romper, investigar, decidir, resultado. */}
+        <div
+          className={`focus-columns grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}
+          data-focus={focus?.columns.map((c) => `c${c}`).join(" ")}
+        >
+          {/* Si el alto no alcanza (p. ej. con el aviso de «Rompiendo la tienda»), la
             columna scrollea en vez de aplastar los gráficos. */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
-          <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
-          <ShopHealth />
+          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+            <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
+            <ShopHealth />
+          </div>
+          <Terminal events={investigation.events} phase={investigation.phase} />
+          <DiagnosisPanel investigation={investigation} readOnly={readOnly} onDecide={decide} />
+          <div className="flex min-h-0 flex-col gap-3">
+            <ResultPanel
+              key={investigationId ?? "none"}
+              investigation={investigation}
+              truth={truth}
+              readOnly={readOnly}
+              onEnd={end}
+            />
+            <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
+          </div>
         </div>
-        <Terminal events={investigation.events} phase={investigation.phase} />
-        <DiagnosisPanel investigation={investigation} readOnly={readOnly} onDecide={decide} />
-        <div className="flex min-h-0 flex-col gap-3">
-          <ResultPanel
-            key={investigationId ?? "none"}
-            investigation={investigation}
-            truth={truth}
-            readOnly={readOnly}
-            onEnd={end}
-          />
-          <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
-        </div>
-      </div>
-    </main>
+      </main>
+    </TechMode>
   );
 }

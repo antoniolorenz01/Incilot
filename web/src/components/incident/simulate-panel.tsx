@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Explain } from "@/components/incident/explain";
 
 type Catalog = Record<string, { title: string; category: string }>;
 
@@ -43,18 +44,17 @@ export function SimulatePanel({
       .catch(() => setError("No pude leer los tipos de fallo: ¿está levantado el entorno (make up)?"));
   }, []);
 
-  const byCategory = Object.entries(catalog).reduce<Record<string, [string, string][]>>(
-    (groups, [id, spec]) => {
-      (groups[spec.category] ??= []).push([id, spec.title]);
-      return groups;
-    },
-    {},
-  );
+  const byCategory = Object.entries(catalog).reduce<Record<string, [string, string][]>>((groups, [id, spec]) => {
+    (groups[spec.category] ??= []).push([id, spec.title]);
+    return groups;
+  }, {});
 
   return (
     <section aria-label="Simular un incidente" className="flex shrink-0 flex-col gap-4 border-2 border-foreground p-4">
       <div>
-        <h2 className="text-sm text-foreground">Simular un incidente</h2>
+        <h2 className="flex items-center gap-1.5 text-sm text-foreground">
+          Simular un incidente <Explain topic="simulate" />
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Rompemos algo en la tienda de prueba. El agente no sabe qué fue.
         </p>

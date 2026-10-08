@@ -39,11 +39,9 @@ export function ResultPanel({
       className="flex max-h-[65%] shrink-0 flex-col gap-3 overflow-y-auto border-2 border-foreground p-4 text-xs"
     >
       <h2 className="text-sm text-foreground">Resultado</h2>
-      {phase === "awaiting_approval" && !readOnly && (
-        <p className="text-muted-foreground">Esperando tu decisión.</p>
-      )}
+      {phase === "awaiting_approval" && !readOnly && <p className="text-muted-foreground">Esperando tu decisión.</p>}
       {(execution || verification || phase === "executing") && (
-        <Section title="La tienda">
+        <Section title="La tienda" topic="verification">
           {phase === "executing" && !verification && (
             <p className="text-muted-foreground">Aplicando y midiendo la tienda durante un minuto…</p>
           )}
@@ -71,11 +69,11 @@ export function ResultPanel({
       )}
 
       {result && truth && (
-        <Section title="¿Acertó el agente?">
+        <Section title="¿Acertó el agente?" topic="evals">
           {diagnosis?.service === "dry-run" && (
             <p className="mb-2 text-muted-foreground">
-              Modo prueba: el diagnóstico es un ejemplo fijo, así que no puede acertar. Apagá el modo
-              prueba para ver al agente investigar de verdad.
+              Modo prueba: el diagnóstico es un ejemplo fijo, así que no puede acertar. Apagá el modo prueba para ver al
+              agente investigar de verdad.
             </p>
           )}
           {!revealed ? (

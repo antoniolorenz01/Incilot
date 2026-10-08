@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { actionLabel } from "@/components/incident/terminal";
+import { Explain } from "@/components/incident/explain";
 
 type Past = {
   id: string;
@@ -31,8 +32,13 @@ export function History({ refreshKey, onOpen }: { refreshKey: string; onOpen: (i
   }, [refreshKey]);
 
   return (
-    <section aria-label="Investigaciones anteriores" className="flex min-h-[120px] flex-1 flex-col border-2 border-foreground p-4">
-      <h2 className="shrink-0 text-sm text-foreground">Anteriores</h2>
+    <section
+      aria-label="Investigaciones anteriores"
+      className="flex min-h-[120px] flex-1 flex-col border-2 border-foreground p-4"
+    >
+      <h2 className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
+        Anteriores <Explain topic="history" />
+      </h2>
       {items.length === 0 ? (
         <p className="mt-1 text-xs text-muted-foreground">Las investigaciones que termines van a aparecer acá.</p>
       ) : (
@@ -51,7 +57,10 @@ export function History({ refreshKey, onOpen }: { refreshKey: string; onOpen: (i
                     <span className={`shrink-0 ${result.tone}`}>{result.text}</span>
                   </span>
                   <span className="mt-0.5 block truncate text-muted-foreground">
-                    {new Date(p.recorded_at).toLocaleString("es", { dateStyle: "short", timeStyle: "short" })}
+                    {new Date(p.recorded_at).toLocaleString("es", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
                     {action && ` · ${actionLabel(action.kind)}`}
                   </span>
                 </button>

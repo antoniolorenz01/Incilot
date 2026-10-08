@@ -9,8 +9,10 @@ export const COLUMNS = "xl:grid-cols-[270px_minmax(0,1fr)_360px_310px]";
 
 /** Pasos del flujo: dónde está el usuario y qué sigue. En pantallas anchas cada
  * paso queda arriba de su columna. */
-export function Steps({ phase }: { phase: Phase }) {
+export function Steps({ phase, hint }: { phase: Phase; hint?: string }) {
   const current = stepOf(phase);
+  // Dónde mostrar «qué mirar»: el paso actual, o el primero antes de empezar.
+  const hintAt = Math.max(current, 0);
   const finished = phase === "done";
   return (
     <ol
@@ -24,7 +26,7 @@ export function Steps({ phase }: { phase: Phase }) {
           <li
             key={step}
             aria-current={active ? "step" : undefined}
-            className={`flex items-center gap-2 border-foreground px-3 py-2 not-last:border-r-2 xl:border-2 max-md:nth-2:border-r-0 max-md:nth-[-n+2]:border-b-2 ${
+            className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 border-foreground px-3 py-2 not-last:border-r-2 xl:border-2 max-md:nth-2:border-r-0 max-md:nth-[-n+2]:border-b-2 ${
               active ? "bg-accent text-accent-foreground" : done ? "text-foreground" : "text-muted-foreground"
             }`}
           >
@@ -32,6 +34,9 @@ export function Steps({ phase }: { phase: Phase }) {
               {done ? <CheckIcon className="h-3 w-3" /> : i + 1}
             </span>
             {step}
+            {hint && i === hintAt && (
+              <span className={`basis-full pl-7 text-[11px] ${active ? "opacity-85" : "text-accent"}`}>{hint}</span>
+            )}
           </li>
         );
       })}
@@ -69,13 +74,7 @@ const MESSAGES: Partial<Record<Phase, { title: string; detail: string }>> = {
 };
 
 /** Qué está pasando ahora, con indicador de carga y tiempo. */
-export function Status({
-  phase,
-  countdownTo,
-}: {
-  phase: Phase;
-  countdownTo?: number | null;
-}) {
+export function Status({ phase, countdownTo }: { phase: Phase; countdownTo?: number | null }) {
   // Se monta de nuevo en cada fase (key={phase}): `since` es el inicio de la fase.
   const [since] = useState(() => Date.now());
   const message = MESSAGES[phase];
