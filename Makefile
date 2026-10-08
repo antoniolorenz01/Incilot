@@ -68,8 +68,9 @@ eval:
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.run $(ARGS)
 
-# Replays for the public demo: full investigations (approved, verified) saved to
-# web/public/replays. Spends one real investigation each.
+# The demo's recordings: every variant, investigated, approved and verified, with its
+# events and health metrics, saved to web/public/replays. Skips what's already
+# recorded (ARGS=--force to redo). One real investigation each.
 record:
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.record $(ARGS)
