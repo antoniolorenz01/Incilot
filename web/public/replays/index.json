@@ -8,6 +8,14 @@
   "recordedAt": "2026-10-08T13:15:04+00:00"
  },
  {
+  "file": "deploy-latency-regression--inventory-stock-recount.json",
+  "scenario": "deploy-latency-regression",
+  "variant": "inventory-stock-recount",
+  "title": "Deploy with a latency regression",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T14:01:29+00:00"
+ },
+ {
   "file": "deploy-latency-regression--users-last-seen.json",
   "scenario": "deploy-latency-regression",
   "variant": "users-last-seen",
@@ -102,6 +110,14 @@
   "title": "Misconfigured rate limit",
   "category": "config",
   "recordedAt": "2026-10-08T12:39:02+00:00"
+ },
+ {
+  "file": "config-cache-ttl-zero--users-ttl-zero.json",
+  "scenario": "config-cache-ttl-zero",
+  "variant": "users-ttl-zero",
+  "title": "Profile cache disabled by config",
+  "category": "config",
+  "recordedAt": "2026-10-08T13:57:27+00:00"
  },
  {
   "file": "config-payment-declines--provider-api-v3.json",
