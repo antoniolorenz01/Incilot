@@ -42,7 +42,10 @@ from incilot_agent.triage import overview
 from incilot_agent.verification import NullRecorder, NullVerifier
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "12"))
-MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", "150000"))
+# Claude Code (local, on a subscription) spends ~3x the tokens per round: each call is a
+# fresh `claude -p` with the tools as text, and every cached token is counted in full.
+_DEFAULT_MAX_TOKENS = "450000" if os.getenv("LLM_PROVIDER") == "claude-code" else "150000"
+MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", _DEFAULT_MAX_TOKENS))
 # Cap on what the tools return in one round (~4 characters per token).
 ROUND_BUDGET_CHARS = int(os.getenv("AGENT_ROUND_BUDGET_CHARS", "16000"))
 SUBMIT = "submit_diagnosis"
