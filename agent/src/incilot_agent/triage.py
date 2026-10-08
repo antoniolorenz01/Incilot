@@ -1,23 +1,27 @@
 """Triage: what changed in the system, without an LLM.
 
-It is deterministic and free. It compares each key metric over the last 5 minutes with
-its baseline (the previous hour) and splits the error patterns in the logs into new,
-growing and stable. That way the agent starts out knowing what changed, and does not
-mistake background noise (errors that are always there) for the incident.
+It is deterministic and free. It compares each key metric since the incident started
+(or over the last 5 minutes, if the alert does not say when) with its baseline (the
+previous hour) and splits the error patterns in the logs into new, growing and stable.
+That way the agent starts out knowing what changed, and does not mistake background
+noise (errors that are always there) or a previous, already resolved incident for this
+one.
 """
 
 import asyncio
 import time
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 
 from incilot_agent import config
 from incilot_agent.tools import _http
 from incilot_agent.tools.logs import signature
 
-RECENT = "5m"
-BASELINE = "45m"  # the previous hour, leaving a 10-minute margin
-BASELINE_OFFSET = "10m"
+RECENT_DEFAULT = 5 * 60  # seconds, when the start of the incident is unknown
+RECENT_MIN, RECENT_MAX = 60, 30 * 60
+BASELINE = "45m"  # the previous hour, leaving a 5-minute margin before the recent window
+BASELINE_MARGIN = 5 * 60
 CHANGE_RATIO = 2.0  # changed if multiplied (or divided) by at least this…
 
 
@@ -104,13 +108,22 @@ async def _vector(http, query: str) -> dict[tuple, tuple[dict, float]]:
     return result
 
 
-async def metric_changes() -> tuple[list[str], list[str]]:
-    """(changes, stable) for each metric, recent versus baseline."""
+def recent_seconds(since: datetime | None) -> int:
+    """The incident's window: from its start until now (clamped), or the last 5 minutes."""
+    if since is None:
+        return RECENT_DEFAULT
+    elapsed = int(time.time() - since.timestamp())
+    return min(max(elapsed, RECENT_MIN), RECENT_MAX)
+
+
+async def metric_changes(recent: int = RECENT_DEFAULT) -> tuple[list[str], list[str]]:
+    """(changes, stable) for each metric, the last `recent` seconds versus baseline."""
     changes, stable = [], []
+    offset = recent + BASELINE_MARGIN
     async with _http.client(config.PROMETHEUS_URL) as http:
         for metric in METRICS:
-            recent_q = f"avg_over_time(({metric.query})[{RECENT}:15s])"
-            base_q = f"avg_over_time(({metric.query})[{BASELINE}:1m] offset {BASELINE_OFFSET})"
+            recent_q = f"avg_over_time(({metric.query})[{recent}s:15s])"
+            base_q = f"avg_over_time(({metric.query})[{BASELINE}:1m] offset {offset}s)"
             recent, base = await asyncio.gather(_vector(http, recent_q), _vector(http, base_q))
             for key, (labels, value) in recent.items():
                 baseline = base.get(key, (None, None))[1]
@@ -120,16 +133,19 @@ async def metric_changes() -> tuple[list[str], list[str]]:
     return changes, stable
 
 
-async def log_changes(limit: int = 8) -> list[str]:
-    """Error patterns from the last hour: new and growing first, then stable."""
+async def log_changes(limit: int = 8, recent: int = RECENT_DEFAULT) -> list[str]:
+    """Error patterns from the last `recent` seconds versus the hour before: new and
+    growing first, then stable. A previous incident's errors fall in the hour before,
+    so they do not show up as new."""
     end = time.time_ns()
-    recent_since = end - 5 * 60 * 10**9
+    recent_since = end - recent * 10**9
+    start = recent_since - 60 * 60 * 10**9
     async with _http.client(config.LOKI_URL) as http:
         response = await http.get(
             "/loki/api/v1/query_range",
             params={
                 "query": '{service=~".+", level="error"}',
-                "start": end - 60 * 60 * 10**9,
+                "start": start,
                 "end": end,
                 "limit": 2000,
                 "direction": "backward",
@@ -144,27 +160,37 @@ async def log_changes(limit: int = 8) -> list[str]:
             group["example"] = group["example"] or f"[{service}] {line[:300]}"
 
     def kind(g: dict) -> str:
-        before_rate = g["before"] / 55  # per minute, to compare with the last 5
+        before_rate = g["before"] / 60  # per minute
         if g["recent"] and not g["before"]:
             return "NEW"
-        if g["recent"] / 5 >= 3 * max(before_rate, 0.2):
+        if g["recent"] / (recent / 60) >= 3 * max(before_rate, 0.2):
             return "GROWING"
         return "stable"
 
+    window = _window(recent)
     order = {"NEW": 0, "GROWING": 1, "stable": 2}
     ranked = sorted(groups.values(), key=lambda g: (order[kind(g)], -g["recent"]))
     return [
-        f"{kind(g):7} last 5 min: {g['recent']}× · previous hour: {g['before']}×\n"
+        f"{kind(g):7} {window}: {g['recent']}× · the hour before: {g['before']}×\n"
         f"        example: {g['example']}"
         for g in ranked[:limit]
         if g["recent"] or kind(g) != "stable"
     ]
 
 
-async def overview() -> str:
-    (changes, stable), logs = await asyncio.gather(metric_changes(), log_changes())
+def _window(seconds: int) -> str:
+    return f"last {seconds // 60} min" if seconds % 60 == 0 else f"last {seconds}s"
+
+
+async def overview(since: datetime | None = None) -> str:
+    """The triage summary. `since`: when the incident started, if the alert says so."""
+    recent = recent_seconds(since)
+    (changes, stable), logs = await asyncio.gather(
+        metric_changes(recent), log_changes(recent=recent)
+    )
+    window = f"since {since:%H:%M:%S} UTC" if since else _window(recent)
     sections = [
-        "## What changed in the last 5 min compared with the previous hour (↑ up, ↓ down)",
+        f"## What changed {window} compared with the hour before (↑ up, ↓ down)",
         "\n".join(f"- {c}" for c in changes) or "- nothing changed significantly",
         "## Unchanged (normal baseline)",
         "\n".join(f"- {s}" for s in stable[:20]) or "- (no data)",

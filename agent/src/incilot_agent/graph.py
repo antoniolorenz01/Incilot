@@ -19,6 +19,7 @@ cut off halfway resumes from the last completed step.
 import asyncio
 import operator
 import os
+from datetime import UTC, datetime
 from typing import Annotated, TypedDict
 
 from langchain_core.language_models import BaseChatModel
@@ -77,6 +78,7 @@ finish by calling submit_diagnosis."""
 
 class State(TypedDict):
     alert: str
+    since: str | None  # when the incident started (ISO 8601), if the alert says so
     messages: Annotated[list, add_messages]
     steps: int
     tokens: int
@@ -128,7 +130,8 @@ def build(
     diagnosis_llms = [(model_name(m), m.with_structured_output(Diagnosis)) for m in llms]
 
     async def triage(state: State) -> dict:
-        summary = await overview()
+        since = state.get("since")
+        summary = await overview(datetime.fromisoformat(since).astimezone(UTC) if since else None)
         return {
             "messages": [
                 SystemMessage(SYSTEM_PROMPT),

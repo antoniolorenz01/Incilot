@@ -37,7 +37,9 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
     )
     run_config = {"configurable": {"thread_id": investigation_id}}
     graph_input = (
-        {"alert": job["alert"]} if job["kind"] == "start" else Command(resume=job["decision"])
+        {"alert": job["alert"], "since": job.get("since")}
+        if job["kind"] == "start"
+        else Command(resume=job["decision"])
     )
 
     await redis.hset(meta, "status", "running")

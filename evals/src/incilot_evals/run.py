@@ -26,7 +26,7 @@ INJECTOR = os.getenv("INJECTOR_URL", "http://localhost:8100")
 AGENT = os.getenv("AGENT_API_URL", "http://localhost:8200")
 # Like a real alert, it says since when. Without the time, the agent mixed leftovers from
 # the previous scenario (its logs are still in the search window) with the current incident.
-ALERT = "[eval] Shop degraded since {since} UTC: customers are complaining."
+ALERT = "[eval] Shop degraded since {since:%H:%M:%S} UTC: customers are complaining."
 INVESTIGATION_TIMEOUT = 600
 # Difficulty per incident type (see TONI-82).
 DIFFICULTY = {
@@ -57,13 +57,14 @@ def variants(scenario_ids: list[str] | None, split: str) -> list[dict]:
     ]
 
 
-def investigate(client: httpx.Client, since: str) -> dict:
+def investigate(client: httpx.Client, since: datetime) -> dict:
     """Starts an investigation and follows its events until the diagnosis.
 
     If the stream drops, it reconnects: the API replays the history from the start.
     """
     alert = ALERT.format(since=since)
-    investigation_id = client.post("/investigations", json={"alert": alert}).json()["id"]
+    request = {"alert": alert, "since": since.isoformat()}
+    investigation_id = client.post("/investigations", json=request).json()["id"]
     result = {"id": investigation_id, "rounds": 0, "diagnosis": None, "error": None}
     url = f"/investigations/{investigation_id}/events"
     deadline = time.monotonic() + INVESTIGATION_TIMEOUT
@@ -94,7 +95,7 @@ def run_one(item: dict, warmup: int, cooldown: int) -> dict:
     agent = httpx.Client(base_url=AGENT, timeout=30)
     started = time.monotonic()
     injector.post("/injections", json={"scenario": item["scenario"], "variant": item["variant"]})
-    since = datetime.now(UTC).strftime("%H:%M")
+    since = datetime.now(UTC)
     try:
         time.sleep(warmup)
         investigated = time.monotonic()

@@ -142,7 +142,7 @@ export default function Home() {
       return;
     }
     // Like a real alert: the agent starts once the symptoms are visible.
-    const since = new Date().toISOString().slice(11, 16);
+    const since: string = body.injectedAt ?? new Date().toISOString();
     const warmup = dryRun ? DRY_RUN_WARMUP_MS : WARMUP_MS;
     setCountdownTo(deadlineIn(warmup));
     warmupTimer.current = setTimeout(() => investigate(since, dryRun), warmup);

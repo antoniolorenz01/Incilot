@@ -1,6 +1,6 @@
 """The agent's API: start investigations, follow them live (SSE) and approve them.
 
-    POST /investigations                {alert?, dry_run?}  → 202 {id}
+    POST /investigations                {alert?, since?, dry_run?}  → 202 {id}
     GET  /investigations/{id}           status and diagnosis
     GET  /investigations/{id}/events    live events (Server-Sent Events)
     GET  /incidents                     incidents already decided (history)
@@ -32,6 +32,7 @@ redis: Redis
 
 class InvestigationRequest(BaseModel):
     alert: str = DEFAULT_ALERT
+    since: datetime | None = None  # when the incident started: anchors the triage window
     dry_run: bool = False  # fake LLM: zero tokens
 
 
@@ -76,7 +77,9 @@ async def start(request: InvestigationRequest):
             "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         },
     )
-    await jobs.enqueue(redis, {"id": investigation_id, "kind": "start", "alert": request.alert})
+    since = request.since.isoformat() if request.since else None
+    job = {"id": investigation_id, "kind": "start", "alert": request.alert, "since": since}
+    await jobs.enqueue(redis, job)
     return {"id": investigation_id, "status": "queued"}
 
 

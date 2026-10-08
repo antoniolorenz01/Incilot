@@ -15,7 +15,7 @@ TOOL_CALLS = []
 def fake_sources(monkeypatch):
     TOOL_CALLS.clear()
 
-    async def overview():
+    async def overview(since=None):
         return "all quiet"
 
     async def query_metrics(promql: str) -> str:
