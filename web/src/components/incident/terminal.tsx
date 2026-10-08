@@ -16,23 +16,23 @@ import type { TopicId } from "@/lib/explain";
 import type { AgentEvent, Phase } from "@/lib/incident";
 
 const ACTIONS: Record<string, string> = {
-  rollback: "revertir un deploy",
-  revert_config: "revertir un cambio de config",
-  restart: "reiniciar",
-  terminate_session: "terminar una sesión de la base",
-  escalate: "escalar",
+  rollback: "roll back a deploy",
+  revert_config: "revert a config change",
+  restart: "restart",
+  terminate_session: "end a database session",
+  escalate: "escalate",
 };
 
 export function actionLabel(kind: string) {
   return ACTIONS[kind] ?? kind;
 }
 
-/** Hashes de commit: 7 caracteres, como en git. */
+/** Commit hashes: 7 characters, as in git. */
 export function shortTarget(target: string) {
   return /^[0-9a-f]{12,}$/i.test(target.trim()) ? target.trim().slice(0, 7) : target;
 }
 
-// Qué hace cada herramienta, en palabras de una persona, sobre qué, y su explicación.
+// What each tool does in plain words, what it acts on, and its explanation.
 type Tool = {
   icon: LucideIcon;
   label: string;
@@ -42,44 +42,43 @@ type Tool = {
 const TOOLS: Record<string, Tool> = {
   query_metrics: {
     icon: LineChartIcon,
-    label: "Consulta métricas",
+    label: "Queries metrics",
     topic: "query_metrics",
     subject: () => "",
   },
   search_logs: {
     icon: ScrollTextIcon,
     topic: "search_logs",
-    label: "Busca en los logs",
-    subject: (a) =>
-      [a.service ?? "todos los servicios", a.level, a.contains && `«${a.contains}»`].filter(Boolean).join(" · "),
+    label: "Searches the logs",
+    subject: (a) => [a.service ?? "all services", a.level, a.contains && `‘${a.contains}’`].filter(Boolean).join(" · "),
   },
   list_commits: {
     icon: GitPullRequestIcon,
     topic: "git",
-    label: "Lista los cambios recientes",
+    label: "Lists recent changes",
     subject: (a) => (a.path ? String(a.path) : ""),
   },
   show_commit: {
     icon: GitCommitHorizontalIcon,
     topic: "git",
-    label: "Revisa un cambio",
+    label: "Reviews a change",
     subject: (a) => shortTarget(String(a.sha ?? "")),
   },
   read_file: {
     icon: FileCodeIcon,
-    label: "Lee un archivo",
+    label: "Reads a file",
     topic: "git",
     subject: (a) => String(a.path ?? ""),
   },
   search_knowledge: {
     icon: BookOpenIcon,
     topic: "rag",
-    label: "Busca en la documentación",
-    subject: (a) => `«${a.query ?? ""}»`,
+    label: "Searches the documentation",
+    subject: (a) => `‘${a.query ?? ""}’`,
   },
   query_database: {
     icon: DatabaseIcon,
-    label: "Consulta la base de datos",
+    label: "Queries the database",
     topic: "query_database",
     subject: (a) => String(a.database ?? ""),
   },
@@ -94,7 +93,7 @@ type RoundBlock = {
 };
 type Block = RoundBlock | { kind: "event"; event: AgentEvent };
 
-/** Agrupa las herramientas por paso y empareja cada una con su resultado (llegan en orden). */
+/** Groups tool calls by step and pairs each with its result (they arrive in order). */
 function toBlocks(events: AgentEvent[]): Block[] {
   const blocks: Block[] = [];
   let pending: RoundBlock["items"] = [];
@@ -124,7 +123,7 @@ function summary(content: string) {
   return first.replace(/:$/, "");
 }
 
-/** Segundos entre dos eventos, si los dos tienen hora. */
+/** Seconds between two events, if both have a time. */
 function seconds(from?: number, to?: number) {
   return from && to ? `${((to - from) / 1000).toFixed(1)} s` : null;
 }
@@ -135,9 +134,9 @@ function Round({ round, items }: RoundBlock) {
   return (
     <div className="mt-4 first:mt-0">
       <p className="mb-2 text-foreground">
-        <span className="bg-foreground px-1.5 text-background">Paso {round}</span>
+        <span className="bg-foreground px-1.5 text-background">Step {round}</span>
         <span className="ml-2 text-muted-foreground">
-          {items.length} {items.length === 1 ? "consulta" : "consultas"}
+          {items.length} {items.length === 1 ? "query" : "queries"}
           {tech && took && ` · ${took}`}
         </span>
       </p>
@@ -171,7 +170,7 @@ function Round({ round, items }: RoundBlock) {
                 <pre className="mt-1 mb-2 max-h-48 overflow-auto whitespace-pre-wrap break-words bg-muted/40 p-2 text-[11px] text-muted-foreground">
                   {JSON.stringify(call.args, null, 1)}
                   {"\n\n"}
-                  {result?.content.slice(0, 3000) ?? "esperando resultado…"}
+                  {result?.content.slice(0, 3000) ?? "waiting for the result…"}
                 </pre>
               </details>
               {tool && <Explain topic={tool.topic} className="mt-0.5" />}
@@ -189,50 +188,50 @@ function EventLine({ event }: { event: AgentEvent }) {
     case "triage":
       return (
         <p className="mb-3 flex items-center gap-2 text-foreground">
-          &gt; Comparó cada indicador de la tienda con la hora anterior <Explain topic="triage" />
+          &gt; Compared every shop indicator with the previous hour <Explain topic="triage" />
         </p>
       );
     case "llm_fallback":
       return (
         <p className="mt-3 text-accent">
-          &gt; El modelo {event.model} no respondió; sigue con {event.fallback_to ?? "ningún respaldo"}
+          &gt; Model {event.model} did not respond; carrying on with {event.fallback_to ?? "no fallback"}
         </p>
       );
     case "diagnosis":
       return (
         <p className="mt-4 text-foreground">
-          &gt; Diagnóstico listo: {event.diagnosis.service}
+          &gt; Diagnosis ready: {event.diagnosis.service}
           <span className="text-muted-foreground">
             {" "}
-            · {event.tokens.toLocaleString("es")} tokens
-            {tech && ` · fin: ${event.stop_reason}`}
+            · {event.tokens.toLocaleString("en-GB")} tokens
+            {tech && ` · stop: ${event.stop_reason}`}
           </span>
         </p>
       );
     case "awaiting_approval":
-      return <p className="text-accent">&gt; Espera tu aprobación para actuar</p>;
+      return <p className="text-accent">&gt; Waiting for your approval to act</p>;
     case "approval":
       return (
         <p className="mt-3 text-foreground">
-          &gt; {event.approved ? "Aprobado" : "Rechazado"}
+          &gt; {event.approved ? "Approved" : "Rejected"}
           {event.note && <span className="text-muted-foreground"> ({event.note})</span>}
         </p>
       );
     case "execution":
       return (
         <p className={event.status === "executed" ? "text-foreground" : "text-destructive"}>
-          &gt; {event.status === "executed" ? event.detail : `No se pudo ejecutar: ${event.detail}`}
+          &gt; {event.status === "executed" ? event.detail : `Could not apply: ${event.detail}`}
         </p>
       );
     case "verification":
-      if (event.skipped) return <p className="text-muted-foreground">&gt; Sin verificación</p>;
+      if (event.skipped) return <p className="text-muted-foreground">&gt; No verification</p>;
       return (
         <p className={event.recovered ? "text-success" : "text-destructive"}>
-          &gt; {event.recovered ? "La tienda volvió a la normalidad" : "El problema sigue"}
+          &gt; {event.recovered ? "The shop is back to normal" : "The problem persists"}
         </p>
       );
     case "error":
-      return <p className="mt-3 text-destructive">&gt; La investigación falló: {event.error}</p>;
+      return <p className="mt-3 text-destructive">&gt; The investigation failed: {event.error}</p>;
     default:
       return null;
   }
@@ -246,16 +245,16 @@ export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase
 
   const working = phase === "investigating" || phase === "executing";
   return (
-    <section aria-label="Investigación en vivo" className="flex min-h-0 flex-col border-2 border-foreground">
+    <section aria-label="Live investigation" className="flex min-h-0 flex-col border-2 border-foreground">
       <header className="flex shrink-0 items-center gap-2 border-b-2 border-foreground px-4 py-2">
         <span className={`h-2 w-2 ${working ? "bg-accent" : "bg-muted-foreground"}`} />
         <span className="h-2 w-2 bg-foreground" />
         <span className="h-2 w-2 border border-foreground" />
         <h2 className="ml-2 flex min-w-0 items-center gap-1.5 text-xs text-foreground">
-          El agente <Explain topic="agent" />
+          The agent <Explain topic="agent" />
         </h2>
         <p className="ml-auto flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="truncate">en vivo · tocá una consulta para ver el detalle</span>
+          <span className="truncate">live · click a query to see the details</span>
           <Explain topic="stream" />
         </p>
       </header>
@@ -266,18 +265,21 @@ export function Terminal({ events, phase }: { events: AgentEvent[]; phase: Phase
       >
         {events.length === 0 && phase === "idle" ? (
           <div className="max-w-[60ch] space-y-3 text-muted-foreground">
-            <p className="text-foreground">Cómo funciona</p>
+            <p className="text-foreground">How it works</p>
             <ol className="list-decimal space-y-1.5 pl-4">
+              <li>Pick a fault type and press ‘Simulate incident’: we really break something in a test shop.</li>
               <li>
-                Elegí un tipo de fallo y apretá «Simular incidente»: rompemos algo de verdad en una tienda de prueba.
+                The agent investigates on its own, without knowing what we broke. You see every step it takes here.
               </li>
-              <li>El agente investiga solo, sin saber qué rompimos. Acá ves cada paso que da.</li>
-              <li>Te propone una solución. No hace nada hasta que vos la aprobás.</li>
-              <li>Si aprobás, la aplica y verifica que la tienda se recuperó. Al final podés ver si acertó.</li>
+              <li>It proposes a fix. It does nothing until you approve it.</li>
+              <li>
+                If you approve, it applies the fix and checks the shop has recovered. At the end you can see whether it
+                got it right.
+              </li>
             </ol>
           </div>
         ) : events.length === 0 ? (
-          <p className="text-muted-foreground">&gt; Esperando el primer paso del agente…</p>
+          <p className="text-muted-foreground">&gt; Waiting for the agent’s first step…</p>
         ) : (
           toBlocks(events).map((block, i) =>
             block.kind === "round" ? <Round key={i} {...block} /> : <EventLine key={i} event={block.event} />,

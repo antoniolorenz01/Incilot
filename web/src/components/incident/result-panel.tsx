@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/incident/diagnosis-panel";
 import { grade, type Investigation, type Truth } from "@/lib/incident";
 
-/** Paso 4: si la tienda se recuperó y si el agente acertó. */
+/** Step 4: whether the shop recovered and whether the agent got it right. */
 export function ResultPanel({
   investigation,
   truth,
@@ -25,30 +25,32 @@ export function ResultPanel({
   if (!diagnosis && !finished) {
     return (
       <section
-        aria-label="Resultado"
+        aria-label="Outcome"
         className="shrink-0 border-2 border-dashed border-border p-4 text-xs text-muted-foreground"
       >
-        Cuando decidas, acá vas a ver si la tienda se recuperó y si el agente acertó.
+        Once you decide, you’ll see here whether the shop recovered and whether the agent got it right.
       </section>
     );
   }
 
   return (
     <section
-      aria-label="Resultado"
+      aria-label="Outcome"
       className="flex max-h-[65%] shrink-0 flex-col gap-3 overflow-y-auto border-2 border-foreground p-4 text-xs"
     >
-      <h2 className="text-sm text-foreground">Resultado</h2>
-      {phase === "awaiting_approval" && !readOnly && <p className="text-muted-foreground">Esperando tu decisión.</p>}
+      <h2 className="text-sm text-foreground">Outcome</h2>
+      {phase === "awaiting_approval" && !readOnly && (
+        <p className="text-muted-foreground">Waiting for your decision.</p>
+      )}
       {(execution || verification || phase === "executing") && (
-        <Section title="La tienda" topic="verification">
+        <Section title="The shop" topic="verification">
           {phase === "executing" && !verification && (
-            <p className="text-muted-foreground">Aplicando y midiendo la tienda durante un minuto…</p>
+            <p className="text-muted-foreground">Applying and measuring the shop for a minute…</p>
           )}
           {verification && !verification.skipped && (
             <>
               <p className={`font-pixel text-xl ${verification.recovered ? "text-success" : "text-destructive"}`}>
-                {verification.recovered ? "Resuelto" : "Sigue el problema"}
+                {verification.recovered ? "Resolved" : "Still failing"}
               </p>
               <table className="mt-2 w-full">
                 <tbody>
@@ -69,40 +71,40 @@ export function ResultPanel({
       )}
 
       {result && truth && (
-        <Section title="¿Acertó el agente?" topic="evals">
+        <Section title="Did the agent get it right?" topic="evals">
           {diagnosis?.service === "dry-run" && (
             <p className="mb-2 text-muted-foreground">
-              Modo prueba: el diagnóstico es un ejemplo fijo, así que no puede acertar. Apagá el modo prueba para ver al
-              agente investigar de verdad.
+              Dry run: the diagnosis is a fixed example, so it cannot be right. Switch dry run off to watch the agent
+              really investigate.
             </p>
           )}
           {!revealed ? (
             <Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
-              Ver la respuesta correcta
+              Show the right answer
             </Button>
           ) : (
             <div className="flex flex-col gap-2">
               <p className="break-words text-muted-foreground">{truth.root_cause}</p>
               <ul className="flex flex-col gap-1">
                 {[
-                  ["Acción que arregla el problema", result.action],
-                  ["Servicio", result.service],
-                  [truth.culprit_sha ? "Commit culpable" : "No culpar a ningún commit", result.commit],
+                  ["Action that fixes the problem", result.action],
+                  ["Service", result.service],
+                  [truth.culprit_sha ? "Culprit commit" : "Blame no commit", result.commit],
                 ].map(([label, ok]) => (
                   <li key={label as string} className="flex justify-between gap-2">
                     <span className="text-muted-foreground">{label}</span>
-                    <span className={ok ? "text-success" : "text-destructive"}>{ok ? "acertó" : "falló"}</span>
+                    <span className={ok ? "text-success" : "text-destructive"}>{ok ? "right" : "wrong"}</span>
                   </li>
                 ))}
               </ul>
-              {result.decoy && <p className="text-destructive">Culpó a un commit inocente (un señuelo).</p>}
+              {result.decoy && <p className="text-destructive">It blamed an innocent commit (a decoy).</p>}
             </div>
           )}
         </Section>
       )}
       {finished && (
         <Button variant="ghost" size="sm" className="self-start" onClick={onEnd}>
-          {readOnly ? "Volver" : "Terminar y simular otro"}
+          {readOnly ? "Back" : "End and simulate another"}
         </Button>
       )}
     </section>

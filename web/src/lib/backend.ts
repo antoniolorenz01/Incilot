@@ -1,4 +1,4 @@
-// Solo en el servidor (lo importan las rutas /api): las URLs nunca llegan al navegador.
+// Server only (imported by the /api routes): the URLs never reach the browser.
 
 const INJECTOR_URL = process.env.INJECTOR_URL ?? "http://localhost:8100";
 const AGENT_API_URL = process.env.AGENT_API_URL ?? "http://localhost:8200";
@@ -18,7 +18,7 @@ export function prometheus(path: string) {
 
 export const json = { "content-type": "application/json" };
 
-/** Reenvía la respuesta de un servicio tal cual (status y cuerpo JSON). */
+/** Relays a service's response as is (status and JSON body). */
 export async function relay(response: Response) {
   const body = await response.text();
   return new Response(body, { status: response.status, headers: json });

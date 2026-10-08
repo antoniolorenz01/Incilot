@@ -26,7 +26,7 @@ function reducer(state: Investigation, action: Action): Investigation {
   return reduce(state, action.event);
 }
 
-// Cuánto esperar a que los síntomas sean visibles antes de llamar al agente.
+// How long to wait for the symptoms to show before calling the agent.
 const WARMUP_MS = 60_000;
 const DRY_RUN_WARMUP_MS = 5_000;
 
@@ -35,13 +35,13 @@ function deadlineIn(ms: number) {
 }
 
 const STATUS: Record<Investigation["phase"], { text: string; tone: string }> = {
-  idle: { text: "Sin incidentes", tone: "text-muted-foreground" },
-  breaking: { text: "Incidente en curso", tone: "text-accent" },
-  investigating: { text: "Investigando", tone: "text-accent" },
-  awaiting_approval: { text: "Espera tu decisión", tone: "text-accent" },
-  executing: { text: "Aplicando la solución", tone: "text-accent" },
-  done: { text: "Terminado", tone: "text-foreground" },
-  error: { text: "Falló la investigación", tone: "text-destructive" },
+  idle: { text: "No incidents", tone: "text-muted-foreground" },
+  breaking: { text: "Incident in progress", tone: "text-accent" },
+  investigating: { text: "Investigating", tone: "text-accent" },
+  awaiting_approval: { text: "Awaiting your decision", tone: "text-accent" },
+  executing: { text: "Applying the fix", tone: "text-accent" },
+  done: { text: "Finished", tone: "text-foreground" },
+  error: { text: "Investigation failed", tone: "text-destructive" },
 };
 
 export default function Home() {
@@ -51,9 +51,9 @@ export default function Home() {
   const source = useRef<EventSource | null>(null);
   const warmupTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [countdownTo, setCountdownTo] = useState<number | null>(null);
-  // Una simulación que ya estaba activa al abrir la página (p. ej. de otra pestaña).
+  // A simulation that was already active when the page opened (e.g. from another tab).
   const [leftover, setLeftover] = useState<string | null>(null);
-  // Mirando una investigación anterior (se reproduce, no se puede decidir).
+  // Viewing a past investigation (it's replayed; no decision possible).
   const [readOnly, setReadOnly] = useState(false);
   const [tech, setTech] = useState(false);
 
@@ -68,16 +68,16 @@ export default function Home() {
     source.current?.close();
     const events = new EventSource(`/api/investigations/${id}/events`);
     events.onmessage = (message) => {
-      // Un evento `error` sin datos es el de EventSource (conexión caída), no el del
-      // agente: el navegador reintenta solo y retomamos desde el último evento.
+      // An `error` event with no data is EventSource's (connection lost), not the agent's:
+      // the browser retries on its own and we resume from the last event.
       if (!message.data) return;
-      // El id del evento es el del stream de Redis: «<ms>-<n>», cuándo se publicó.
+      // The event id is the Redis stream's: "<ms>-<n>", when it was published.
       const at = Number(message.lastEventId.split("-")[0]) || undefined;
       const event = { ...(JSON.parse(message.data) as AgentEvent), at };
       dispatch({ type: "event", event });
       if (event.type === "done" || event.type === "error") events.close();
     };
-    // El servidor emite eventos con nombre (event: tool_call…): escuchamos todos.
+    // The server sends named events (event: tool_call…): listen to all of them.
     for (const type of [
       "triage",
       "tool_call",
@@ -104,8 +104,8 @@ export default function Home() {
     [],
   );
 
-  // La respuesta correcta se guarda en cuanto hay diagnóstico: después de resolver,
-  // el injector ya no tiene un incidente activo para consultar.
+  // Store the right answer as soon as there is a diagnosis: once resolved, the
+  // injector no longer has an active incident to ask about.
   useEffect(() => {
     if (investigation.diagnosis && !truth && !readOnly) {
       fetch("/api/incidents/active")
@@ -122,7 +122,7 @@ export default function Home() {
     setReadOnly(true);
     setInvestigationId(id);
     dispatch({ type: "investigating" });
-    listen(id); // el stream reenvía la historia completa
+    listen(id); // the stream replays the full history
   }
 
   async function simulate(scenario: string, dryRun: boolean) {
@@ -138,10 +138,10 @@ export default function Home() {
     if (!response.ok) {
       dispatch({ type: "reset" });
       if (response.status === 409) setLeftover(new Date().toISOString());
-      toast.error(`No se pudo simular: ${body.detail}`);
+      toast.error(`Could not simulate: ${body.detail}`);
       return;
     }
-    // Como una alerta real: el agente arranca cuando los síntomas ya se ven.
+    // Like a real alert: the agent starts once the symptoms are visible.
     const since = new Date().toISOString().slice(11, 16);
     const warmup = dryRun ? DRY_RUN_WARMUP_MS : WARMUP_MS;
     setCountdownTo(deadlineIn(warmup));
@@ -159,7 +159,7 @@ export default function Home() {
     const body = await response.json();
     if (!response.ok) {
       dispatch({ type: "reset" });
-      toast.error(`No se pudo investigar: ${body.detail}`);
+      toast.error(`Could not investigate: ${body.detail}`);
       return;
     }
     setInvestigationId(body.investigationId);
@@ -173,8 +173,8 @@ export default function Home() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(decision),
     });
-    // La conexión de eventos sigue abierta: la ejecución y la verificación llegan por ahí.
-    if (!response.ok) toast.error("No se pudo registrar tu decisión.");
+    // The event connection stays open: execution and verification arrive through it.
+    if (!response.ok) toast.error("Could not record your decision.");
   }
 
   async function end() {
@@ -200,18 +200,18 @@ export default function Home() {
           <div className="min-w-0">
             <h1 className="font-pixel text-3xl leading-none text-foreground md:text-4xl">IncidentPilot</h1>
             <p className="mt-1.5 max-w-[70ch] text-xs text-muted-foreground">
-              Un agente investiga incidentes en una tienda de prueba, propone cómo arreglarlos y lo hace solo si vos lo
-              aprobás.
+              An agent investigates incidents in a test shop, proposes how to fix them and only does so once you
+              approve.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <p className={`font-pixel text-xl ${readOnly ? "text-muted-foreground" : status.tone}`} aria-live="polite">
-              {readOnly ? "Investigación anterior" : status.text}
+              {readOnly ? "Past investigation" : status.text}
             </p>
             <Architecture />
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={tech} onCheckedChange={setTech} />
-              Modo técnico
+              Technical mode
             </label>
             <Explain topic="tech" />
           </div>
@@ -226,27 +226,27 @@ export default function Home() {
               className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs"
             >
               <p className="text-foreground">
-                Hay una simulación activa desde las{" "}
-                {new Date(leftover).toLocaleTimeString("es", {
+                A simulation has been active since{" "}
+                {new Date(leftover).toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
-                . Terminala para simular otra.
+                . End it to simulate another.
               </p>
               <Button size="sm" variant="outline" onClick={end}>
-                Terminarla
+                End it
               </Button>
             </div>
           )}
         </div>
 
-        {/* La pantalla no hace scroll: cada panel scrollea por dentro. */}
-        {/* Una columna por paso: romper, investigar, decidir, resultado. */}
+        {/* The page doesn't scroll: each panel scrolls inside. */}
+        {/* One column per step: break, investigate, decide, outcome. */}
         <div
           className={`focus-columns grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}
           data-focus={focus?.columns.map((c) => `c${c}`).join(" ")}
         >
-          {/* Misma altura que las otras columnas: cada panel scrollea por dentro. */}
+          {/* Same height as the other columns: each panel scrolls inside. */}
           <div className="flex min-h-0 flex-col gap-3">
             <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
             <ShopHealth />

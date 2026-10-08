@@ -1,9 +1,9 @@
 import { agent } from "@/lib/backend";
 
-/** Reenvía en vivo los eventos (SSE) de la investigación. */
+/** Relays the investigation's events live (SSE). */
 export async function GET(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  // Si el navegador se reconecta, retomamos desde el último evento que ya tiene.
+  // If the browser reconnects, resume from the last event it already has.
   const lastEventId = request.headers.get("last-event-id");
   const upstream = await agent(`/investigations/${id}/events`, {
     headers: lastEventId ? { "last-event-id": lastEventId } : {},

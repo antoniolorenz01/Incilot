@@ -1,16 +1,16 @@
 import { prometheus } from "@/lib/backend";
 
-// Lo que nota un cliente de la tienda, en los últimos 15 minutos.
+// What a shop customer notices, over the last 15 minutes.
 const METRICS = [
   {
     key: "orders",
-    label: "Pedidos por minuto",
+    label: "Orders per minute",
     unit: "",
     query: 'sum(rate(orders_total{status="confirmed"}[1m])) * 60',
   },
   {
     key: "errors",
-    label: "Pedidos con error",
+    label: "Failed orders",
     unit: "%",
     query:
       'sum(rate(http_requests_total{service="shop",status=~"5.."}[1m])) / sum(rate(http_requests_total{service="shop"}[1m])) * 100',
@@ -18,7 +18,7 @@ const METRICS = [
   },
   {
     key: "latency",
-    label: "Tiempo de respuesta",
+    label: "Response time",
     unit: "ms",
     query:
       'histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="shop"}[1m]))) * 1000',
@@ -39,7 +39,7 @@ export async function GET() {
         .map(([, v]: [number, string]) => Number(v))
         .map((v: number) => (Number.isFinite(v) ? v : 0));
       const current = values.at(-1) ?? null;
-      // Pedidos: mal si cayeron a menos del 60 % de lo habitual en la ventana.
+      // Orders: unhealthy if they fell below 60 % of the window's typical rate.
       const typical = [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
       const healthy =
         current === null

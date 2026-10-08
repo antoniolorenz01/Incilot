@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 
-// Lo que se puede tocar: ahí el clic es del control, no para arrastrar.
+// Interactive elements: a click there belongs to the control, not to dragging.
 const INTERACTIVE = "button, a, input, select, textarea, label, [role=combobox], [role=switch], [role=option]";
 
-/** Scroll arrastrando con el mouse (además de la rueda y el touch), para paneles con la barra oculta. */
+/** Scroll by dragging with the mouse (besides the wheel and touch), for panels with a hidden scrollbar. */
 export function useDragScroll<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   useEffect(() => {
@@ -20,7 +20,7 @@ export function useDragScroll<T extends HTMLElement>() {
     const move = (e: PointerEvent) => {
       if (!start) return;
       const dy = e.clientY - start.y;
-      if (!dragging && Math.abs(dy) < 4) return; // un clic no es un arrastre
+      if (!dragging && Math.abs(dy) < 4) return; // a click is not a drag
       dragging = true;
       el.style.userSelect = "none";
       el.style.cursor = "grabbing";

@@ -11,15 +11,15 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "IncidentPilot",
-  description: "Un agente que investiga incidentes, propone la solución y la ejecuta con tu aprobación.",
+  description: "An agent that investigates incidents, proposes a fix and applies it once you approve.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
+      lang="en-GB"
       className={`dark ${jetbrainsMono.variable} ${GeistPixelGrid.variable} h-full antialiased`}
-      // Extensiones como Dark Reader agregan atributos al <html> antes de que cargue React.
+      // Extensions such as Dark Reader add attributes to <html> before React loads.
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-mono">

@@ -1,4 +1,4 @@
-// Tipos y estado de una investigación, construidos a partir de los eventos del agente.
+// Types and state of an investigation, built from the agent's events.
 
 export type Action = { kind: string; target: string; reason: string; evidence: string[] };
 
@@ -14,7 +14,7 @@ export type Diagnosis = {
 
 export type Check = { name: string; value: number; max: number; ok: boolean };
 
-// `at`: cuándo lo publicó el agente (ms), sacado del id del evento en el stream.
+// `at`: when the agent published it (ms), taken from the event id in the stream.
 export type AgentEvent = (
   | { type: "triage" }
   | { type: "tool_call"; name: string; args: Record<string, unknown>; round: number }
@@ -31,15 +31,15 @@ export type AgentEvent = (
 
 export type Phase =
   | "idle"
-  | "breaking" // la tienda está rota; esperamos a que aparezcan los síntomas
+  | "breaking" // the shop is broken; waiting for the symptoms to show
   | "investigating"
   | "awaiting_approval"
   | "executing"
   | "done"
   | "error";
 
-/** Los pasos que ve el usuario (la barra de progreso). */
-export const STEPS = ["Romper la tienda", "El agente investiga", "Vos decidís", "Resultado"] as const;
+/** The steps the user sees (the progress bar). */
+export const STEPS = ["Break the shop", "The agent investigates", "You decide", "Outcome"] as const;
 
 export function stepOf(phase: Phase): number {
   return { idle: -1, breaking: 0, investigating: 1, awaiting_approval: 2, executing: 3, done: 3, error: 1 }[phase];
@@ -80,7 +80,7 @@ export function reduce(state: Investigation, event: AgentEvent): Investigation {
   }
 }
 
-/** La respuesta correcta que guarda el injector. */
+/** The right answer, as stored by the injector. */
 export type Truth = {
   scenario: string;
   variant: string;
@@ -91,7 +91,7 @@ export type Truth = {
   decoy_shas: string[];
 };
 
-/** Misma idea que las evals: ¿la acción propuesta arreglaría el incidente? */
+/** Same idea as the evals: would the proposed action fix the incident? */
 export function grade(truth: Truth, diagnosis: Diagnosis) {
   const reverts = ["rollback", "revert_config"];
   const { kind, target } = diagnosis.action;
@@ -107,9 +107,7 @@ export function grade(truth: Truth, diagnosis: Diagnosis) {
   return {
     action,
     service: new RegExp(`\\b${truth.service}\\b`, "i").test(diagnosis.service),
-    commit: truth.culprit_sha
-      ? commit.length >= 7 && truth.culprit_sha.startsWith(commit)
-      : !diagnosis.culprit_commit,
+    commit: truth.culprit_sha ? commit.length >= 7 && truth.culprit_sha.startsWith(commit) : !diagnosis.culprit_commit,
     decoy: truth.decoy_shas.some((d) => commit.length >= 7 && d.startsWith(commit)),
   };
 }

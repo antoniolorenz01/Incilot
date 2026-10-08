@@ -1,6 +1,6 @@
 import { injector, relay } from "@/lib/backend";
 
-/** Termina la simulación: deja la tienda como estaba. */
+/** Ends the simulation: puts the shop back as it was. */
 export async function POST() {
   return relay(await injector("/injections/active/recover", { method: "POST" }));
 }

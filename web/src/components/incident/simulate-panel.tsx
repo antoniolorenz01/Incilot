@@ -18,10 +18,10 @@ import { useDragScroll } from "@/lib/use-drag-scroll";
 type Catalog = Record<string, { title: string; category: string }>;
 
 const CATEGORIES: Record<string, string> = {
-  deploy: "Un deploy con un bug",
-  config: "Un cambio de config",
-  infra: "Infraestructura",
-  external: "Un proveedor externo",
+  deploy: "A deploy with a bug",
+  config: "A config change",
+  infra: "Infrastructure",
+  external: "An external provider",
 };
 
 export function SimulatePanel({
@@ -43,7 +43,7 @@ export function SimulatePanel({
     fetch("/api/scenarios")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setCatalog)
-      .catch(() => setError("No pude leer los tipos de fallo: ¿está levantado el entorno (make up)?"));
+      .catch(() => setError("Couldn't load the fault types: is the environment running (make up)?"));
   }, []);
 
   const byCategory = Object.entries(catalog).reduce<Record<string, [string, string][]>>((groups, [id, spec]) => {
@@ -54,33 +54,33 @@ export function SimulatePanel({
   return (
     <section
       ref={scroller}
-      aria-label="Simular un incidente"
+      aria-label="Simulate an incident"
       className="scroll-hidden flex min-h-0 shrink flex-col gap-4 overflow-y-auto border-2 border-foreground p-4"
     >
       <div>
         <h2 className="flex items-center gap-1.5 text-sm text-foreground">
-          Simular un incidente <Explain topic="simulate" />
+          Simulate an incident <Explain topic="simulate" />
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Rompemos algo en la tienda de prueba. El agente no sabe qué fue.
+          We break something in the test shop. The agent doesn’t know what.
         </p>
       </div>
 
-      {/* div y no label: el ícono de ayuda es un botón y se llevaría el clic del texto. */}
+      {/* A div, not a label: the help icon is a button and would take the text's click. */}
       <div className="flex flex-col gap-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          Tipo de fallo <Explain topic="scenario" />
+          Fault type <Explain topic="scenario" />
         </span>
-        {/* items: el texto a mostrar por cada valor (si no, se ve el id técnico) */}
+        {/* items: the text to show for each value (otherwise the technical id shows) */}
         <Select
           value={scenario}
           onValueChange={(value) => setScenario(value as string)}
           items={Object.fromEntries(Object.entries(catalog).map(([id, spec]) => [id, spec.title]))}
         >
-          <SelectTrigger className="w-full min-w-0" aria-label="Tipo de fallo">
-            <SelectValue placeholder="Elegí qué romper" className="truncate" />
+          <SelectTrigger className="w-full min-w-0" aria-label="Fault type">
+            <SelectValue placeholder="Pick what to break" className="truncate" />
           </SelectTrigger>
-          {/* Más ancho que el botón: los nombres de los fallos son largos. */}
+          {/* Wider than the button: fault names are long. */}
           <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(26rem,90vw)]">
             {Object.entries(byCategory).map(([category, items]) => (
               <SelectGroup key={category}>
@@ -100,8 +100,8 @@ export function SimulatePanel({
         <label className="flex flex-1 items-start gap-3 text-xs text-muted-foreground">
           <Switch checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
           <span>
-            Modo prueba
-            <span className="block opacity-70">Sin IA: recorre el flujo con un diagnóstico de ejemplo.</span>
+            Dry run
+            <span className="block opacity-70">No AI: walks through the flow with an example diagnosis.</span>
           </span>
         </label>
         <Explain topic="dry_run" className="mt-0.5" />
@@ -112,11 +112,11 @@ export function SimulatePanel({
         onClick={() => scenario && onSimulate(scenario, dryRun)}
         className="bg-accent text-accent-foreground hover:bg-accent/85"
       >
-        {busy ? "Incidente en curso" : "Simular incidente"}
+        {busy ? "Incident in progress" : "Simulate incident"}
       </Button>
       {busy && (
         <Button variant="destructive" size="sm" onClick={onCancel}>
-          Cancelar simulación
+          Cancel simulation
         </Button>
       )}
 

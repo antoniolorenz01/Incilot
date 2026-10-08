@@ -11,51 +11,51 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// El recorrido de un incidente, de arriba abajo. Cada etapa: qué pasa y con qué.
+// An incident's journey, top to bottom. Each stage: what happens and with what.
 const FLOW: { title: string; what: string; stack: string[] }[] = [
   {
-    title: "La tienda",
-    what: "Cuatro microservicios con tráfico simulado. Un inyector les mete fallos reales y commits señuelo.",
+    title: "The shop",
+    what: "Four microservices with simulated traffic. An injector feeds them real faults and decoy commits.",
     stack: ["FastAPI", "Postgres", "Redis", "Docker Compose"],
   },
   {
-    title: "Observabilidad",
-    what: "Métricas y logs de cada servicio, como en cualquier empresa.",
+    title: "Observability",
+    what: "Metrics and logs from every service, as at any company.",
     stack: ["Prometheus", "Loki", "Alloy", "Grafana"],
   },
   {
-    title: "API del agente",
-    what: "Recibe la alerta, encola la investigación y la corre en un worker aparte.",
-    stack: ["FastAPI", "cola en Redis", "worker async"],
+    title: "Agent API",
+    what: "Receives the alert, queues the investigation and runs it in a separate worker.",
+    stack: ["FastAPI", "Redis queue", "worker async"],
   },
   {
-    title: "El agente",
-    what: "Triage sin IA → bucle de herramientas de solo lectura (métricas, logs, git, RAG, SQL) → diagnóstico estructurado → pausa hasta que un humano decide.",
-    stack: ["LangGraph", "OpenAI + respaldo", "pgvector", "checkpoints en Postgres"],
+    title: "The agent",
+    what: "Triage without AI → loop of read-only tools (metrics, logs, git, RAG, SQL) → structured diagnosis → pause until a human decides.",
+    stack: ["LangGraph", "OpenAI + fallback", "pgvector", "Postgres checkpoints"],
   },
   {
-    title: "Acción y verificación",
-    what: "Ejecuta solo lo aprobado, mide la tienda de nuevo y registra el incidente.",
-    stack: ["conectores de ejecución", "Prometheus"],
+    title: "Action and verification",
+    what: "Applies only what was approved, measures the shop again and records the incident.",
+    stack: ["execution connectors", "Prometheus"],
   },
   {
-    title: "Esta pantalla",
-    what: "Recibe cada paso en vivo y retoma si se corta la conexión.",
+    title: "This screen",
+    what: "Receives each step live and resumes if the connection drops.",
     stack: ["Next.js 16", "React 19", "Redis Streams", "SSE", "Tailwind"],
   },
 ];
 
-/** «Cómo está hecho»: la arquitectura en una pantalla. */
+/** "How it's built": the architecture on one screen. */
 export function Architecture() {
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>Cómo está hecho</DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>How it’s built</DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto border-2 border-foreground sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Cómo está hecho</DialogTitle>
+          <DialogTitle>How it’s built</DialogTitle>
           <DialogDescription>
-            El camino de un incidente, desde que se rompe la tienda hasta que se verifica el arreglo. Además, una suite
-            de evals mide qué tan seguido acierta el agente.
+            An incident’s journey, from the moment the shop breaks until the fix is verified. On top of that, an eval
+            suite measures how often the agent gets it right.
           </DialogDescription>
         </DialogHeader>
         <ol className="flex flex-col text-xs">
@@ -65,7 +65,7 @@ export function Architecture() {
               <div className="border-2 border-foreground p-3">
                 <p className="text-sm text-foreground">{stage.title}</p>
                 <p className="mt-1 leading-relaxed text-muted-foreground">{stage.what}</p>
-                <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Herramientas">
+                <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Tools">
                   {stage.stack.map((item) => (
                     <li key={item} className="border border-accent px-1.5 py-0.5 text-[11px] text-accent">
                       {item}

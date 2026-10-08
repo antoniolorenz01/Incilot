@@ -50,7 +50,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Paleta del template brutalist (claro y oscuro), con radio 0. La app usa el oscuro. */
+/* The brutalist template palette (light and dark), with zero radius. The app uses dark. */
 :root {
   --background: hsl(43 23% 93%);
   --foreground: hsl(0 0% 4%);
@@ -133,13 +133,13 @@
     @apply font-sans;
   }
 }
-/* Fondo de puntos del template. */
+/* The template's dot background. */
 .dot-grid-bg {
   background-image: radial-gradient(circle, hsl(0 0% 20%) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Cursor de la terminal. */
+/* Terminal cursor. */
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
@@ -152,7 +152,7 @@
   .animate-blink { animation: none; }
 }
 
-/* Scrollbars con el lenguaje de la UI: finos, cuadrados, del color de los bordes. */
+/* Scrollbars in the UI's language: thin, square, the colour of the borders. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -175,8 +175,8 @@
   background: transparent;
 }
 
-/* Foco guiado: en pantallas anchas, las columnas que no importan ahora quedan atenuadas
-   (vuelven al pasar el mouse o con el foco del teclado). */
+/* Guided focus: on wide screens, columns that don't matter right now are dimmed
+   (they come back on hover or keyboard focus). */
 @media (min-width: 80rem) {
   .focus-columns[data-focus] > * {
     opacity: 0.5;
@@ -197,7 +197,7 @@
   }
 }
 
-/* Scroll sin barra visible (rueda, touch o arrastrando con useDragScroll). */
+/* Scrolling with no visible bar (wheel, touch or dragging via useDragScroll). */
 .scroll-hidden {
   scrollbar-width: none;
 }

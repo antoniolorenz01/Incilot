@@ -4,20 +4,20 @@ import { useEffect, useState } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { type Phase, STEPS, stepOf } from "@/lib/incident";
 
-/** Columnas de la pantalla: una por paso, alineadas con la barra de pasos. */
+/** Screen columns: one per step, aligned with the steps bar. */
 export const COLUMNS = "xl:grid-cols-[270px_minmax(0,1fr)_360px_310px]";
 
-/** Pasos del flujo: dónde está el usuario y qué sigue. En pantallas anchas cada
- * paso queda arriba de su columna. */
+/** The flow's steps: where the user is and what comes next. On wide screens each
+ * step sits above its column. */
 export function Steps({ phase, hint }: { phase: Phase; hint?: string }) {
   const current = stepOf(phase);
-  // Dónde mostrar «qué mirar»: el paso actual, o el primero antes de empezar.
+  // Where to show "what to look at": the current step, or the first one before starting.
   const hintAt = Math.max(current, 0);
   const finished = phase === "done";
   return (
     <ol
       className={`grid grid-cols-2 border-2 border-foreground text-xs md:grid-cols-4 xl:gap-3 xl:border-0 ${COLUMNS}`}
-      aria-label="Pasos"
+      aria-label="Steps"
     >
       {STEPS.map((step, i) => {
         const done = i < current || (finished && i === current);
@@ -56,26 +56,26 @@ function useNow(ticking: boolean) {
 
 const MESSAGES: Partial<Record<Phase, { title: string; detail: string }>> = {
   breaking: {
-    title: "Rompiendo la tienda",
-    detail: "Le inyectamos un fallo real. Esperamos a que aparezcan los síntomas antes de llamar al agente.",
+    title: "Breaking the shop",
+    detail: "We inject a real fault, then wait for the symptoms to show before calling the agent.",
   },
   investigating: {
-    title: "El agente está investigando",
-    detail: "Revisa métricas, logs, commits y la base de datos. Suele tardar entre 30 y 90 segundos.",
+    title: "The agent is investigating",
+    detail: "It checks metrics, logs, commits and the database. It usually takes 30 to 90 seconds.",
   },
   awaiting_approval: {
-    title: "Tu turno: revisá el diagnóstico y decidí",
-    detail: "El agente no toca nada sin tu aprobación. Podés aprobar su propuesta, corregirla o rechazarla.",
+    title: "Your turn: review the diagnosis and decide",
+    detail: "The agent touches nothing without your approval. You can approve its proposal, amend it or reject it.",
   },
   executing: {
-    title: "Aplicando la solución y verificando",
-    detail: "Después de actuar, esperamos un minuto y medimos si la tienda volvió a la normalidad.",
+    title: "Applying the fix and verifying",
+    detail: "After acting, we wait a minute and measure whether the shop is back to normal.",
   },
 };
 
-/** Qué está pasando ahora, con indicador de carga y tiempo. */
+/** What is happening now, with a loading indicator and timer. */
 export function Status({ phase, countdownTo }: { phase: Phase; countdownTo?: number | null }) {
-  // Se monta de nuevo en cada fase (key={phase}): `since` es el inicio de la fase.
+  // Remounted on every phase (key={phase}): `since` is when the phase started.
   const [since] = useState(() => Date.now());
   const message = MESSAGES[phase];
   const waiting = Boolean(message) && phase !== "awaiting_approval";
@@ -99,12 +99,12 @@ export function Status({ phase, countdownTo }: { phase: Phase; countdownTo?: num
         <p className="text-sm text-foreground">{message.title}</p>
         <p className="mt-0.5 text-muted-foreground">{message.detail}</p>
         {phase === "breaking" && (
-          // Qué pasa mientras esperamos, para alguien que no es técnico.
+          // What happens while we wait, for someone non-technical.
           <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
             {[
-              ["Aplicamos el fallo en la tienda", true],
-              ["Los clientes empiezan a notarlo: mirá «Salud de la tienda»", remaining !== 0],
-              ["Llega la alerta y el agente empieza a investigar", false],
+              ["We apply the fault to the shop", true],
+              ["Customers start to notice: watch ‘Shop health’", remaining !== 0],
+              ["The alert fires and the agent starts investigating", false],
             ].map(([text, current], i) => (
               <li key={i} className={i === 0 ? "text-foreground" : current ? "text-accent" : "text-muted-foreground"}>
                 {i + 1}. {text}

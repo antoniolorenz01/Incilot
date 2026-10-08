@@ -1,6 +1,6 @@
 import { agent, relay } from "@/lib/backend";
 
-/** Investigaciones anteriores (ya decididas). */
+/** Past investigations (already decided). */
 export async function GET() {
   return relay(await agent("/incidents?limit=20"));
 }

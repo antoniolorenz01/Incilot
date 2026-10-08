@@ -18,8 +18,6 @@ import { Explain, useTechMode } from "@/components/incident/explain";
 import type { TopicId } from "@/lib/explain";
 import type { Investigation } from "@/lib/incident";
 
-const CONFIDENCE = { low: "baja", medium: "media", high: "alta" } as const;
-
 export type Decision = {
   approved: boolean;
   note: string;
@@ -58,12 +56,12 @@ function CorrectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-2 border-foreground">
         <DialogHeader>
-          <DialogTitle>Corregir la acción</DialogTitle>
-          <DialogDescription>Se ejecuta tu versión en lugar de la que propuso el agente.</DialogDescription>
+          <DialogTitle>Amend the action</DialogTitle>
+          <DialogDescription>Your version is applied instead of the agent’s proposal.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 text-xs">
           <label className="flex flex-col gap-1 text-muted-foreground">
-            Acción
+            Action
             <select
               value={newKind}
               onChange={(e) => setNewKind(e.target.value)}
@@ -77,7 +75,7 @@ function CorrectDialog({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-muted-foreground">
-            Sobre qué (commit, servicio o sesión)
+            Target (commit, service or session)
             <input
               value={newTarget}
               onChange={(e) => setNewTarget(e.target.value)}
@@ -85,7 +83,7 @@ function CorrectDialog({
             />
           </label>
           <label className="flex flex-col gap-1 text-muted-foreground">
-            Por qué (queda registrado)
+            Why (this is recorded)
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
           </label>
         </div>
@@ -101,7 +99,7 @@ function CorrectDialog({
               })
             }
           >
-            Ejecutar mi versión
+            Apply my version
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -125,12 +123,12 @@ export function DiagnosisPanel({
   if (!diagnosis) {
     return (
       <section
-        aria-label="Diagnóstico"
+        aria-label="Diagnosis"
         className="min-h-0 border-2 border-dashed border-border p-4 text-xs text-muted-foreground"
       >
         {phase === "investigating" || phase === "breaking"
-          ? "El diagnóstico del agente va a aparecer acá cuando termine de investigar."
-          : "Todavía no hay diagnóstico."}
+          ? "The agent's diagnosis will appear here once it finishes investigating."
+          : "No diagnosis yet."}
       </section>
     );
   }
@@ -138,22 +136,22 @@ export function DiagnosisPanel({
   const { action } = diagnosis;
   const deciding = phase === "awaiting_approval" && !readOnly;
   return (
-    <section aria-label="Diagnóstico" className="flex min-h-0 flex-col border-2 border-foreground text-xs">
-      {/* Paso 3. Contenido con scroll propio; la acción y los botones quedan fijos abajo. */}
+    <section aria-label="Diagnosis" className="flex min-h-0 flex-col border-2 border-foreground text-xs">
+      {/* Step 3. The content scrolls on its own; the action and buttons stay fixed at the bottom. */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-muted-foreground">Causa en</p>
+            <p className="text-muted-foreground">Cause in</p>
             <p className="font-pixel text-2xl leading-tight break-words text-foreground">{diagnosis.service}</p>
           </div>
           <span className="flex shrink-0 items-center gap-1.5">
-            <Badge variant="outline">confianza {CONFIDENCE[diagnosis.confidence]}</Badge>
+            <Badge variant="outline">confidence {diagnosis.confidence}</Badge>
             <Explain topic="confidence" />
           </span>
         </div>
         <p className="text-sm leading-relaxed break-words text-foreground">{diagnosis.root_cause}</p>
 
-        <Section title="Evidencia" topic="evidence">
+        <Section title="Evidence" topic="evidence">
           <ul className="flex flex-col gap-1.5 text-muted-foreground">
             {diagnosis.evidence.map((item, i) => (
               <li key={i} className="border-l border-border pl-2 break-words">
@@ -172,7 +170,7 @@ export function DiagnosisPanel({
         </Section>
 
         {tech && (
-          <Section title="Salida estructurada (JSON)">
+          <Section title="Structured output (JSON)">
             <pre className="overflow-x-auto bg-muted/40 p-2 text-[11px] whitespace-pre-wrap break-words text-muted-foreground">
               {JSON.stringify(diagnosis, null, 2)}
             </pre>
@@ -183,7 +181,7 @@ export function DiagnosisPanel({
       <footer className="shrink-0 border-t-2 border-foreground p-4">
         <div className={deciding ? "border-2 border-accent p-3" : ""}>
           <p className="flex items-center gap-1.5 text-muted-foreground">
-            {deciding ? "El agente propone" : "Acción propuesta"} <Explain topic="approval" />
+            {deciding ? "The agent proposes" : "Proposed action"} <Explain topic="approval" />
           </p>
           <p className="mt-1 text-sm break-words text-foreground">
             {actionLabel(action.kind)} <span className="text-accent">{shortTarget(action.target)}</span>
@@ -197,13 +195,13 @@ export function DiagnosisPanel({
                 className="bg-accent text-accent-foreground hover:bg-accent/85"
                 onClick={() => onDecide({ approved: true, note: "" })}
               >
-                Aprobar y ejecutar
+                Approve and apply
               </Button>
               <Button variant="outline" onClick={() => setCorrecting(true)}>
-                Corregir
+                Amend
               </Button>
-              <Button variant="ghost" onClick={() => onDecide({ approved: false, note: "rechazado desde la UI" })}>
-                Rechazar
+              <Button variant="ghost" onClick={() => onDecide({ approved: false, note: "rejected from the UI" })}>
+                Reject
               </Button>
             </div>
           )}

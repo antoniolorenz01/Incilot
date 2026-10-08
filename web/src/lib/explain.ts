@@ -1,166 +1,157 @@
-// Explicaciones de cada pieza, para alguien de afuera: qué hace en palabras simples y
-// con qué está hecha. Las muestra <Explain topic="…" />.
+// Explanations of each piece for an outsider: what it does in plain words and what
+// it is built with. Shown by <Explain topic="…" />.
 
 export type Topic = { title: string; body: string; stack: string[] };
 
 export const TOPICS = {
   simulate: {
-    title: "Una tienda de verdad, rota a propósito",
+    title: "A real shop, broken on purpose",
     body:
-      "La tienda son cuatro microservicios (tienda, usuarios, inventario y pagos) con tráfico de clientes simulado. " +
-      "Cada fallo se inyecta de verdad: un deploy con un bug, un cambio de config, una base trabada. " +
-      "Además se suman commits inocentes como señuelos, para que el agente no acierte de casualidad.",
+      "The shop is four microservices (shop, users, inventory and payments) with simulated customer traffic. " +
+      "Each fault is really injected: a deploy with a bug, a config change, a locked database. " +
+      "Innocent commits are added as decoys too, so the agent cannot get it right by chance.",
     stack: ["Python", "FastAPI", "Postgres", "Redis", "Docker Compose", "Git"],
   },
   health: {
-    title: "Lo que vería un equipo de guardia",
+    title: "What an on-call team would see",
     body:
-      "Cada servicio publica métricas (pedidos, errores, tiempos) que se guardan cada pocos segundos. " +
-      "Estos gráficos son los últimos 15 minutos: cuando rompemos algo, se nota acá antes de que nadie lo explique.",
+      "Every service publishes metrics (orders, errors, response times) that are stored every few seconds. " +
+      "These charts cover the last 15 minutes: when we break something, it shows here before anyone explains it.",
     stack: ["Prometheus", "Grafana"],
   },
   agent: {
-    title: "Un agente que investiga, no un chatbot",
+    title: "An agent that investigates, not a chatbot",
     body:
-      "El modelo de lenguaje decide en cada paso qué consultar: métricas, logs, cambios en el código, la documentación o la base. " +
-      "Lee los resultados y sigue hasta tener una causa con evidencia. Todas sus herramientas son de solo lectura, " +
-      "y tiene un límite de pasos y de tokens.",
-    stack: ["LangGraph", "OpenAI", "modelo de respaldo", "tool calling"],
+      "At each step the language model decides what to look at: metrics, logs, code changes, the documentation or the database. " +
+      "It reads the results and carries on until it has a cause backed by evidence. All its tools are read-only, " +
+      "and it has a limit on steps and tokens.",
+    stack: ["LangGraph", "OpenAI", "fallback model", "tool calling"],
   },
   stream: {
-    title: "En vivo y sin perder nada",
+    title: "Live, and nothing gets lost",
     body:
-      "La investigación corre en un proceso aparte. Cada paso se publica en una cola y llega acá al instante. " +
-      "Si se corta la conexión, se retoma desde el último paso visto.",
+      "The investigation runs in a separate process. Each step is published to a queue and arrives here instantly. " +
+      "If the connection drops, it resumes from the last step seen.",
     stack: ["Redis Streams", "Server-Sent Events", "Next.js"],
   },
   triage: {
-    title: "Primero, qué cambió (sin IA)",
+    title: "First, what changed (no AI)",
     body:
-      "Antes de usar el modelo, se compara cada indicador con la hora anterior y se agrupan los logs nuevos. " +
-      "Así el agente arranca sabiendo dónde mirar, y es más barato y rápido.",
+      "Before using the model, every indicator is compared with the previous hour and new logs are grouped. " +
+      "So the agent starts out knowing where to look, which is cheaper and faster.",
     stack: ["Prometheus", "Loki"],
   },
   query_metrics: {
-    title: "Métricas",
-    body: "Números en el tiempo: pedidos por minuto, errores, latencia, conexiones a la base.",
+    title: "Metrics",
+    body: "Numbers over time: orders per minute, errors, latency, database connections.",
     stack: ["Prometheus", "PromQL"],
   },
   search_logs: {
     title: "Logs",
     body:
-      "Lo que escribe cada servicio. Se agrupan los mensajes repetidos por patrón, " +
-      "para que el agente vea 3 problemas distintos y no 3.000 líneas.",
+      "What each service writes. Repeated messages are grouped by pattern, " +
+      "so the agent sees 3 distinct problems rather than 3,000 lines.",
     stack: ["Loki", "Alloy"],
   },
   git: {
-    title: "Cambios en el código",
+    title: "Code changes",
     body:
-      "El agente revisa qué se desplegó hace poco y qué cambió en cada commit. " +
-      "Cuidado: también hay commits inocentes, y culparlos cuenta como error.",
-    stack: ["Git (solo lectura)"],
+      "The agent checks what was deployed recently and what each commit changed. " +
+      "Careful: there are innocent commits too, and blaming one counts as a mistake.",
+    stack: ["Git (read-only)"],
   },
   rag: {
-    title: "RAG: buscar en la documentación",
+    title: "RAG: searching the documentation",
     body:
-      "Los manuales de la empresa, el código y la config se parten en fragmentos y se convierten en vectores. " +
-      "Cuando el agente pregunta algo, se buscan los fragmentos con significado más parecido y se los damos para leer. " +
-      "El método de búsqueda (vectores, palabras clave, híbrido, con reranker) se eligió midiendo cuál encuentra mejor.",
+      "The company's runbooks, code and config are split into fragments and turned into vectors. " +
+      "When the agent asks something, the fragments closest in meaning are retrieved for it to read. " +
+      "The search method (vectors, keywords, hybrid, with a reranker) was chosen by measuring which finds best.",
     stack: ["embeddings", "pgvector", "LangChain"],
   },
   query_database: {
-    title: "La base de datos",
+    title: "The database",
     body:
-      "Consultas SQL de solo lectura, validadas antes de correr. Sirven para ver, por ejemplo, " +
-      "una sesión que tiene trabada una tabla.",
-    stack: ["Postgres", "SQL validado"],
+      "Read-only SQL queries, validated before they run. Useful to spot, for example, " +
+      "a session that is holding a table locked.",
+    stack: ["Postgres", "validated SQL"],
   },
   approval: {
-    title: "Nada se toca sin un humano",
+    title: "Nothing is touched without a human",
     body:
-      "El agente propone una acción y queda en pausa, guardado en la base. Puede esperar horas: " +
-      "cuando decidís, se retoma exactamente donde quedó. «Aprobar» ejecuta su propuesta; «Corregir» ejecuta " +
-      "tu versión si creés que se equivocó de acción o de objetivo; «Rechazar» no ejecuta nada. " +
-      "La decisión queda registrada.",
-    stack: ["LangGraph interrupt", "checkpoints en Postgres", "salida estructurada"],
+      "The agent proposes an action and pauses, saved in the database. It can wait for hours: " +
+      "when you decide, it resumes exactly where it stopped. ‘Approve’ applies its proposal; ‘Amend’ applies " +
+      "your version if you think it picked the wrong action or target; ‘Reject’ applies nothing. " +
+      "The decision is recorded.",
+    stack: ["LangGraph interrupt", "Postgres checkpoints", "structured output"],
   },
   verification: {
-    title: "Verificar, no suponer",
+    title: "Verify, don't assume",
     body:
-      "Después de actuar esperamos un minuto y medimos de nuevo la tienda. " +
-      "Solo cuenta como resuelto si los errores y los tiempos volvieron a lo normal.",
-    stack: ["Prometheus", "conectores de ejecución"],
+      "After acting we wait a minute and measure the shop again. " +
+      "It only counts as resolved if errors and response times are back to normal.",
+    stack: ["Prometheus", "execution connectors"],
   },
   evals: {
-    title: "¿Cómo sabemos si el agente es bueno?",
+    title: "How do we know the agent is any good?",
     body:
-      "Cada fallo tiene una respuesta correcta conocida. Corriendo todos los fallos varias veces se mide " +
-      "cuántas veces el agente elige la acción que arregla el problema, y si culpa a un señuelo.",
-    stack: ["evals propios", "escenarios con respuesta conocida"],
+      "Every fault has a known right answer. Running all the faults several times measures " +
+      "how often the agent picks the action that fixes the problem, and whether it blames a decoy.",
+    stack: ["custom evals", "scenarios with known answers"],
   },
   history: {
-    title: "Memoria de incidentes",
-    body: "Cada investigación queda guardada con el diagnóstico, la decisión y si se resolvió. Podés volver a verla entera.",
+    title: "Incident memory",
+    body: "Every investigation is saved with its diagnosis, the decision and whether it was resolved. You can replay it in full.",
     stack: ["Postgres"],
   },
   tech: {
-    title: "Modo técnico",
+    title: "Technical mode",
     body:
-      "Muestra lo que normalmente queda escondido: el nombre real de cada herramienta, cuánto tardó cada paso, " +
-      "los tokens usados y el diagnóstico tal como lo devuelve el modelo (JSON). " +
-      "Apagado, todo se explica en palabras simples. Prendelo si sos técnico o querés ver cómo trabaja por dentro; " +
-      "dejalo apagado para una demo a alguien que no lo es. Se puede cambiar en cualquier momento.",
+      "Shows what is normally hidden: each tool's real name, how long each step took, " +
+      "the tokens used and the diagnosis exactly as the model returns it (JSON). " +
+      "Switched off, everything is explained in plain words. Turn it on if you are technical or want to see how it works inside; " +
+      "leave it off when demoing to someone who isn't. You can change it at any time.",
     stack: [],
   },
   dry_run: {
-    title: "Modo prueba",
+    title: "Dry run",
     body:
-      "Recorre todo el flujo sin llamar a la IA: el diagnóstico es un ejemplo fijo y la acción no se ejecuta de verdad. " +
-      "Es rápido y no gasta nada. Sirve para ver cómo funciona la pantalla; " +
-      "para ver al agente investigar de verdad, dejalo apagado.",
+      "Goes through the whole flow without calling the AI: the diagnosis is a fixed example and the action is not really applied. " +
+      "It is quick and costs nothing. Useful to see how the screen works; " +
+      "to watch the agent really investigate, leave it off.",
     stack: [],
   },
   scenario: {
-    title: "Tipos de fallo",
+    title: "Fault types",
     body:
-      "Son incidentes típicos de una empresa real, agrupados por origen: un deploy con un bug, un cambio de config, " +
-      "un problema de infraestructura o un proveedor externo caído. El agente nunca sabe cuál elegiste.",
+      "Typical incidents at a real company, grouped by origin: a deploy with a bug, a config change, " +
+      "an infrastructure problem or an external provider going down. The agent never knows which one you picked.",
     stack: [],
   },
   confidence: {
-    title: "Confianza",
+    title: "Confidence",
     body:
-      "Qué tan seguro dice estar el agente, según cuánta evidencia encontró que apunte a la misma causa. " +
-      "La declara el propio modelo, así que es orientativa: por eso existe tu aprobación y la verificación posterior.",
+      "How sure the agent claims to be, based on how much of the evidence it found points to the same cause. " +
+      "The model states it itself, so it is only a guide: that is why your approval and the later verification exist.",
     stack: [],
   },
   evidence: {
-    title: "Evidencia",
+    title: "Evidence",
     body:
-      "Lo que el agente vio con sus herramientas y lo llevó a la conclusión. Cada punto debería poder comprobarse " +
-      "en la consola: si algo no aparece ahí, desconfiá.",
+      "What the agent saw with its tools that led to its conclusion. Every point should be checkable " +
+      "in the console: if something doesn't appear there, be sceptical.",
     stack: [],
   },
 } satisfies Record<string, Topic>;
 
 export type TopicId = keyof typeof TOPICS;
 
-/** Qué mirar en cada momento, y en qué columnas (0 a 3, una por paso). */
+/** What to look at at each moment, and in which columns (0 to 3, one per step). */
 export const FOCUS: Record<string, { columns: number[]; hint: string }> = {
-  idle: { columns: [0], hint: "Empezá acá: elegí qué romper" },
-  breaking: {
-    columns: [0],
-    hint: "Mirá «Salud de la tienda»: los clientes lo notan",
-  },
-  investigating: {
-    columns: [1],
-    hint: "Tocá una consulta para ver qué encontró",
-  },
-  awaiting_approval: { columns: [2], hint: "Leé la evidencia y decidí abajo" },
-  executing: {
-    columns: [0, 3],
-    hint: "Mirá cómo vuelve la tienda a la normalidad",
-  },
-  done: { columns: [3], hint: "¿Se resolvió? ¿Acertó el agente?" },
-  error: { columns: [1], hint: "El detalle del error está en la consola" },
+  idle: { columns: [0], hint: "Start here: pick what to break" },
+  breaking: { columns: [0], hint: "Watch ‘Shop health’: customers notice" },
+  investigating: { columns: [1], hint: "Click a query to see what it found" },
+  awaiting_approval: { columns: [2], hint: "Read the evidence and decide below" },
+  executing: { columns: [0, 3], hint: "Watch the shop return to normal" },
+  done: { columns: [3], hint: "Was it resolved? Did the agent get it right?" },
+  error: { columns: [1], hint: "The error details are in the console" },
 };

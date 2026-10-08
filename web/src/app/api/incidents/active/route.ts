@@ -1,6 +1,6 @@
 import { injector, relay } from "@/lib/backend";
 
-/** La respuesta correcta del incidente activo (para compararla con el diagnóstico). */
+/** The right answer for the active incident (to compare against the diagnosis). */
 export async function GET() {
   return relay(await injector("/injections/active"));
 }
