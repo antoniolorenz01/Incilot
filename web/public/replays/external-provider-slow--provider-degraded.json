@@ -1,0 +1,1475 @@
+{
+ "scenario": "external-provider-slow",
+ "variant": "provider-degraded",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:31:20+00:00",
+ "injectedAt": 1791466043649,
+ "truth": {
+  "scenario": "external-provider-slow",
+  "variant": "provider-degraded",
+  "service": "payments",
+  "root_cause": "The payment provider is degraded (1.2–2.4 s per charge): some charges exceed shop's 2 s timeout. There are no internal changes; the problem is external.",
+  "action": "escalate",
+  "culprit_sha": null,
+  "decoy_shas": [
+   "0beac913b793980f01832383ccc73e13a24953ea",
+   "733fecebad0ed42981eb89e6990ed37079c0d7d3",
+   "d3cff5db7d54806e043be423b8e2378a146f1790"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791466103759,
+   "type": "triage"
+  },
+  {
+   "at": 1791466114273,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 30,
+    "limit": 15
+   },
+   "round": 1
+  },
+  {
+   "at": 1791466114275,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, now()-query_start as q_age, left(query,150) as query from pg_stat_activity where datname is not null order by xact_start nulls last"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791466114275,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 180,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791466114276,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service,le) (rate(upstream_request_duration_seconds_bucket[1m])))",
+    "minutes": 60
+   },
+   "round": 1
+  },
+  {
+   "at": 1791466114349,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 3 patterns for {service=\"payments\"}, last 30 min (most frequent first):\n\n948× [payments] between 13:21:46 and 13:28:32\n   example: {\"ts\": \"2026-10-08T13:28:32.114+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b148b96735e34ce1adbbd3f671a2918c\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 1636.3}\n\n26× [payments] between 13:21:46 and 13:28:21\n   example: {\"ts\": \"2026-10-08T13:28:21.662+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"853e928b3b254ff293eb7bd336fd1d88\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 1912.5}\n\n26× [payments] between 13:21:46 and 13:28:21\n   example: {\"ts\": \"2026-10-08T13:28:21.661+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"853e928b3b254ff293eb7bd336fd1d88\", \"order_id\": \"969dd759-e010-49bd-86a6-e95e8d3622be\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791466114350,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xact_age | q_age | query\n41376 | active | None | None | 0:00:00 | -1 day, 23:59:59.983479 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, now()-query_start as q_age, left(query,150) as query from\n39223 | idle | Client | ClientRead | None | 0:00:04.622361 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39623 | idle | Client | ClientRead | None | 0:00:04.625929 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | 0:00:00.029228 | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blob)\n    VALUES ($1, $2, $3, $4,\n39647 | idle | Client | ClientRead | None | 0:00:00.263440 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39812 | idle | Client | ClientRead | None | 0:00:00.199980 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n40701 | idle | Client | ClientRead | None | 0:04:22.289220 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n34737 | idle | Client | ClientRead | None | 0:01:10.677663 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | 0:03:38.958617 | ROLLBACK;\n35191 | idle | Client | ClientRead | None | 0:00:00.196312 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39087 | idle | Client | ClientRead | None | 0:00:02.539334 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n40166 | idle | Client | ClientRead | None | 0:01:18.289734 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791466114350,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "d3cff5d 2026-10-08 13:21:47 +0000 Ana Ruiz: shop: validate quantity before calling inventory\n\nservices/shop/handlers.py\n733fece 2026-10-08 13:08:58 +0000 Diego Martín: docs: troubleshooting section in the README\n\nREADME.md\n0beac91 2026-10-08 12:59:21 +0000 Marta Gil: config(users): DB pool to 12 connections\n\nconfig/users.env"
+  },
+  {
+   "at": 1791466114351,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 60 min:\n- service=shop: current 2.167 | min 0.1472 | max 2.425 | avg 0.6936"
+  },
+  {
+   "at": 1791466122341,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "d3cff5d"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791466122343,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service,le) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 60
+   },
+   "round": 2
+  },
+  {
+   "at": 1791466122343,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 60,
+    "contains": "charges",
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791466122344,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "postgres",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791466122344,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/payments.env"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791466122413,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit d3cff5db7d54806e043be423b8e2378a146f1790\nAuthor: Ana Ruiz <ana.ruiz@shop.example>\nDate:   2026-10-08 13:21:47 +0000\n\n    shop: validate quantity before calling inventory\n---\n services/shop/handlers.py | 2 ++\n 1 file changed, 2 insertions(+)\n\ndiff --git a/services/shop/handlers.py b/services/shop/handlers.py\nindex d7574bc..2f0c4cd 100644\n--- a/services/shop/handlers.py\n+++ b/services/shop/handlers.py\n@@ -24,6 +24,8 @@ async def list_products() -> list[dict]:\n \n \n async def create_order(user_id: int, product_id: int, quantity: int) -> dict:\n+    if not 1 <= quantity <= 10:\n+        raise HTTPException(422, \"invalid_quantity\")\n     if (await call(\"users\", \"GET\", f\"/users/{user_id}\")).status_code == 404:\n         raise HTTPException(404, \"user_not_found\")\n     product = await call(\"inventory\", \"GET\", f\"/products/{product_id}\")\n"
+  },
+  {
+   "at": 1791466122414,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 60 min:\n- service=inventory: current 0.004796 | min 0.00475 | max 10 | avg 0.5826\n- service=payments: current 2.442 | min 0.00475 | max 10 | avg 0.6162\n- service=shop: current 2.284 | min 0.2192 | max 2.44 | avg 0.8067\n- service=users: current 0.00475 | min 0.00475 | max 0.9728 | avg 0.05792"
+  },
+  {
+   "at": 1791466122414,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 2 patterns for {service=\"payments\"} |= \"charges\", last 60 min (most frequent first):\n\n974× [payments] between 13:21:41 and 13:28:40\n   example: {\"ts\": \"2026-10-08T13:28:40.439+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"49c66ee8a718496a9a81c734d1abc9bc\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 1402.0}\n\n26× [payments] between 13:21:46 and 13:28:21\n   example: {\"ts\": \"2026-10-08T13:28:21.662+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"853e928b3b254ff293eb7bd336fd1d88\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 1912.5}"
+  },
+  {
+   "at": 1791466122415,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "130 lines in 34 patterns for {service=\"postgres\"}, last 30 min (most frequent first):\n\n21× [postgres] between 13:15:36 and 13:17:29\n   example: 2026-10-08 13:17:29.198 UTC [40155] STATEMENT:  SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n\n13× [postgres] between 13:19:30 and 13:21:21\n   example: 2026-10-08 13:21:21.646 UTC [35191] STATEMENT:  INSERT INTO reservations (order_id, product_id, quantity) VALUES ($1, $2, $3)\n\n8× [postgres] between 13:19:31 and 13:21:21\n   example: 2026-10-08 13:21:21.648 UTC [36786] STATEMENT:  UPDATE products SET stock = stock - $2 WHERE id = $1 AND stock >= $2 RETURNING stock\n\n8× [postgres] between 13:17:29 and 13:17:29\n   example: 2026-10-08 13:17:29.198 UTC [40155] LOG:  process 40155 acquired AccessShareLock on relation 16390 of database 16386 after 113261.932 ms at character 47\n\n8× [postgres] between 13:15:36 and 13:15:40\n   example: 2026-10-08 13:15:40.475 UTC [40169] LOG:  process 40169 still waiting for AccessShareLock on relation 16390 of database 16386 after 1000.155 ms at character 47\n\n7× [postgres] between 13:19:30 and 13:19:39\n   example: 2026-10-08 13:19:39.058 UTC [40165] LOG:  process 40165 still waiting for RowExclusiveLock on relation 16409 of database 16386 after 9159.640 ms at character 13\n\n6× [postgres] between 13:03:34 and 13:28:34\n   example: 2026-10-08 13:28:34.128 UTC [27] LOG:  checkpoint starting: time\n\n6× [postgres] between 13:19:31 and 13:21:21\n   example: 2026-10-08 13:21:21.648 UTC [36786] CONTEXT:  while updating tuple (0,49) in relation \"products\"\n\n6× [postgres] between 13:21:21 and 13:21:21\n   example: 2026-10-08 13:21:21.646 UTC [35191] LOG:  process 35191 acquired RowExclusiveLock on relation 16409 of database 16386 after 110404.775 ms at character 13\n\n4× [postgres] between 13:19:31 and 13:19:37\n   example: 2026-10-08 13:19:37.147 UTC [36786] DETAIL:  Process holding the lock: 40156. Wait queue: 36786.\n\n… and 24 more patterns (43 lines): filter more"
+  },
+  {
+   "at": 1791466122415,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v2\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791466133525,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service,le) (rate(http_request_duration_seconds_bucket{service=\"payments\"}[1m])))",
+    "minutes": 30
+   },
+   "round": 3
+  },
+  {
+   "at": 1791466133527,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "payments charge provider call latency timeout",
+    "limit": 4
+   },
+   "round": 3
+  },
+  {
+   "at": 1791466133527,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service,target,status) (rate(upstream_requests_total[1m]))",
+    "minutes": 30
+   },
+   "round": 3
+  },
+  {
+   "at": 1791466133527,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "traffic",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791466133527,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 1440,
+    "path": "services/payments"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791466135176,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- service=payments: current 2.46 | min 0.2371 | max 4.875 | avg 0.7544"
+  },
+  {
+   "at": 1791466135178,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[docs/services/payments.md#Simulated provider] (doc)\npayments\n\n## Simulated provider\n\n- Each charge takes between 50 and 200 ms (provider latency).\n- 3 % of charges are declined (`PAYMENTS_DECLINE_RATE`).\n\n---\n\n[runbooks/external-provider-degraded.md] (runbook)\n# External provider degraded\n\n**Symptom**: charges time out or take a long time, but payments has no errors of\nits own and no recent changes.\n\n1. Measure the latency of `POST /charges` in payments and the `shop` timeouts\n   towards payments (`upstream_requests_total{target=\"payments\", status=\"timeout\"}`).\n2. Rule out internal causes: no recent deploys or config changes in payments,\n   Postgres healthy and the connection pool with headroom.\n3. If the latency is in the call to the provider and there are no internal\n   changes, the problem is external: **escalate** to the provider with the evidence\n   (since when, latencies, percentage of timeouts).\n4. In the meantime: do not retry en masse (it makes the saturation worse) and\n   communicate the impact on orders.\n\n\n---\n\n[docs/services/payments.md#Failure behaviour] (doc)\npayments\n\n## Failure behaviour\n\n- **Postgres down**: charges return 500; `shop` marks the order `failed`\n  (`payments_unavailable`) and releases the reservation.\n- **Latency > 2 s**: `shop` times out even if the charge completes later.\n  This can leave a `captured` charge for a `failed` order.\n\n---\n\n[runbooks/high-latency.md] (runbook)\n# High latency in a service\n\n**Symptom**: a service's p95 of `http_request_duration_seconds` rises, or `shop`\nstarts timing out (`upstream_requests_total{status=\"timeout\"}`).\n\n1. Identify the slow service: compare the p95 per service and, from `shop`, the p95\n   of `upstream_request_duration_seconds` per `target`.\n2. Check whether the latency affects every route or just one (`route`).\n3. Review the service's recent deploys and config changes\n   (`git log --since=\"2 hours ago\" -- services/<service> config/<service>.env`).\n4. If it lines up with a deploy: **roll back** the commit and confirm that the p95\n   returns to its normal level.\n5. If there are no recent changes: check the service's dependencies (Postgres,\n   Redis, the payment provider) and escalate if the problem is external.\n"
+  },
+  {
+   "at": 1791466135179,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "14 series, last 30 min:\n- service=shop, status=200, target=inventory: current 2.255 | min 0 | max 5.8 | avg 2.925\n- service=shop, status=200, target=users: current 1.545 | min 0 | max 5.618 | avg 2.692\n- service=shop, status=201, target=inventory: current 1.527 | min 0 | max 5.618 | avg 2.64\n- service=shop, status=201, target=payments: current 0.8 | min 0 | max 5.491 | avg 2.396\n- service=shop, status=402, target=payments: current 0.07273 | min 0 | max 0.2 | avg 0.0698\n- service=shop, status=404, target=users: current 0.07273 | min 0 | max 0.2546 | avg 0.1091\n- service=shop, status=429, target=payments: current 0 | min 0 | max 0 | avg 0\n- service=shop, status=500, target=inventory: current 0.01818 | min 0 | max 0.05455 | avg 0.01639\n- service=shop, status=500, target=payments: current 0 | min 0 | max 0.03636 | avg 0.004545\n- service=shop, status=500, target=users: current 0 | min 0 | max 0.05454 | avg 0.01252\n- service=shop, status=error, target=inventory: current 0 | min 0 | max 0 | avg 0\n- service=shop, status=error, target=payments: current 0 | min 0 | max 0 | avg 0\n- service=shop, status=timeout, target=inventory: current 0 | min 0 | max 1.764 | avg 0.2894\n- service=shop, status=timeout, target=payments: current 0.6 | min 0 | max 2.691 | avg 0.3759"
+  },
+  {
+   "at": 1791466135179,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "60 lines in 1 patterns for {service=\"traffic\"}, last 30 min (most frequent first):\n\n60× [traffic] between 12:59:04 and 13:28:34\n   example: {\"ts\": \"2026-10-08T13:28:34.728+00:00\", \"level\": \"info\", \"service\": \"traffic\", \"logger\": \"traffic\", \"msg\": \"traffic summary\", \"window_seconds\": 30, \"counts\": {\"POST /orders 201\": 25, \"GET /products 200\": 77, \"POST /orders 502\": 18, \"POST /orders 404\": 3, \"POST /orders 402\": 2}}"
+  },
+  {
+   "at": 1791466135179,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "no commits in the last 1440 minutes"
+  },
+  {
+   "at": 1791466150355,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"payments\"}[1m])))",
+    "minutes": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791466150356,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 60,
+    "contains": "provider",
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791466150356,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select l.pid, l.locktype, l.mode, l.granted, a.state, a.wait_event_type, left(a.query,100) as query from pg_locks l join pg_stat_activity a on a.pid=l.pid where not l.granted"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791466150357,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791466150421,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 60 min:\n- (no labels): current 1.768 | min 0.0025 | max 10 | avg 0.4699"
+  },
+  {
+   "at": 1791466150422,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "no logs for {service=\"payments\"} |= \"provider\" in the last 60 min"
+  },
+  {
+   "at": 1791466150422,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "0 rows"
+  },
+  {
+   "at": 1791466150422,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 60 min:\n- service=payments: current 1.545 | min 0 | max 8.4 | avg 2.686"
+  },
+  {
+   "at": 1791466163246,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "payments create_charge handler provider call implementation",
+    "limit": 4
+   },
+   "round": 5
+  },
+  {
+   "at": 1791466163248,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.5, sum by (service,le) (rate(http_request_duration_seconds_bucket{service=~\"payments|inventory|users\"}[1m])))",
+    "minutes": 30
+   },
+   "round": 5
+  },
+  {
+   "at": 1791466163249,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 30,
+    "level": "error"
+   },
+   "round": 5
+  },
+  {
+   "at": 1791466163249,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select status, count(*), min(created_at), max(created_at) from charges group by status"
+   },
+   "round": 5
+  },
+  {
+   "at": 1791466163675,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[services/payments/handlers.py::charge] (code)\nCode of the payments service: function charge in services/payments/handlers.py. Charges against the payment provider.\nasync def charge(order_id: UUID, user_id: int, amount_cents: int) -> dict:\n    result = await provider.charge(amount_cents, reference=str(order_id))\n    try:\n        payment_id = await db.fetchval(\n            \"INSERT INTO payments (order_id, user_id, amount_cents, status) \"\n            \"VALUES ($1, $2, $3, $4) RETURNING id\",\n            order_id,\n            user_id,\n            amount_cents,\n            result.status,\n        )\n    except db.UniqueViolationError:\n        raise HTTPException(409, \"duplicate_charge\") from None\n    if result.status == \"declined\":\n        raise HTTPException(402, \"card_declined\")\n    return {\"payment_id\": payment_id, \"status\": result.status}\n\n---\n\n[docs/services/payments.md#Endpoints] (doc)\npayments\n\n## Endpoints\n\n| Method and path | Response |\n|---|---|\n| `POST /charges` | Charges an order. Body: `order_id`, `user_id`, `amount_cents` (> 0). 201 with `payment_id` and `status: captured`; 402 `card_declined`; 409 `duplicate_charge` |\n\n---\n\n[docs/services/payments.md#payments] (doc)\npayments\n\n# payments\n\nCharges for orders against an external payment provider, simulated inside the\nservice itself.\n\nCode: `sim/src/incilot_sim/services/payments.py`\n\n---\n\n[docs/services/payments.md#Simulated provider] (doc)\npayments\n\n## Simulated provider\n\n- Each charge takes between 50 and 200 ms (provider latency).\n- 3 % of charges are declined (`PAYMENTS_DECLINE_RATE`)."
+  },
+  {
+   "at": 1791466163675,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 30 min:\n- service=inventory: current 0.0025 | min 0.0025 | max 10 | avg 0.353\n- service=payments: current 1.759 | min 0.1214 | max 3.75 | avg 0.4207\n- service=users: current 0.0025 | min 0.0025 | max 0.6862 | avg 0.04705"
+  },
+  {
+   "at": 1791466163676,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "16 lines in 4 patterns for {service=\"payments\", level=\"error\"}, last 30 min (most frequent first):\n\n8× [payments] between 13:03:32 and 13:21:27\n   example: {\"ts\": \"2026-10-08T13:21:27.467+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d5ba5a99af9142c58588312e23560c0a\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.0}\n\n3× [payments] between 13:03:32 and 13:21:27\n   example: {\"ts\": \"2026-10-08T13:21:27.467+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d5ba5a99af9142c58588312e23560c0a\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi\n\n3× [payments] between 13:04:36 and 13:13:15\n   example: {\"ts\": \"2026-10-08T13:13:15.166+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"2914367329c3405d9f48838a347560ed\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n2× [payments] between 13:04:52 and 13:10:34\n   example: {\"ts\": \"2026-10-08T13:10:34.466+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"6100cb649e0444e4803aad4659fb1880\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791466163676,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "error: Postgres: relation \"charges\" does not exist"
+  },
+  {
+   "at": 1791466174652,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 1440,
+    "path": "config/payments.env"
+   },
+   "round": 6
+  },
+  {
+   "at": 1791466174654,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "redis",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 6
+  },
+  {
+   "at": 1791466174654,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select status, count(*), min(created_at), max(created_at) from payments group by status"
+   },
+   "round": 6
+  },
+  {
+   "at": 1791466174654,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "process_resident_memory_bytes",
+    "minutes": 60
+   },
+   "round": 6
+  },
+  {
+   "at": 1791466174655,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 30
+   },
+   "round": 6
+  },
+  {
+   "at": 1791466174748,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "no commits in the last 1440 minutes"
+  },
+  {
+   "at": 1791466174749,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "30 lines in 5 patterns for {service=\"redis\"}, last 30 min (most frequent first):\n\n6× [redis] between 13:02:46 and 13:27:51\n   example: 1:M 08 Oct 2026 13:27:51.147 * Background saving terminated with success\n\n6× [redis] between 13:02:46 and 13:27:51\n   example: 16103:C 08 Oct 2026 13:27:51.058 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB\n\n6× [redis] between 13:02:46 and 13:27:51\n   example: 16103:C 08 Oct 2026 13:27:51.057 * DB saved on disk\n\n6× [redis] between 13:02:46 and 13:27:51\n   example: 1:M 08 Oct 2026 13:27:51.046 * Background saving started by pid 16103\n\n6× [redis] between 13:02:46 and 13:27:51\n   example: 1:M 08 Oct 2026 13:27:51.045 * 100 changes in 300 seconds. Saving..."
+  },
+  {
+   "at": 1791466174749,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "status | count | min | max\ncaptured | 125603 | 2026-10-07 20:35:18.585358+00:00 | 2026-10-08 13:29:33.914212+00:00\ndeclined | 5844 | 2026-10-07 20:35:33.028817+00:00 | 2026-10-08 13:29:12.541085+00:00"
+  },
+  {
+   "at": 1791466174750,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 60 min:\n- __name__=process_resident_memory_bytes, instance=inventory:8000, job=services, service=inventory: current 7.392e+07 | min 6.793e+07 | max 7.461e+07 | avg 7.328e+07\n- __name__=process_resident_memory_bytes, instance=payments:8000, job=services, service=payments: current 6.363e+07 | min 6.192e+07 | max 2.451e+08 | avg 7.146e+07\n- __name__=process_resident_memory_bytes, instance=shop:8000, job=services, service=shop: current 6.96e+07 | min 6.658e+07 | max 3.877e+08 | avg 7.635e+07\n- __name__=process_resident_memory_bytes, instance=users:8000, job=services, service=users: current 6.739e+07 | min 6.726e+07 | max 6.739e+07 | avg 6.737e+07"
+  },
+  {
+   "at": 1791466174750,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- service=payments: current 1.545 | min 0 | max 5.291 | avg 2.579"
+  },
+  {
+   "at": 1791466190120,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments (external payment provider)",
+    "root_cause": "The payment provider call inside payments POST /charges has become slow, with a p50 of about 1.5-1.8 s against the documented 50-200 ms. Shop's 2 s timeout towards payments is therefore being exceeded, which produces the ReadTimeout errors and 502s on POST /orders. This looks external, with no internal change behind it.",
+    "culprit_commit": null,
+    "evidence": [
+     "Shop logs show 'upstream unavailable' with target=payments and ReadTimeout, plus 502s on POST /orders. Both are GROWING.",
+     "Payments p95 is about 2.46 s (max 4.9 s) and p50 is about 1.77 s. Inventory and users p50 is about 0.0025 s, so only payments is slow.",
+     "Successful charges (201) are taking 1.4-1.6 s per request. The docs say provider latency should be 50-200 ms.",
+     "Shop's upstream metrics show status=timeout towards payments at about 0.6 req/s, while the 500 rate towards payments is about 0.",
+     "Payments has no commits and no config changes in the last 24 h. Its config is DB_POOL_SIZE=10 and PROVIDER_TIMEOUT_SECONDS=3.",
+     "The payments DB is healthy. pg_stat_activity shows only idle sessions, there are no ungranted locks, and memory is normal.",
+     "Redis is healthy, with only routine background saves.",
+     "The postgres lock waits at 13:15-13:21 were on inventory tables and predate the alert. The only recent commit, d3cff5d (shop quantity validation), adds only a 422 check and does not touch payments latency.",
+     "The external-provider-degraded runbook matches: latency is in the provider call, there are no internal changes, and the runbook says to escalate."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Escalate to the payment provider with the evidence: start time of about 13:27 UTC, p50/p95 charge latency, and the share of shop timeouts.",
+     "Do not retry en masse, as that would worsen saturation. Tell the business about the impact on orders.",
+     "Reconcile orders marked failed that have a captured charge. The payments docs say this can happen when the latency exceeds 2 s.",
+     "Check recovery: the payments p95 of http_request_duration_seconds should return to 0.2 s or less, the shop timeouts towards payments should stop, and the 502 rate on POST /orders should fall.",
+     "If the provider stays slow, consider raising shop's payments timeout, but only with approval."
+    ],
+    "action": {
+     "kind": "escalate",
+     "target": "payment provider (api.payprovider.example) via payments",
+     "reason": "The latency sits in the provider call and payments has no deploys, config changes or DB problems. A rollback or restart would not help, so the runbook says to escalate to the provider.",
+     "evidence": [
+      "Payments p50 is about 1.77 s against a documented 50-200 ms.",
+      "Shop timeouts towards payments are sustained.",
+      "There are no commits or config changes in payments in the last 24 h.",
+      "The payments DB has no locks and only idle sessions."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 150419
+  },
+  {
+   "at": 1791466190132,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791466190154,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791466190169,
+   "type": "execution",
+   "status": "executed",
+   "detail": "escalated to the external owner (payment provider (api.payprovider.example) via payments); no technical action",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791466250247,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0069,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2345,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0284,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791466250289,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791465143650,
+    297.823596792669
+   ],
+   [
+    1791465158650,
+    267.27272727272725
+   ],
+   [
+    1791465173650,
+    234.54545454545453
+   ],
+   [
+    1791465188650,
+    187.63636363636363
+   ],
+   [
+    1791465203650,
+    183.27272727272725
+   ],
+   [
+    1791465218650,
+    169.09398352697323
+   ],
+   [
+    1791465233650,
+    181.0909090909091
+   ],
+   [
+    1791465248650,
+    177.8181818181818
+   ],
+   [
+    1791465263650,
+    174.54228104943547
+   ],
+   [
+    1791465278650,
+    180.0
+   ],
+   [
+    1791465293650,
+    159.27272727272725
+   ],
+   [
+    1791465308650,
+    166.9090909090909
+   ],
+   [
+    1791465323650,
+    174.55180188370485
+   ],
+   [
+    1791465338650,
+    179.99672733223034
+   ],
+   [
+    1791465353650,
+    135.2702678133125
+   ],
+   [
+    1791465368650,
+    81.81966944853544
+   ],
+   [
+    1791465383650,
+    34.90909090909091
+   ],
+   [
+    1791465398650,
+    0.0
+   ],
+   [
+    1791465413650,
+    0.0
+   ],
+   [
+    1791465428650,
+    0.0
+   ],
+   [
+    1791465443650,
+    0.0
+   ],
+   [
+    1791465458650,
+    14.181818181818182
+   ],
+   [
+    1791465473650,
+    57.81818181818182
+   ],
+   [
+    1791465488650,
+    110.17781171593761
+   ],
+   [
+    1791465503650,
+    157.0909090909091
+   ],
+   [
+    1791465518650,
+    230.18181818181816
+   ],
+   [
+    1791465533650,
+    276.0100367286083
+   ],
+   [
+    1791465548650,
+    316.3636363636364
+   ],
+   [
+    1791465563650,
+    329.4665260554929
+   ],
+   [
+    1791465578650,
+    270.540535626625
+   ],
+   [
+    1791465593650,
+    169.09090909090907
+   ],
+   [
+    1791465608650,
+    76.36363636363636
+   ],
+   [
+    1791465623650,
+    21.81857851960945
+   ],
+   [
+    1791465638650,
+    0.0
+   ],
+   [
+    1791465653650,
+    0.0
+   ],
+   [
+    1791465668650,
+    0.0
+   ],
+   [
+    1791465683650,
+    0.0
+   ],
+   [
+    1791465698650,
+    42.54545454545455
+   ],
+   [
+    1791465713650,
+    82.9090909090909
+   ],
+   [
+    1791465728650,
+    134.1842578955981
+   ],
+   [
+    1791465743650,
+    174.54545454545456
+   ],
+   [
+    1791465758650,
+    172.36363636363635
+   ],
+   [
+    1791465773650,
+    172.36363636363635
+   ],
+   [
+    1791465788650,
+    175.63636363636363
+   ],
+   [
+    1791465803650,
+    170.1849124529537
+   ],
+   [
+    1791465818650,
+    136.36611574755906
+   ],
+   [
+    1791465833650,
+    84.0
+   ],
+   [
+    1791465848650,
+    37.09090909090909
+   ],
+   [
+    1791465863650,
+    0.0
+   ],
+   [
+    1791465878650,
+    0.0
+   ],
+   [
+    1791465893650,
+    0.0
+   ],
+   [
+    1791465908650,
+    0.0
+   ],
+   [
+    1791465923650,
+    0.0
+   ],
+   [
+    1791465938650,
+    22.909507445589924
+   ],
+   [
+    1791465953650,
+    67.63513390665625
+   ],
+   [
+    1791465968650,
+    117.81818181818181
+   ],
+   [
+    1791465983650,
+    168.0
+   ],
+   [
+    1791465998650,
+    169.09398352697323
+   ],
+   [
+    1791466013650,
+    176.73048600883652
+   ],
+   [
+    1791466028650,
+    170.1849124529537
+   ],
+   [
+    1791466043650,
+    162.54249922728678
+   ],
+   [
+    1791466058650,
+    139.63636363636363
+   ],
+   [
+    1791466073650,
+    107.9980363993382
+   ],
+   [
+    1791466088650,
+    76.36363636363636
+   ],
+   [
+    1791466103650,
+    45.81818181818181
+   ],
+   [
+    1791466118650,
+    51.272727272727266
+   ],
+   [
+    1791466133650,
+    47.99999999999999
+   ],
+   [
+    1791466148650,
+    53.45357357138961
+   ],
+   [
+    1791466163650,
+    56.72727272727273
+   ],
+   [
+    1791466178650,
+    55.63636363636363
+   ],
+   [
+    1791466193650,
+    55.63636363636363
+   ],
+   [
+    1791466208650,
+    105.82010582010582
+   ],
+   [
+    1791466223650,
+    175.63317030599444
+   ],
+   [
+    1791466238650,
+    257.4498645479173
+   ],
+   [
+    1791466253650,
+    321.8181818181818
+   ],
+   [
+    1791466268650,
+    286.90387447500956
+   ]
+  ],
+  "errors": [
+   [
+    1791465143650,
+    0.8610086100861009
+   ],
+   [
+    1791465158650,
+    0.7102272727272728
+   ],
+   [
+    1791465173650,
+    0.34071550255536626
+   ],
+   [
+    1791465188650,
+    0.21929824561403508
+   ],
+   [
+    1791465203650,
+    0.8771929824561403
+   ],
+   [
+    1791465218650,
+    0.8714596949891068
+   ],
+   [
+    1791465233650,
+    0.8421052631578947
+   ],
+   [
+    1791465248650,
+    0.847457627118644
+   ],
+   [
+    1791465263650,
+    0.43103448275862066
+   ],
+   [
+    1791465278650,
+    0.423728813559322
+   ],
+   [
+    1791465293650,
+    0.4434589800443459
+   ],
+   [
+    1791465308650,
+    0.43383947939262474
+   ],
+   [
+    1791465323650,
+    0.211864406779661
+   ],
+   [
+    1791465338650,
+    0.43103448275862066
+   ],
+   [
+    1791465353650,
+    6.249999999999999
+   ],
+   [
+    1791465368650,
+    18.41622306264121
+   ],
+   [
+    1791465383650,
+    39.854395788148516
+   ],
+   [
+    1791465398650,
+    79.95335326280927
+   ],
+   [
+    1791465413650,
+    100.0
+   ],
+   [
+    1791465428650,
+    100.0
+   ],
+   [
+    1791465443650,
+    100.0
+   ],
+   [
+    1791465458650,
+    70.07874015748031
+   ],
+   [
+    1791465473650,
+    28.054298642533936
+   ],
+   [
+    1791465488650,
+    11.585365853658535
+   ],
+   [
+    1791465503650,
+    2.7586206896551726
+   ],
+   [
+    1791465518650,
+    0.3361344537815126
+   ],
+   [
+    1791465533650,
+    0.5555555555555555
+   ],
+   [
+    1791465548650,
+    0.3618817852834741
+   ],
+   [
+    1791465563650,
+    0.4634994206257242
+   ],
+   [
+    1791465578650,
+    0.8185538881309686
+   ],
+   [
+    1791465593650,
+    4.716981132075471
+   ],
+   [
+    1791465608650,
+    13.813813813813812
+   ],
+   [
+    1791465623650,
+    35.8974358974359
+   ],
+   [
+    1791465638650,
+    63.43283582089553
+   ],
+   [
+    1791465653650,
+    88.23529411764706
+   ],
+   [
+    1791465668650,
+    100.0
+   ],
+   [
+    1791465683650,
+    100.0
+   ],
+   [
+    1791465698650,
+    41.80790960451977
+   ],
+   [
+    1791465713650,
+    18.08118081180812
+   ],
+   [
+    1791465728650,
+    5.804749340369393
+   ],
+   [
+    1791465743650,
+    0.21551724137931033
+   ],
+   [
+    1791465758650,
+    0.4282655246252677
+   ],
+   [
+    1791465773650,
+    0.42105263157894746
+   ],
+   [
+    1791465788650,
+    0.4273504273504274
+   ],
+   [
+    1791465803650,
+    0.6479481641468683
+   ],
+   [
+    1791465818650,
+    3.950617283950617
+   ],
+   [
+    1791465833650,
+    10.27190332326284
+   ],
+   [
+    1791465848650,
+    20.454545454545457
+   ],
+   [
+    1791465863650,
+    33.603238866396765
+   ],
+   [
+    1791465878650,
+    34.294871794871796
+   ],
+   [
+    1791465893650,
+    35.59782608695652
+   ],
+   [
+    1791465908650,
+    33.86363636363636
+   ],
+   [
+    1791465923650,
+    36.79012345679013
+   ],
+   [
+    1791465938650,
+    31.48148148148148
+   ],
+   [
+    1791465953650,
+    19.9468085106383
+   ],
+   [
+    1791465968650,
+    8.753315649867375
+   ],
+   [
+    1791465983650,
+    1.5765765765765765
+   ],
+   [
+    1791465998650,
+    0.6622516556291391
+   ],
+   [
+    1791466013650,
+    0.6451612903225806
+   ],
+   [
+    1791466028650,
+    0.8869179600886918
+   ],
+   [
+    1791466043650,
+    0.9195402298850575
+   ],
+   [
+    1791466058650,
+    2.272727272727273
+   ],
+   [
+    1791466073650,
+    6.140350877192982
+   ],
+   [
+    1791466088650,
+    9.859154929577464
+   ],
+   [
+    1791466103650,
+    16.593886462882097
+   ],
+   [
+    1791466118650,
+    14.285714285714285
+   ],
+   [
+    1791466133650,
+    14.718614718614717
+   ],
+   [
+    1791466148650,
+    15.584415584415584
+   ],
+   [
+    1791466163650,
+    13.865546218487395
+   ],
+   [
+    1791466178650,
+    15.720524017467246
+   ],
+   [
+    1791466193650,
+    13.983050847457626
+   ],
+   [
+    1791466208650,
+    7.492795389048992
+   ],
+   [
+    1791466223650,
+    4.007633587786259
+   ],
+   [
+    1791466238650,
+    1.9580419580419581
+   ],
+   [
+    1791466253650,
+    0.6857142857142857
+   ],
+   [
+    1791466268650,
+    0.7653061224489797
+   ]
+  ],
+  "latency": [
+   [
+    1791465143650,
+    228.61486486486478
+   ],
+   [
+    1791465158650,
+    231.94029850746264
+   ],
+   [
+    1791465173650,
+    234.53651685393257
+   ],
+   [
+    1791465188650,
+    236.38297872340422
+   ],
+   [
+    1791465203650,
+    236.086956521739
+   ],
+   [
+    1791465218650,
+    232.05999999999997
+   ],
+   [
+    1791465233650,
+    233.4888059701493
+   ],
+   [
+    1791465248650,
+    232.08633093525185
+   ],
+   [
+    1791465263650,
+    232.391304347826
+   ],
+   [
+    1791465278650,
+    232.9452054794521
+   ],
+   [
+    1791465293650,
+    233.08139534883716
+   ],
+   [
+    1791465308650,
+    234.33999999999995
+   ],
+   [
+    1791465323650,
+    232.2727272727273
+   ],
+   [
+    1791465338650,
+    239.04761904761898
+   ],
+   [
+    1791465353650,
+    1136.3636363636335
+   ],
+   [
+    1791465368650,
+    2030.8510638297869
+   ],
+   [
+    1791465383650,
+    2303.125
+   ],
+   [
+    1791465398650,
+    2404.8387096774195
+   ],
+   [
+    1791465413650,
+    2425.0
+   ],
+   [
+    1791465428650,
+    2425.0
+   ],
+   [
+    1791465443650,
+    2424.2187499999995
+   ],
+   [
+    1791465458650,
+    2392.9775280898875
+   ],
+   [
+    1791465473650,
+    2232.6612903225805
+   ],
+   [
+    1791465488650,
+    1816.666666666666
+   ],
+   [
+    1791465503650,
+    244.29999999999995
+   ],
+   [
+    1791465518650,
+    235.7680722891567
+   ],
+   [
+    1791465533650,
+    237.99999999999997
+   ],
+   [
+    1791465548650,
+    237.80837004405282
+   ],
+   [
+    1791465563650,
+    241.22933884297524
+   ],
+   [
+    1791465578650,
+    242.05223880597003
+   ],
+   [
+    1791465593650,
+    805.5555555555516
+   ],
+   [
+    1791465608650,
+    2000.6097560975613
+   ],
+   [
+    1791465623650,
+    2346.590909090909
+   ],
+   [
+    1791465638650,
+    2396.987951807229
+   ],
+   [
+    1791465653650,
+    2415.0
+   ],
+   [
+    1791465668650,
+    2425.0
+   ],
+   [
+    1791465683650,
+    2425.0
+   ],
+   [
+    1791465698650,
+    2325.328947368421
+   ],
+   [
+    1791465713650,
+    2101.4705882352932
+   ],
+   [
+    1791465728650,
+    1315.6249999999982
+   ],
+   [
+    1791465743650,
+    237.1755725190839
+   ],
+   [
+    1791465758650,
+    236.27777777777774
+   ],
+   [
+    1791465773650,
+    238.22992700729927
+   ],
+   [
+    1791465788650,
+    237.5182481751825
+   ],
+   [
+    1791465803650,
+    233.67307692307696
+   ],
+   [
+    1791465818650,
+    249.63592233009703
+   ],
+   [
+    1791465833650,
+    1772.5000000000005
+   ],
+   [
+    1791465848650,
+    2163.999999999999
+   ],
+   [
+    1791465863650,
+    2305.9374999999995
+   ],
+   [
+    1791465878650,
+    2277.142857142857
+   ],
+   [
+    1791465893650,
+    2294.488188976377
+   ],
+   [
+    1791465908650,
+    2291.666666666667
+   ],
+   [
+    1791465923650,
+    2312.5000000000005
+   ],
+   [
+    1791465938650,
+    2270.51282051282
+   ],
+   [
+    1791465953650,
+    2134.2465753424653
+   ],
+   [
+    1791465968650,
+    1616.4062499999989
+   ],
+   [
+    1791465983650,
+    239.75
+   ],
+   [
+    1791465998650,
+    231.98770491803276
+   ],
+   [
+    1791466013650,
+    229.30000000000004
+   ],
+   [
+    1791466028650,
+    229.7173913043478
+   ],
+   [
+    1791466043650,
+    229.45652173913038
+   ],
+   [
+    1791466058650,
+    247.12765957446803
+   ],
+   [
+    1791466073650,
+    1806.7567567567553
+   ],
+   [
+    1791466088650,
+    2138.9830508474565
+   ],
+   [
+    1791466103650,
+    2285.3125
+   ],
+   [
+    1791466118650,
+    2293.749999999999
+   ],
+   [
+    1791466133650,
+    2286.111111111111
+   ],
+   [
+    1791466148650,
+    2296.176470588235
+   ],
+   [
+    1791466163650,
+    2284.939759036144
+   ],
+   [
+    1791466178650,
+    2300.290697674418
+   ],
+   [
+    1791466193650,
+    2284.1463414634145
+   ],
+   [
+    1791466208650,
+    2105.681818181818
+   ],
+   [
+    1791466223650,
+    1564.2857142857126
+   ],
+   [
+    1791466238650,
+    284.7222222222213
+   ],
+   [
+    1791466253650,
+    234.54999999999998
+   ],
+   [
+    1791466268650,
+    231.28440366972472
+   ]
+  ]
+ }
+}

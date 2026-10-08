@@ -1,0 +1,1282 @@
+{
+ "scenario": "config-payment-declines",
+ "variant": "provider-api-v3",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T12:35:30+00:00",
+ "injectedAt": 1791462708021,
+ "truth": {
+  "scenario": "config-payment-declines",
+  "variant": "provider-api-v3",
+  "service": "payments",
+  "root_cause": "The provider's v3 API requires billing address fields that payments does not send, and declines those charges.",
+  "action": "revert_config",
+  "culprit_sha": "3f68686a4d31ae728cede4533220b23a08e8881b",
+  "decoy_shas": [
+   "652640965a80ae09c045a037c492053f07567b87",
+   "3311e8223f33d74f7c3dcbc6d7954b7b990965e1"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791462768108,
+   "type": "triage"
+  },
+  {
+   "at": 1791462776488,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "level": "error",
+    "minutes": 15,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462776490,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 240
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462776491,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service, status) (rate(http_requests_total[1m]))",
+    "minutes": 60
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462776491,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_stat_activity where datname is not null"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462776563,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 31 patterns for {service=~\".+\", level=\"error\"}, last 15 min (most frequent first):\n\n408× [shop] between 12:19:12 and 12:32:21\n   example: {\"ts\": \"2026-10-08T12:32:21.863+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"27f6998151df46818fb207bbcce94cc6\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 500, \"duration_ms\": 1.3}\n\n368× [shop] between 12:21:02 and 12:22:39\n   example: {\"ts\": \"2026-10-08T12:22:39.983+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"22fb3f53eefe4e55bf5cc591797fb948\", \"target\": \"payments\", \"error\": \"ConnectError('All connection attempts failed')\"}\n\n57× [shop] between 12:18:51 and 12:32:30\n   example: {\"ts\": \"2026-10-08T12:32:30.707+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"35b8cd9c86b342da909934f91396da63\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.5}\n\n48× [shop] between 12:18:51 and 12:18:59\n   example: {\"ts\": \"2026-10-08T12:18:59.482+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"cc84bc4fb21743908a808e7e8985541b\", \"target\": \"inventory\", \"error\": \"ConnectError('[Errno -3] Temporary failure in name resolution')\"}\n\n15× [shop] between 12:19:43 and 12:32:04\n   example: {\"ts\": \"2026-10-08T12:32:04.010+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"ca0fe4688e9548b0af4604119eb07767\", \"target\": \"inventory\", \"status\": 500}\n\n10× [shop] between 12:19:53 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.161+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"target\": \"payments\", \"status\": 500}\n\n10× [payments] between 12:19:53 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.159+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.0}\n\n9× [shop] between 12:19:12 and 12:32:03\n   example: {\"ts\": \"2026-10-08T12:32:03.218+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"9ece1800230141778cab2d509a2da887\", \"target\": \"users\", \"status\": 500}\n\n9× [users] between 12:19:12 and 12:32:03\n   example: {\"ts\": \"2026-10-08T12:32:03.216+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9ece1800230141778cab2d509a2da887\", \"method\": \"GET\", \"path\": \"/users/289\", \"status\": 500, \"duration_ms\": 0.5}\n\n7× [inventory] between 12:20:36 and 12:32:04\n   example: {\"ts\": \"2026-10-08T12:32:04.009+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"ca0fe4688e9548b0af4604119eb07767\", \"method\": \"GET\", \"path\": \"/products/1\", \"status\": 500, \"duration_ms\": 0.6}\n\n7× [inventory] between 12:19:43 and 12:30:44\n   example: {\"ts\": \"2026-10-08T12:30:44.054+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"4705034fafee4e0cb3ee71aff5310309\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 0.8}\n\n5× [shop] between 12:24:47 and 12:31:01\n   example: {\"ts\": \"2026-10-08T12:31:01.712+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"b3e48f316c6c42f79a56ce3fdfd29202\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f\n\n4× [shop] between 12:23:54 and 12:32:30\n   example: {\"ts\": \"2026-10-08T12:32:30.707+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"35b8cd9c86b342da909934f91396da63\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n4× [users] between 12:19:12 and 12:32:03\n   example: {\"ts\": \"2026-10-08T12:32:03.216+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"9ece1800230141778cab2d509a2da887\", \"method\": \"GET\", \"path\": \"/users/289\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n4× [users] between 12:24:59 and 12:30:35\n   example: {\"ts\": \"2026-10-08T12:30:35.600+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"2829f079c56f42cd807fcdc19c7f79e4\", \"method\": \"GET\", \"path\": \"/users/235\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n4× [payments] between 12:19:53 and 12:29:09\n   example: {\"ts\": \"2026-10-08T12:29:09.112+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f216ecada27e473388b49384f20f7acc\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n3× [shop] between 12:24:23 and 12:32:21\n   example: {\"ts\": \"2026-10-08T12:32:21.863+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"27f6998151df46818fb207bbcce94cc6\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n3× [inventory] between 12:20:36 and 12:32:04\n   example: {\"ts\": \"2026-10-08T12:32:04.009+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"ca0fe4688e9548b0af4604119eb07767\", \"method\": \"GET\", \"path\": \"/products/1\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n3× [shop] between 12:24:45 and 12:30:52\n   example: {\"ts\": \"2026-10-08T12:30:52.326+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"c50bb408f8a84d248bf71cf567e7ad61\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading fr\n\n3× [payments] between 12:22:45 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.159+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/u\n… [truncated: 264 more characters]"
+  },
+  {
+   "at": 1791462776564,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "3311e82 2026-10-08 12:30:07 +0000 Ana Ruiz: shop: comment on the order of calls when creating an order\n\nservices/shop/handlers.py\n6526409 2026-10-08 12:30:00 +0000 Marta Gil: users: debug log on cache hits\n\nservices/users/handlers.py\n3f68686 2026-10-08 12:28:54 +0000 Diego Martín: config(payments): migrate to v3 of the payment provider's API\n\nconfig/payments.env"
+  },
+  {
+   "at": 1791462776564,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "15 series, last 60 min:\n- service=inventory, status=200: current 4.182 | min 0 | max 8.254 | avg 3.634\n- service=inventory, status=201: current 3.2 | min 0 | max 5.345 | avg 3.091\n- service=inventory, status=500: current 0.01818 | min 0 | max 0.09091 | avg 0.01968\n- service=payments, status=201: current 2.236 | min 0 | max 5.145 | avg 2.73\n- service=payments, status=402: current 0.9636 | min 0 | max 2 | avg 0.2139\n- service=payments, status=500: current 0 | min 0 | max 0.03636 | avg 0.009628\n- service=shop, status=200: current 5.273 | min 0 | max 9.982 | avg 5.527\n- service=shop, status=201: current 2.273 | min 0 | max 5.2 | avg 2.593\n- service=shop, status=402: current 0.9636 | min 0 | max 1.964 | avg 0.2059\n- service=shop, status=404: current 0.05455 | min 0 | max 0.2909 | avg 0.1354\n- service=shop, status=500: current 0.03636 | min 0 | max 0.07273 | avg 0.02164\n- service=shop, status=502: current 0.03636 | min 0 | max 5.8 | avg 0.4631\n- service=users, status=200: current 3.2 | min 0 | max 5.473 | avg 3.125\n- service=users, status=404: current 0.05454 | min 0 | max 0.2909 | avg 0.1337\n- service=users, status=500: current 0.01818 | min 0 | max 0.6364 | avg 0.02945"
+  },
+  {
+   "at": 1791462776565,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xact_age | q\n35733 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n31504 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36165 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_s\n33194 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blo\n32695 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n33123 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n34737 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n35043 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | ROLLBACK;\n35191 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n35215 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791462788838,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "3f68686"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462788839,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 15,
+    "limit": 15
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462788839,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service, status) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462788840,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/payments.env"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462788880,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 3f68686a4d31ae728cede4533220b23a08e8881b\nAuthor: Diego Martín <diego.martin@shop.example>\nDate:   2026-10-08 12:28:54 +0000\n\n    config(payments): migrate to v3 of the payment provider's API\n---\n config/payments.env | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n\ndiff --git a/config/payments.env b/config/payments.env\nindex 078ce79..8a2a330 100644\n--- a/config/payments.env\n+++ b/config/payments.env\n@@ -1,5 +1,5 @@\n DATABASE_URL=postgresql://payments@postgres:5432/payments\n DB_POOL_SIZE=10\n-PROVIDER_URL=https://api.payprovider.example/v2\n+PROVIDER_URL=https://api.payprovider.example/v3\n PROVIDER_TIMEOUT_SECONDS=3\n RATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791462788881,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 6 patterns for {service=\"payments\"}, last 15 min (most frequent first):\n\n632× [payments] between 12:29:00 and 12:33:07\n   example: {\"ts\": \"2026-10-08T12:33:07.976+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"fc6e8ca773414742b778f50bf9ff630e\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 75.4}\n\n182× [payments] between 12:29:00 and 12:33:08\n   example: {\"ts\": \"2026-10-08T12:33:08.321+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"a01cb48321554f7993f8471c37423305\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 106.5}\n\n182× [payments] between 12:29:00 and 12:33:08\n   example: {\"ts\": \"2026-10-08T12:33:08.321+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"a01cb48321554f7993f8471c37423305\", \"order_id\": \"80182f4a-ad4f-4485-a972-99d0342d8ae0\", \"reason\": \"card_declined\"}\n\n2× [payments] between 12:29:09 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.159+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.0}\n\n1× [payments] between 12:30:30 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.159+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n1× [payments] between 12:29:09 and 12:29:09\n   example: {\"ts\": \"2026-10-08T12:29:09.112+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f216ecada27e473388b49384f20f7acc\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791462788881,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 30 min:\n- service=payments, status=201: current 2.109 | min 0 | max 4.564 | avg 2.557\n- service=payments, status=402: current 1.073 | min 0 | max 2.055 | avg 0.2286\n- service=payments, status=500: current 0 | min 0 | max 0.03636 | avg 0.01034"
+  },
+  {
+   "at": 1791462788882,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v3\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791462800230,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "contains": "declined",
+    "minutes": 20,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462800231,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462800232,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "payment provider API version PROVIDER_URL card_declined 402",
+    "limit": 3
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462800232,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select table_name from information_schema.tables where table_schema='public'"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462801320,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "389 lines in 1 patterns for {service=\"payments\"} |= \"declined\", last 20 min (most frequent first):\n\n389× [payments] between 12:13:28 and 12:33:19\n   example: {\"ts\": \"2026-10-08T12:33:19.550+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"1572dcbb8c1643f3b8465425f47e8fdb\", \"order_id\": \"de6655a3-0853-4543-9ce1-5e1c18f2a7df\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791462801321,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 30 min:\n- status=201: current 1.927 | min 0 | max 5.018 | avg 2.551\n- status=402: current 1.073 | min 0 | max 1.836 | avg 0.2457\n- status=500: current 0 | min 0 | max 0.03636 | avg 0.01049"
+  },
+  {
+   "at": 1791462801321,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[config/payments.env] (config)\nConfiguration of the payments service: environment variables (config/payments.env).\nDATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v3\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\n\n\n---\n\n[docs/services/payments.md#Simulated provider] (doc)\npayments\n\n## Simulated provider\n\n- Each charge takes between 50 and 200 ms (provider latency).\n- 3 % of charges are declined (`PAYMENTS_DECLINE_RATE`).\n\n---\n\n[runbooks/external-provider-degraded.md] (runbook)\n# External provider degraded\n\n**Symptom**: charges time out or take a long time, but payments has no errors of\nits own and no recent changes.\n\n1. Measure the latency of `POST /charges` in payments and the `shop` timeouts\n   towards payments (`upstream_requests_total{target=\"payments\", status=\"timeout\"}`).\n2. Rule out internal causes: no recent deploys or config changes in payments,\n   Postgres healthy and the connection pool with headroom.\n3. If the latency is in the call to the provider and there are no internal\n   changes, the problem is external: **escalate** to the provider with the evidence\n   (since when, latencies, percentage of timeouts).\n4. In the meantime: do not retry en masse (it makes the saturation worse) and\n   communicate the impact on orders.\n"
+  },
+  {
+   "at": 1791462801321,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "table_name\npayments"
+  },
+  {
+   "at": 1791462819176,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum(rate(http_requests_total{service=\"payments\",status=\"402\"}[1m])) / sum(rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 60,
+    "step_seconds": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462819177,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "contains": "declined",
+    "minutes": 60,
+    "limit": 5
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462819178,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "level": "warning",
+    "minutes": 5,
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462819178,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 600,
+    "path": "config/payments.env"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462819252,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 60 min:\n- (no labels): current 0.3797 | min 0 | max 0.4684 | avg 0.0707"
+  },
+  {
+   "at": 1791462819253,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "815 lines in 1 patterns for {service=\"payments\"} |= \"declined\", last 60 min (most frequent first):\n\n815× [payments] between 11:33:44 and 12:33:36\n   example: {\"ts\": \"2026-10-08T12:33:36.148+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"efe5f7ad50784f748bffa6f3c07a93c8\", \"order_id\": \"3ce54db1-6875-4313-853f-4e8f0ec37d07\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791462819254,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "547 lines in 4 patterns for {service=\"shop\", level=\"warning\"}, last 5 min (most frequent first):\n\n289× [shop] between 12:28:39 and 12:33:36\n   example: {\"ts\": \"2026-10-08T12:33:36.156+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"efe5f7ad50784f748bffa6f3c07a93c8\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 402, \"duration_ms\": 168.0}\n\n254× [shop] between 12:28:39 and 12:33:36\n   example: {\"ts\": \"2026-10-08T12:33:36.155+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"efe5f7ad50784f748bffa6f3c07a93c8\", \"order_id\": \"3ce54db1-6875-4313-853f-4e8f0ec37d07\", \"reason\": \"payment_declined\"}\n\n2× [shop] between 12:29:02 and 12:30:44\n   example: {\"ts\": \"2026-10-08T12:30:44.057+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"4705034fafee4e0cb3ee71aff5310309\", \"order_id\": \"a081e099-757b-405f-b69b-9a1e51fec0ef\", \"reason\": \"inventory_unavailable\"}\n\n2× [shop] between 12:29:09 and 12:30:30\n   example: {\"ts\": \"2026-10-08T12:30:30.165+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"7ff7930d066f4dff9353c7e431b719f7\", \"order_id\": \"b5f0a185-cdbf-4543-8660-188204bf56d4\", \"reason\": \"payments_unavailable\"}"
+  },
+  {
+   "at": 1791462819254,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "3f68686 2026-10-08 12:28:54 +0000 Diego Martín: config(payments): migrate to v3 of the payment provider's API\n\nconfig/payments.env"
+  },
+  {
+   "at": 1791462840028,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "Commit 3f68686 switched PROVIDER_URL in config/payments.env from the provider's v2 API to v3. Since the deploy, the share of declined charges (HTTP 402, reason card_declined) has risen from the roughly 3% baseline to about 38%, so shop orders fail with payment_declined. The most likely explanation is that the v3 API is not compatible with how payments calls it.",
+    "culprit_commit": "3f68686",
+    "evidence": [
+     "Commit 3f68686 (Diego Martín, 12:28:54) changed PROVIDER_URL from https://api.payprovider.example/v2 to .../v3. It is the only recent change to config/payments.env.",
+     "The payments 402 ratio is now 0.38 (max 0.47) against a 60-minute average of 0.07. The docs say the expected decline rate is 3% (PAYMENTS_DECLINE_RATE).",
+     "Shop warnings from 12:28:39 onwards are mostly 'order failed' with reason payment_declined (254 in 5 minutes) and POST /orders 402 responses (289).",
+     "Payments 402 rate is about 1/s, against an average of 0.2 over 30 minutes.",
+     "Payments logs show 'payment declined' with reason card_declined, not timeouts or 5xx. Payments' own 5xx is about 0, so this is not a provider outage or a latency problem.",
+     "The other commits (3311e82 is a comment in shop, 6526409 is a debug log in users) do not touch payment behaviour.",
+     "The 5xx and connection-reset errors in the logs are stable background noise. The shop 5xx rate is lower than in the previous hour."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Revert PROVIDER_URL in config/payments.env to https://api.payprovider.example/v2 by rolling back 3f68686. The auto-deploy will apply it.",
+     "Check that the payments 402 ratio returns to about 3% and that shop POST /orders 402 responses and 'payment_declined' warnings drop.",
+     "Confirm that POST /charges still returns 201 and that its latency stays at about 50-200 ms.",
+     "Before retrying the migration, check the v3 API contract with the provider (request and response format, auth, decline codes). Test it in staging."
+    ],
+    "action": {
+     "kind": "rollback",
+     "target": "3f68686",
+     "reason": "The jump in declined charges (402) began right after the payments provider URL moved to v3. Rolling back restores the v2 endpoint that behaved normally, with a decline rate of about 3%.",
+     "evidence": [
+      "The 402 ratio went from about 3% to 38% after the 12:28:54 deploy.",
+      "The change is a single line in config/payments.env: PROVIDER_URL v2 to v3.",
+      "Payments has no 5xx or latency symptoms, so the problem is in the provider integration and not in infrastructure."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 151089
+  },
+  {
+   "at": 1791462840035,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791462840058,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791462840076,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of 3f68686 committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791462900148,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0065,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2329,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0479,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791462900180,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791461808022,
+    157.0909090909091
+   ],
+   [
+    1791461823022,
+    169.09090909090907
+   ],
+   [
+    1791461838022,
+    160.36363636363635
+   ],
+   [
+    1791461853022,
+    157.09662169533436
+   ],
+   [
+    1791461868022,
+    126.54315376084072
+   ],
+   [
+    1791461883022,
+    79.6378115965745
+   ],
+   [
+    1791461898022,
+    38.181123979564006
+   ],
+   [
+    1791461913022,
+    0.0
+   ],
+   [
+    1791461928022,
+    0.0
+   ],
+   [
+    1791461943022,
+    0.0
+   ],
+   [
+    1791461958022,
+    38.18251240931654
+   ],
+   [
+    1791461973022,
+    91.6380297823597
+   ],
+   [
+    1791461988022,
+    149.45454545454544
+   ],
+   [
+    1791462003022,
+    183.2760595647194
+   ],
+   [
+    1791462018022,
+    188.72727272727272
+   ],
+   [
+    1791462033022,
+    175.63317030599444
+   ],
+   [
+    1791462048022,
+    173.45139179287648
+   ],
+   [
+    1791462063022,
+    168.0
+   ],
+   [
+    1791462078022,
+    137.45454545454547
+   ],
+   [
+    1791462093022,
+    85.09245622647686
+   ],
+   [
+    1791462108022,
+    37.091583483336066
+   ],
+   [
+    1791462123022,
+    0.0
+   ],
+   [
+    1791462138022,
+    0.0
+   ],
+   [
+    1791462153022,
+    0.0
+   ],
+   [
+    1791462168022,
+    18.545454545454547
+   ],
+   [
+    1791462183022,
+    103.63447937310231
+   ],
+   [
+    1791462198022,
+    177.81494881911237
+   ],
+   [
+    1791462213022,
+    220.35962982491228
+   ],
+   [
+    1791462228022,
+    222.54545454545453
+   ],
+   [
+    1791462243022,
+    181.09420171275843
+   ],
+   [
+    1791462258022,
+    169.09090909090907
+   ],
+   [
+    1791462273022,
+    178.90909090909088
+   ],
+   [
+    1791462288022,
+    170.1818181818182
+   ],
+   [
+    1791462303022,
+    163.63636363636363
+   ],
+   [
+    1791462318022,
+    156.0
+   ],
+   [
+    1791462333022,
+    158.1818181818182
+   ],
+   [
+    1791462348022,
+    153.8181818181818
+   ],
+   [
+    1791462363022,
+    157.09376534118806
+   ],
+   [
+    1791462378022,
+    158.1818181818182
+   ],
+   [
+    1791462393022,
+    161.45160997072782
+   ],
+   [
+    1791462408022,
+    164.72427774040474
+   ],
+   [
+    1791462423022,
+    169.09090909090907
+   ],
+   [
+    1791462438022,
+    171.27584137893416
+   ],
+   [
+    1791462453022,
+    174.54545454545456
+   ],
+   [
+    1791462468022,
+    162.54249922728678
+   ],
+   [
+    1791462483022,
+    141.8181818181818
+   ],
+   [
+    1791462498022,
+    114.54545454545453
+   ],
+   [
+    1791462513022,
+    97.09267441226206
+   ],
+   [
+    1791462528022,
+    87.27114052471774
+   ],
+   [
+    1791462543022,
+    103.63447937310231
+   ],
+   [
+    1791462558022,
+    134.17937855675353
+   ],
+   [
+    1791462573022,
+    150.5427174051381
+   ],
+   [
+    1791462588022,
+    166.9090909090909
+   ],
+   [
+    1791462603022,
+    153.8181818181818
+   ],
+   [
+    1791462618022,
+    150.5481917853052
+   ],
+   [
+    1791462633022,
+    158.1789422010509
+   ],
+   [
+    1791462648022,
+    170.17872402319958
+   ],
+   [
+    1791462663022,
+    174.54545454545456
+   ],
+   [
+    1791462678022,
+    183.27272727272725
+   ],
+   [
+    1791462693022,
+    175.63955708285607
+   ],
+   [
+    1791462708022,
+    176.73048600883652
+   ],
+   [
+    1791462723022,
+    152.72449591825603
+   ],
+   [
+    1791462738022,
+    140.72727272727272
+   ],
+   [
+    1791462753022,
+    140.72727272727272
+   ],
+   [
+    1791462768022,
+    129.8158215305176
+   ],
+   [
+    1791462783022,
+    133.0909090909091
+   ],
+   [
+    1791462798022,
+    118.90692896492791
+   ],
+   [
+    1791462813022,
+    109.0909090909091
+   ],
+   [
+    1791462828022,
+    109.0909090909091
+   ],
+   [
+    1791462843022,
+    122.17959673460481
+   ],
+   [
+    1791462858022,
+    140.72727272727272
+   ],
+   [
+    1791462873022,
+    153.82097856324663
+   ],
+   [
+    1791462888022,
+    166.90605625352265
+   ],
+   [
+    1791462903022,
+    165.81516699696368
+   ],
+   [
+    1791462918022,
+    162.54545454545453
+   ]
+  ],
+  "errors": [
+   [
+    1791461808022,
+    0.44943820224719105
+   ],
+   [
+    1791461823022,
+    0.45045045045045046
+   ],
+   [
+    1791461838022,
+    0.45871559633027525
+   ],
+   [
+    1791461853022,
+    0.4576659038901602
+   ],
+   [
+    1791461868022,
+    9.829059829059828
+   ],
+   [
+    1791461883022,
+    25.287356321839077
+   ],
+   [
+    1791461898022,
+    49.26108374384236
+   ],
+   [
+    1791461913022,
+    75.40983606557377
+   ],
+   [
+    1791461928022,
+    99.68152866242039
+   ],
+   [
+    1791461943022,
+    100.0
+   ],
+   [
+    1791461958022,
+    68.66096866096866
+   ],
+   [
+    1791461973022,
+    38.0952380952381
+   ],
+   [
+    1791461988022,
+    14.382022471910114
+   ],
+   [
+    1791462003022,
+    0.6396588486140725
+   ],
+   [
+    1791462018022,
+    0.6276150627615061
+   ],
+   [
+    1791462033022,
+    0.6507592190889372
+   ],
+   [
+    1791462048022,
+    0.6535947712418302
+   ],
+   [
+    1791462063022,
+    0.6521739130434783
+   ],
+   [
+    1791462078022,
+    9.033613445378151
+   ],
+   [
+    1791462093022,
+    20.245398773006134
+   ],
+   [
+    1791462108022,
+    29.471544715447155
+   ],
+   [
+    1791462123022,
+    36.07214428857715
+   ],
+   [
+    1791462138022,
+    34.30353430353431
+   ],
+   [
+    1791462153022,
+    34.43579766536965
+   ],
+   [
+    1791462168022,
+    32.312404287901984
+   ],
+   [
+    1791462183022,
+    23.05699481865285
+   ],
+   [
+    1791462198022,
+    15.802171290711703
+   ],
+   [
+    1791462213022,
+    6.602475928473178
+   ],
+   [
+    1791462228022,
+    0.1669449081803005
+   ],
+   [
+    1791462243022,
+    0.4132231404958678
+   ],
+   [
+    1791462258022,
+    0.44247787610619477
+   ],
+   [
+    1791462273022,
+    0.437636761487965
+   ],
+   [
+    1791462288022,
+    0.6651884700665188
+   ],
+   [
+    1791462303022,
+    0.8888888888888888
+   ],
+   [
+    1791462318022,
+    1.6018306636155606
+   ],
+   [
+    1791462333022,
+    1.5873015873015872
+   ],
+   [
+    1791462348022,
+    1.3793103448275863
+   ],
+   [
+    1791462363022,
+    1.3761467889908257
+   ],
+   [
+    1791462378022,
+    0.9259259259259258
+   ],
+   [
+    1791462393022,
+    0.45662100456621
+   ],
+   [
+    1791462408022,
+    0.4514672686230248
+   ],
+   [
+    1791462423022,
+    0.22123893805309738
+   ],
+   [
+    1791462438022,
+    0.0
+   ],
+   [
+    1791462453022,
+    0.2136752136752137
+   ],
+   [
+    1791462468022,
+    0.21231422505307856
+   ],
+   [
+    1791462483022,
+    0.4291845493562232
+   ],
+   [
+    1791462498022,
+    0.6578947368421052
+   ],
+   [
+    1791462513022,
+    0.44742729306487705
+   ],
+   [
+    1791462528022,
+    0.45351473922902497
+   ],
+   [
+    1791462543022,
+    0.3846153846153846
+   ],
+   [
+    1791462558022,
+    0.6299212598425197
+   ],
+   [
+    1791462573022,
+    1.0767160161507403
+   ],
+   [
+    1791462588022,
+    0.8739076154806492
+   ],
+   [
+    1791462603022,
+    0.872093023255814
+   ],
+   [
+    1791462618022,
+    0.5190311418685121
+   ],
+   [
+    1791462633022,
+    0.2100840336134454
+   ],
+   [
+    1791462648022,
+    0.6593406593406594
+   ],
+   [
+    1791462663022,
+    1.0799136069114472
+   ],
+   [
+    1791462678022,
+    1.4736842105263155
+   ],
+   [
+    1791462693022,
+    1.0706638115631693
+   ],
+   [
+    1791462708022,
+    0.6507592190889372
+   ],
+   [
+    1791462723022,
+    0.0
+   ],
+   [
+    1791462738022,
+    0.45045045045045046
+   ],
+   [
+    1791462753022,
+    0.6493506493506493
+   ],
+   [
+    1791462768022,
+    0.8547008547008548
+   ],
+   [
+    1791462783022,
+    0.6342494714587738
+   ],
+   [
+    1791462798022,
+    0.44052863436123346
+   ],
+   [
+    1791462813022,
+    0.0
+   ],
+   [
+    1791462828022,
+    0.0
+   ],
+   [
+    1791462843022,
+    0.42283298097251587
+   ],
+   [
+    1791462858022,
+    0.4184100418410042
+   ],
+   [
+    1791462873022,
+    0.6276150627615062
+   ],
+   [
+    1791462888022,
+    0.6237006237006237
+   ],
+   [
+    1791462903022,
+    0.6493506493506495
+   ],
+   [
+    1791462918022,
+    0.4405286343612335
+   ]
+  ],
+  "latency": [
+   [
+    1791461808022,
+    230.7773109243697
+   ],
+   [
+    1791461823022,
+    232.8225806451612
+   ],
+   [
+    1791461838022,
+    234.8717948717948
+   ],
+   [
+    1791461853022,
+    232.09051724137933
+   ],
+   [
+    1791461868022,
+    226.1855670103092
+   ],
+   [
+    1791461883022,
+    219.6428571428572
+   ],
+   [
+    1791461898022,
+    183.4999999999999
+   ],
+   [
+    1791461913022,
+    9.543749999999998
+   ],
+   [
+    1791461928022,
+    8.699999999999998
+   ],
+   [
+    1791461943022,
+    8.55681818181818
+   ],
+   [
+    1791461958022,
+    181.39705882352914
+   ],
+   [
+    1791461973022,
+    218.41549295774632
+   ],
+   [
+    1791461988022,
+    229.93421052631572
+   ],
+   [
+    1791462003022,
+    235.48561151079124
+   ],
+   [
+    1791462018022,
+    236.27659574468086
+   ],
+   [
+    1791462033022,
+    238.66541353383442
+   ],
+   [
+    1791462048022,
+    239.59302325581402
+   ],
+   [
+    1791462063022,
+    236.69354838709674
+   ],
+   [
+    1791462078022,
+    233.46938775510196
+   ],
+   [
+    1791462093022,
+    228.87500000000006
+   ],
+   [
+    1791462108022,
+    171.2500000000001
+   ],
+   [
+    1791462123022,
+    34.83695652173922
+   ],
+   [
+    1791462138022,
+    39.66911764705887
+   ],
+   [
+    1791462153022,
+    42.18085106382978
+   ],
+   [
+    1791462168022,
+    47.44230769230765
+   ],
+   [
+    1791462183022,
+    205.21739130434767
+   ],
+   [
+    1791462198022,
+    222.02173913043495
+   ],
+   [
+    1791462213022,
+    231.92708333333326
+   ],
+   [
+    1791462228022,
+    235.71656050955414
+   ],
+   [
+    1791462243022,
+    231.7293233082706
+   ],
+   [
+    1791462258022,
+    232.33870967741942
+   ],
+   [
+    1791462273022,
+    234.26136363636363
+   ],
+   [
+    1791462288022,
+    233.60887096774198
+   ],
+   [
+    1791462303022,
+    282.89473684210554
+   ],
+   [
+    1791462318022,
+    367.9166666666666
+   ],
+   [
+    1791462333022,
+    400.98684210526295
+   ],
+   [
+    1791462348022,
+    421.8750000000002
+   ],
+   [
+    1791462363022,
+    406.7567567567569
+   ],
+   [
+    1791462378022,
+    384.72222222222206
+   ],
+   [
+    1791462393022,
+    405.35714285714255
+   ],
+   [
+    1791462408022,
+    383.65384615384625
+   ],
+   [
+    1791462423022,
+    391.8604651162794
+   ],
+   [
+    1791462438022,
+    372.7564102564099
+   ],
+   [
+    1791462453022,
+    335.7142857142853
+   ],
+   [
+    1791462468022,
+    248.13999999999996
+   ],
+   [
+    1791462483022,
+    236.44000000000003
+   ],
+   [
+    1791462498022,
+    234.8818897637795
+   ],
+   [
+    1791462513022,
+    232.15116279069753
+   ],
+   [
+    1791462528022,
+    234.70703124999994
+   ],
+   [
+    1791462543022,
+    234.90566037735843
+   ],
+   [
+    1791462558022,
+    239.77272727272725
+   ],
+   [
+    1791462573022,
+    240.51682692307693
+   ],
+   [
+    1791462588022,
+    241.47405660377353
+   ],
+   [
+    1791462603022,
+    244.251497005988
+   ],
+   [
+    1791462618022,
+    240.66433566433568
+   ],
+   [
+    1791462633022,
+    239.44000000000008
+   ],
+   [
+    1791462648022,
+    234.69999999999996
+   ],
+   [
+    1791462663022,
+    234.34523809523807
+   ],
+   [
+    1791462678022,
+    237.78409090909102
+   ],
+   [
+    1791462693022,
+    234.94360902255627
+   ],
+   [
+    1791462708022,
+    238.7500000000001
+   ],
+   [
+    1791462723022,
+    239.47478991596628
+   ],
+   [
+    1791462738022,
+    239.21052631578945
+   ],
+   [
+    1791462753022,
+    239.49999999999997
+   ],
+   [
+    1791462768022,
+    240.30769230769226
+   ],
+   [
+    1791462783022,
+    237.2445255474453
+   ],
+   [
+    1791462798022,
+    240.68548387096777
+   ],
+   [
+    1791462813022,
+    237.0454545454546
+   ],
+   [
+    1791462828022,
+    235.64102564102555
+   ],
+   [
+    1791462843022,
+    233.11151079136684
+   ],
+   [
+    1791462858022,
+    232.3958333333333
+   ],
+   [
+    1791462873022,
+    233.20422535211262
+   ],
+   [
+    1791462888022,
+    231.4673913043478
+   ],
+   [
+    1791462903022,
+    232.9435483870967
+   ],
+   [
+    1791462918022,
+    237.2619047619048
+   ]
+  ]
+ }
+}

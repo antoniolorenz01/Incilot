@@ -1,0 +1,170 @@
+[
+ {
+  "file": "deploy-reservation-leak--shop-declined-refactor.json",
+  "scenario": "deploy-reservation-leak",
+  "variant": "shop-declined-refactor",
+  "title": "Deploy that stops releasing stock reservations",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:15:04+00:00"
+ },
+ {
+  "file": "deploy-latency-regression--users-last-seen.json",
+  "scenario": "deploy-latency-regression",
+  "variant": "users-last-seen",
+  "title": "Deploy with a latency regression",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:03:13+00:00"
+ },
+ {
+  "file": "deploy-intermittent-errors--inventory-low-stock-ratio.json",
+  "scenario": "deploy-intermittent-errors",
+  "variant": "inventory-low-stock-ratio",
+  "title": "Deploy with intermittent errors",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T12:55:27+00:00"
+ },
+ {
+  "file": "deploy-intermittent-errors--users-tier-labels.json",
+  "scenario": "deploy-intermittent-errors",
+  "variant": "users-tier-labels",
+  "title": "Deploy with intermittent errors",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T12:51:55+00:00"
+ },
+ {
+  "file": "deploy-memory-leak--payments-provider-responses.json",
+  "scenario": "deploy-memory-leak",
+  "variant": "payments-provider-responses",
+  "title": "Memory leak after a deploy",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:11:21+00:00"
+ },
+ {
+  "file": "deploy-memory-leak--shop-recent-orders.json",
+  "scenario": "deploy-memory-leak",
+  "variant": "shop-recent-orders",
+  "title": "Memory leak after a deploy",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:07:06+00:00"
+ },
+ {
+  "file": "deploy-stuck-migration--products-add-column.json",
+  "scenario": "deploy-stuck-migration",
+  "variant": "products-add-column",
+  "title": "Migration stuck holding a lock in Postgres",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:18:59+00:00"
+ },
+ {
+  "file": "deploy-stuck-migration--reservations-index.json",
+  "scenario": "deploy-stuck-migration",
+  "variant": "reservations-index",
+  "title": "Migration stuck holding a lock in Postgres",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T13:22:51+00:00"
+ },
+ {
+  "file": "deploy-db-connection-leak--inventory-release-connection.json",
+  "scenario": "deploy-db-connection-leak",
+  "variant": "inventory-release-connection",
+  "title": "Postgres connection leak",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T12:42:58+00:00"
+ },
+ {
+  "file": "deploy-db-connection-leak--payments-charge-connection.json",
+  "scenario": "deploy-db-connection-leak",
+  "variant": "payments-charge-connection",
+  "title": "Postgres connection leak",
+  "category": "deploy",
+  "recordedAt": "2026-10-08T12:47:44+00:00"
+ },
+ {
+  "file": "config-broken-upstream-url--inventory-url-typo.json",
+  "scenario": "config-broken-upstream-url",
+  "variant": "inventory-url-typo",
+  "title": "Misconfigured dependency URL",
+  "category": "config",
+  "recordedAt": "2026-10-08T12:20:29+00:00"
+ },
+ {
+  "file": "config-broken-upstream-url--payments-wrong-port.json",
+  "scenario": "config-broken-upstream-url",
+  "variant": "payments-wrong-port",
+  "title": "Misconfigured dependency URL",
+  "category": "config",
+  "recordedAt": "2026-10-08T12:24:09+00:00"
+ },
+ {
+  "file": "config-rate-limit--payments-per-replica.json",
+  "scenario": "config-rate-limit",
+  "variant": "payments-per-replica",
+  "title": "Misconfigured rate limit",
+  "category": "config",
+  "recordedAt": "2026-10-08T12:39:02+00:00"
+ },
+ {
+  "file": "config-payment-declines--provider-api-v3.json",
+  "scenario": "config-payment-declines",
+  "variant": "provider-api-v3",
+  "title": "Rise in payment declines after a config change",
+  "category": "config",
+  "recordedAt": "2026-10-08T12:35:30+00:00"
+ },
+ {
+  "file": "config-payment-declines--strict-fraud-check.json",
+  "scenario": "config-payment-declines",
+  "variant": "strict-fraud-check",
+  "title": "Rise in payment declines after a config change",
+  "category": "config",
+  "recordedAt": "2026-10-08T12:31:17+00:00"
+ },
+ {
+  "file": "infra-redis-down--redis-stopped.json",
+  "scenario": "infra-redis-down",
+  "variant": "redis-stopped",
+  "title": "Redis down",
+  "category": "infra",
+  "recordedAt": "2026-10-08T13:35:06+00:00"
+ },
+ {
+  "file": "infra-service-down--inventory-down.json",
+  "scenario": "infra-service-down",
+  "variant": "inventory-down",
+  "title": "Service down",
+  "category": "infra",
+  "recordedAt": "2026-10-08T13:43:16+00:00"
+ },
+ {
+  "file": "infra-service-down--payments-down.json",
+  "scenario": "infra-service-down",
+  "variant": "payments-down",
+  "title": "Service down",
+  "category": "infra",
+  "recordedAt": "2026-10-08T13:46:56+00:00"
+ },
+ {
+  "file": "infra-service-down--users-down.json",
+  "scenario": "infra-service-down",
+  "variant": "users-down",
+  "title": "Service down",
+  "category": "infra",
+  "recordedAt": "2026-10-08T13:39:28+00:00"
+ },
+ {
+  "file": "external-provider-slow--provider-degraded.json",
+  "scenario": "external-provider-slow",
+  "variant": "provider-degraded",
+  "title": "Slow payment provider",
+  "category": "external",
+  "recordedAt": "2026-10-08T13:31:20+00:00"
+ },
+ {
+  "file": "external-provider-slow--provider-timeouts.json",
+  "scenario": "external-provider-slow",
+  "variant": "provider-timeouts",
+  "title": "Slow payment provider",
+  "category": "external",
+  "recordedAt": "2026-10-08T13:26:53+00:00"
+ }
+]

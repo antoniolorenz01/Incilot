@@ -1,0 +1,1297 @@
+{
+ "scenario": "deploy-memory-leak",
+ "variant": "payments-provider-responses",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:11:21+00:00",
+ "injectedAt": 1791464856835,
+ "truth": {
+  "scenario": "deploy-memory-leak",
+  "variant": "payments-provider-responses",
+  "service": "payments",
+  "root_cause": "PROVIDER_RESPONSES stores every provider response in an unbounded global dict: payments' memory keeps rising.",
+  "action": "rollback",
+  "culprit_sha": "61b90bcf5bbcad2268d3550c7c42409f8e86f3ba",
+  "decoy_shas": [
+   "246ec01c93729865aff1222017017329cd49d18c",
+   "fd7917f4809fa714696600cb80ed4a1d273c4205",
+   "47e364e3d32afe2c90c84a0acb365ffb81be9a81"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791464916941,
+   "type": "triage"
+  },
+  {
+   "at": 1791464926131,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "level": "error",
+    "minutes": 30,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464926133,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 240
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464926133,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service, status) (rate(http_requests_total[1m]))",
+    "minutes": 60,
+    "step_seconds": 60
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464926134,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as age, left(query,100) q from pg_stat_activity where datname is not null"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464926207,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 33 patterns for {service=~\".+\", level=\"error\"}, last 30 min (most frequent first):\n\n287× [shop] between 12:45:19 and 13:08:43\n   example: {\"ts\": \"2026-10-08T13:08:43.591+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9c7673399ec94e9c8e3ee0a7de4b5e4d\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 502, \"duration_ms\": 17.3}\n\n111× [shop] between 12:48:18 and 13:08:13\n   example: {\"ts\": \"2026-10-08T13:08:13.229+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"d43d84aaa52a4b74845c64b8e3756db8\", \"target\": \"users\", \"status\": 500}\n\n111× [users] between 12:48:18 and 13:08:13\n   example: {\"ts\": \"2026-10-08T13:08:13.228+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d43d84aaa52a4b74845c64b8e3756db8\", \"method\": \"GET\", \"path\": \"/users/270\", \"status\": 500, \"duration_ms\": 0.8}\n\n89× [users] between 12:48:18 and 12:50:25\n   example: {\"ts\": \"2026-10-08T12:50:25.392+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f75ee31ac0374daf8ce33327703cfafa\", \"method\": \"GET\", \"path\": \"/users/373\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/app/services/users/handlers.py\\\", line 20, in get_user\\n    user[\\\"tier_label\\\"] = TIER_LABELS[row[\\\"tier\\\"]]\\n                         ~~~~~~~~~~~^^^^^^^^^^^^^\\nKeyError: 'trial'\\n\"}\n\n83× [shop] between 12:45:19 and 12:46:15\n   example: {\"ts\": \"2026-10-08T12:46:15.550+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"75a094877db44bd596de996fd29d6de0\", \"target\": \"payments\", \"error\": \"ReadTimeout('')\"}\n\n73× [shop] between 12:46:47 and 13:08:43\n   example: {\"ts\": \"2026-10-08T13:08:43.589+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"9c7673399ec94e9c8e3ee0a7de4b5e4d\", \"target\": \"inventory\", \"status\": 500}\n\n56× [inventory] between 12:47:22 and 13:08:43\n   example: {\"ts\": \"2026-10-08T13:08:43.588+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9c7673399ec94e9c8e3ee0a7de4b5e4d\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 0.8}\n\n43× [inventory] between 12:52:29 and 12:53:57\n   example: {\"ts\": \"2026-10-08T12:53:57.659+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"3236ed30400240bab8fa8124dc7edf38\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/app/services/inventory/handlers.py\\\", line 24, in reserve\\n    low_stock = quantity / stock > 0.2\\n                ~~~~~~~~~^~~~~~~\\nZeroDivisionError: division by zero\\n\"}\n\n17× [shop] between 12:48:56 and 13:07:40\n   example: {\"ts\": \"2026-10-08T13:07:40.140+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"3ecb483d833649c0bedcfbc565c57fcf\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.5}\n\n16× [inventory] between 12:49:27 and 13:08:02\n   example: {\"ts\": \"2026-10-08T13:08:02.223+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"4f365cdc7e084dd19fd675c017e03653\", \"method\": \"GET\", \"path\": \"/products/10\", \"status\": 500, \"duration_ms\": 0.6}\n\n11× [users] between 12:50:30 and 13:08:12\n   example: {\"ts\": \"2026-10-08T13:08:12.012+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"0243b5a386aa4c32a3bd126bdb3b5b36\", \"method\": \"GET\", \"path\": \"/users/348\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n11× [shop] between 12:46:46 and 13:04:52\n   example: {\"ts\": \"2026-10-08T13:04:52.359+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"d1e68a3aae9641d7bc834ad6d1c79c32\", \"target\": \"payments\", \"status\": 500}\n\n11× [payments] between 12:46:46 and 13:04:52\n   example: {\"ts\": \"2026-10-08T13:04:52.357+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d1e68a3aae9641d7bc834ad6d1c79c32\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 0.8}\n\n7× [inventory] between 12:51:09 and 13:08:43\n   example: {\"ts\": \"2026-10-08T13:08:43.588+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"9c7673399ec94e9c8e3ee0a7de4b5e4d\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while\n\n6× [shop] between 12:48:56 and 13:07:40\n   example: {\"ts\": \"2026-10-08T13:07:40.140+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"3ecb483d833649c0bedcfbc565c57fcf\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n6× [inventory] between 12:49:27 and 13:07:22\n   example: {\"ts\": \"2026-10-08T13:07:22.607+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"b5167fc0ccaa47898e50bf952a1b92b3\", \"method\": \"GET\", \"path\": \"/products/8\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n6× [shop] between 12:52:21 and 13:06:36\n   example: {\"ts\": \"2026-10-08T13:06:36.562+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"4d7dc2def52b4dc4b524153389edb3f8\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f\n\n6× [users] between 12:56:17 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n5× [users] between 12:51:21 and 13:08:13\n   example: {\"ts\": \"2026-10-08T13:08:13.227+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d43d84aaa52a4b74845c64b8e3756db8\", \"method\": \"GET\", \"path\": \"/users/270\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading\n\n5× [inventory] between 12:52:47 and 13:08:02\n   example: {\"ts\": \"2026-10-08T13:08:02.222+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"\n… [truncated: 447 more characters]"
+  },
+  {
+   "at": 1791464926208,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "47e364e 2026-10-08 13:06:05 +0000 Marta Gil: users: debug log on cache hits\n\nservices/users/handlers.py\nfd7917f 2026-10-08 13:05:55 +0000 Lucía Fernández: config(payments): no automatic retries towards the provider\n\nconfig/payments.env\n61b90bc 2026-10-08 13:05:33 +0000 Lucía Fernández: payments: keep provider responses to debug declines\n\nservices/payments/handlers.py\n246ec01 2026-10-08 12:05:34 +0000 Ana Ruiz: config(shop): explicit LOG_LEVEL\n\nconfig/shop.env"
+  },
+  {
+   "at": 1791464926208,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "16 series, last 60 min:\n- service=inventory, status=200: current 2.927 | min 0 | max 7.909 | avg 3.402\n- service=inventory, status=201: current 2.855 | min 0 | max 4.927 | avg 2.862\n- service=inventory, status=500: current 0.03636 | min 0 | max 0.4364 | avg 0.0307\n- service=payments, status=201: current 2.873 | min 0 | max 6.655 | avg 2.532\n- service=payments, status=402: current 0.03636 | min 0 | max 2.109 | avg 0.1791\n- service=payments, status=429: current 0 | min 0 | max 2.127 | avg 0.09783\n- service=payments, status=500: current 0 | min 0 | max 0.03636 | avg 0.008346\n- service=shop, status=200: current 5.273 | min 0 | max 9.273 | avg 5.146\n- service=shop, status=201: current 2.782 | min 0 | max 4.454 | avg 2.437\n- service=shop, status=402: current 0.03636 | min 0 | max 2.073 | avg 0.1736\n- service=shop, status=404: current 0.1091 | min 0 | max 0.3273 | avg 0.1151\n- service=shop, status=500: current 0 | min 0 | max 0.07273 | avg 0.0185\n- service=shop, status=502: current 0.09091 | min 0 | max 5.691 | avg 0.4912\n- service=users, status=200: current 2.855 | min 0 | max 4.855 | avg 2.906\n- service=users, status=404: current 0.1091 | min 0 | max 0.3455 | avg 0.1133\n- service=users, status=500: current 0.03636 | min 0 | max 0.7636 | avg 0.03666"
+  },
+  {
+   "at": 1791464926209,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | age | q\n39087 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39223 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39239 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39521 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as age, left(query,1\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx\n34737 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | ROLLBACK;\n35191 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36786 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36967 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37157 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37160 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791464937555,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "47e364e"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937556,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "fd7917f"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937556,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "61b90bc"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937556,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937557,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "process_resident_memory_bytes",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937557,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "minutes": 5,
+    "level": "warning",
+    "limit": 15
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464937598,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 47e364e3d32afe2c90c84a0acb365ffb81be9a81\nAuthor: Marta Gil <marta.gil@shop.example>\nDate:   2026-10-08 13:06:05 +0000\n\n    users: debug log on cache hits\n---\n services/users/handlers.py | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)\n\ndiff --git a/services/users/handlers.py b/services/users/handlers.py\nindex 8660aaa..29e5f36 100644\n--- a/services/users/handlers.py\n+++ b/services/users/handlers.py\n@@ -4,12 +4,13 @@ import json\n \n from fastapi import HTTPException\n \n-from services.common import cache, db, settings\n+from services.common import cache, db, logger, settings\n \n \n async def get_user(user_id: int) -> dict:\n     key = f\"user:{user_id}\"\n     if cached := await cache.get(key):\n+        logger.debug(\"cache hit\", extra={\"user_id\": user_id})\n         return json.loads(cached)\n     row = await db.fetchrow(\"SELECT id, email, name, tier FROM users WHERE id = $1\", user_id)\n     if row is None:\n"
+  },
+  {
+   "at": 1791464937599,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit fd7917f4809fa714696600cb80ed4a1d273c4205\nAuthor: Lucía Fernández <lucia.fernandez@shop.example>\nDate:   2026-10-08 13:05:55 +0000\n\n    config(payments): no automatic retries towards the provider\n---\n config/payments.env | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/config/payments.env b/config/payments.env\nindex 078ce79..4197e77 100644\n--- a/config/payments.env\n+++ b/config/payments.env\n@@ -2,4 +2,5 @@ DATABASE_URL=postgresql://payments@postgres:5432/payments\n DB_POOL_SIZE=10\n PROVIDER_URL=https://api.payprovider.example/v2\n PROVIDER_TIMEOUT_SECONDS=3\n+PROVIDER_RETRIES=0\n RATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791464937600,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 61b90bcf5bbcad2268d3550c7c42409f8e86f3ba\nAuthor: Lucía Fernández <lucia.fernandez@shop.example>\nDate:   2026-10-08 13:05:33 +0000\n\n    payments: keep provider responses to debug declines\n---\n services/payments/handlers.py | 3 +++\n 1 file changed, 3 insertions(+)\n\ndiff --git a/services/payments/handlers.py b/services/payments/handlers.py\nindex cde1373..8d25f8e 100644\n--- a/services/payments/handlers.py\n+++ b/services/payments/handlers.py\n@@ -6,9 +6,12 @@ from fastapi import HTTPException\n \n from services.common import db, provider\n \n+PROVIDER_RESPONSES: dict[str, object] = {}\n+\n \n async def charge(order_id: UUID, user_id: int, amount_cents: int) -> dict:\n     result = await provider.charge(amount_cents, reference=str(order_id))\n+    PROVIDER_RESPONSES[str(order_id)] = result\n     try:\n         payment_id = await db.fetchval(\n             \"INSERT INTO payments (order_id, user_id, amount_cents, status) \"\n"
+  },
+  {
+   "at": 1791464937600,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- service=inventory: current 0.004795 | min 0.00475 | max 10 | avg 0.4191\n- service=payments: current 0.2419 | min 0.00475 | max 10 | avg 0.5696\n- service=shop: current 0.24 | min 0.2284 | max 2.439 | avg 0.8709\n- service=users: current 0.004838 | min 0.00475 | max 0.9742 | avg 0.1002"
+  },
+  {
+   "at": 1791464937600,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- __name__=process_resident_memory_bytes, instance=inventory:8000, job=services, service=inventory: current 7.461e+07 | min 6.806e+07 | max 7.461e+07 | avg 7.407e+07\n- __name__=process_resident_memory_bytes, instance=payments:8000, job=services, service=payments: current 1.935e+08 | min 6.382e+07 | max 1.935e+08 | avg 7.735e+07\n- __name__=process_resident_memory_bytes, instance=shop:8000, job=services, service=shop: current 6.724e+07 | min 6.645e+07 | max 2.45e+08 | avg 7.796e+07\n- __name__=process_resident_memory_bytes, instance=users:8000, job=services, service=users: current 6.739e+07 | min 6.739e+07 | max 6.739e+07 | avg 6.739e+07"
+  },
+  {
+   "at": 1791464937601,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "212 lines in 7 patterns for {service=~\".+\", level=\"warning\"}, last 5 min (most frequent first):\n\n71× [shop] between 13:03:58 and 13:08:53\n   example: {\"ts\": \"2026-10-08T13:08:53.464+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"225133ac89c74256a342b68ce44811c5\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 404, \"duration_ms\": 5.4}\n\n39× [users] between 13:04:12 and 13:08:53\n   example: {\"ts\": \"2026-10-08T13:08:53.462+00:00\", \"level\": \"warning\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"225133ac89c74256a342b68ce44811c5\", \"method\": \"GET\", \"path\": \"/users/507\", \"status\": 404, \"duration_ms\": 1.7}\n\n32× [shop] between 13:03:58 and 13:08:35\n   example: {\"ts\": \"2026-10-08T13:08:35.018+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"db404e6477964569a5ebe00209938f9a\", \"order_id\": \"bf718d01-5014-4e2f-b388-c69490b47e66\", \"reason\": \"payment_declined\"}\n\n32× [payments] between 13:03:58 and 13:08:35\n   example: {\"ts\": \"2026-10-08T13:08:35.011+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"db404e6477964569a5ebe00209938f9a\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 56.7}\n\n32× [payments] between 13:03:58 and 13:08:35\n   example: {\"ts\": \"2026-10-08T13:08:35.010+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"db404e6477964569a5ebe00209938f9a\", \"order_id\": \"bf718d01-5014-4e2f-b388-c69490b47e66\", \"reason\": \"card_declined\"}\n\n3× [shop] between 13:04:36 and 13:08:49\n   example: {\"ts\": \"2026-10-08T13:08:49.080+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"03f6ce1579194714ae8a2974e60c9ee2\", \"order_id\": \"abbb326b-d37a-45ee-9029-05f16c0f68b5\", \"reason\": \"payments_unavailable\"}\n\n3× [shop] between 13:05:09 and 13:08:43\n   example: {\"ts\": \"2026-10-08T13:08:43.590+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"9c7673399ec94e9c8e3ee0a7de4b5e4d\", \"order_id\": \"c6151afa-d371-40c0-b5cf-0855489945ff\", \"reason\": \"inventory_unavailable\"}"
+  },
+  {
+   "at": 1791464953068,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "process_resident_memory_bytes{service=~\"payments|shop\"}",
+    "minutes": 60,
+    "step_seconds": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464953070,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 20,
+    "limit": 15
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464953070,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service, le) (rate(upstream_request_duration_seconds_bucket[1m])))",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464953070,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "traffic",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464953151,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "2 series, last 60 min:\n- __name__=process_resident_memory_bytes, instance=payments:8000, job=services, service=payments: current 2.172e+08 | min 6.33e+07 | max 2.172e+08 | avg 7.145e+07\n- __name__=process_resident_memory_bytes, instance=shop:8000, job=services, service=shop: current 6.737e+07 | min 6.658e+07 | max 3.075e+08 | avg 7.658e+07"
+  },
+  {
+   "at": 1791464953152,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 7 patterns for {service=\"payments\"}, last 20 min (most frequent first):\n\n936× [payments] between 13:04:21 and 13:09:12\n   example: {\"ts\": \"2026-10-08T13:09:12.015+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"8926fae608b4425ba8be2cfa184baace\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 161.6}\n\n29× [payments] between 13:04:55 and 13:09:07\n   example: {\"ts\": \"2026-10-08T13:09:07.186+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b2b23dbb2ee84ebf9f469833c392375b\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 85.0}\n\n29× [payments] between 13:04:55 and 13:09:07\n   example: {\"ts\": \"2026-10-08T13:09:07.186+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"b2b23dbb2ee84ebf9f469833c392375b\", \"order_id\": \"cb7aa85b-8149-466a-99b9-6ea287c4d3ca\", \"reason\": \"card_declined\"}\n\n3× [payments] between 13:04:36 and 13:08:49\n   example: {\"ts\": \"2026-10-08T13:08:49.074+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"03f6ce1579194714ae8a2974e60c9ee2\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.3}\n\n1× [payments] between 13:08:49 and 13:08:49\n   example: {\"ts\": \"2026-10-08T13:08:49.074+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"03f6ce1579194714ae8a2974e60c9ee2\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi\n\n1× [payments] between 13:04:52 and 13:04:52\n   example: {\"ts\": \"2026-10-08T13:04:52.357+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d1e68a3aae9641d7bc834ad6d1c79c32\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [payments] between 13:04:36 and 13:04:36\n   example: {\"ts\": \"2026-10-08T13:04:36.140+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"8873c526e216486eafcda3be17d415b2\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}"
+  },
+  {
+   "at": 1791464953152,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- service=shop: current 0.2155 | min 0.2062 | max 2.425 | avg 0.6789"
+  },
+  {
+   "at": 1791464953153,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "60 lines in 1 patterns for {service=\"traffic\"}, last 30 min (most frequent first):\n\n60× [traffic] between 12:39:34 and 13:09:04\n   example: {\"ts\": \"2026-10-08T13:09:04.676+00:00\", \"level\": \"info\", \"service\": \"traffic\", \"logger\": \"traffic\", \"msg\": \"traffic summary\", \"window_seconds\": 30, \"counts\": {\"GET /products 200\": 154, \"POST /orders 201\": 83, \"POST /orders 402\": 2, \"POST /orders 404\": 2, \"POST /orders 502\": 2}}"
+  },
+  {
+   "at": 1791464963059,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "process_resident_memory_bytes{service=\"payments\"}",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464963061,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "services/payments/handlers.py"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464963061,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 10,
+    "level": "error"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464963094,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- __name__=process_resident_memory_bytes, instance=payments:8000, job=services, service=payments: current 2.315e+08 | min 6.382e+07 | max 2.315e+08 | avg 7.989e+07"
+  },
+  {
+   "at": 1791464963094,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "\"\"\"Charges against the payment provider.\"\"\"\n\nfrom uuid import UUID\n\nfrom fastapi import HTTPException\n\nfrom services.common import db, provider\n\nPROVIDER_RESPONSES: dict[str, object] = {}\n\n\nasync def charge(order_id: UUID, user_id: int, amount_cents: int) -> dict:\n    result = await provider.charge(amount_cents, reference=str(order_id))\n    PROVIDER_RESPONSES[str(order_id)] = result\n    try:\n        payment_id = await db.fetchval(\n            \"INSERT INTO payments (order_id, user_id, amount_cents, status) \"\n            \"VALUES ($1, $2, $3, $4) RETURNING id\",\n            order_id,\n            user_id,\n            amount_cents,\n            result.status,\n        )\n    except db.UniqueViolationError:\n        raise HTTPException(409, \"duplicate_charge\") from None\n    if result.status == \"declined\":\n        raise HTTPException(402, \"card_declined\")\n    return {\"payment_id\": payment_id, \"status\": result.status}\n"
+  },
+  {
+   "at": 1791464963095,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "8 lines in 4 patterns for {service=\"payments\", level=\"error\"}, last 10 min (most frequent first):\n\n4× [payments] between 13:03:32 and 13:08:49\n   example: {\"ts\": \"2026-10-08T13:08:49.074+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"03f6ce1579194714ae8a2974e60c9ee2\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.3}\n\n2× [payments] between 13:03:32 and 13:08:49\n   example: {\"ts\": \"2026-10-08T13:08:49.074+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"03f6ce1579194714ae8a2974e60c9ee2\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi\n\n1× [payments] between 13:04:52 and 13:04:52\n   example: {\"ts\": \"2026-10-08T13:04:52.357+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d1e68a3aae9641d7bc834ad6d1c79c32\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [payments] between 13:04:36 and 13:04:36\n   example: {\"ts\": \"2026-10-08T13:04:36.140+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"8873c526e216486eafcda3be17d415b2\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}"
+  },
+  {
+   "at": 1791464991081,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "Commit 61b90bc added a module-level dict, PROVIDER_RESPONSES, in services/payments/handlers.py. Every charge stores its provider response in it and nothing ever evicts entries, so the payments process leaks memory. Left alone it will eventually be OOM-killed or degrade, which would make shop's POST /orders fail with 502.",
+    "culprit_commit": "61b90bcf5bbcad2268d3550c7c42409f8e86f3ba",
+    "evidence": [
+     "Commit 61b90bc, deployed at 13:05:33, adds `PROVIDER_RESPONSES: dict[str, object] = {}` and `PROVIDER_RESPONSES[str(order_id)] = result` in charge(). The dict is never trimmed.",
+     "process_resident_memory_bytes for payments rose from a minimum of 63.8 MB to 193 MB, then 217 MB, then 231.5 MB across successive queries. Inventory (74.6 MB) and users (67.4 MB) are flat.",
+     "Payments traffic is steady at about 2.9 req/s of 201 responses, with roughly 936 requests logged between 13:04 and 13:09. The memory growth began after the 13:05 deploy and is sustained.",
+     "Shop's 5xx rate is lower than in the hour before (×0.107), and the older 502 and ReadTimeout bursts are stable or earlier noise. The shop memory spike (max 307 MB) has already receded to 67 MB.",
+     "The other commits do not explain the symptom. 47e364e only adds a debug log line on cache hits in users. fd7917f sets PROVIDER_RETRIES=0 in payments, which is a config change that does not leak memory. The users KeyError 'trial' and inventory ZeroDivisionError errors date from 12:48-12:54, before these deploys.",
+     "Payments errors since the deploy are only isolated redis and asyncpg connection resets, plus 402 card declines, which are normal."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Roll back, or revert, commit 61b90bc so provider responses are no longer kept in an unbounded in-process dict. If debugging declines is needed, log the decline reason or use a bounded LRU/TTL cache instead.",
+     "Restart the payments service after the rollback to release the leaked memory.",
+     "Verify that process_resident_memory_bytes for payments stays flat at around 65-80 MB.",
+     "Verify that shop POST /orders 502s and payments 5xx stay at baseline.",
+     "Review whether PROVIDER_RETRIES=0 (fd7917f) is desired, since it removes retries against the provider."
+    ],
+    "action": {
+     "kind": "rollback",
+     "target": "61b90bcf5bbcad2268d3550c7c42409f8e86f3ba",
+     "reason": "This commit introduced an unbounded in-memory dict that grows on every charge, which is a memory leak in payments. Reverting it stops the growth.",
+     "evidence": [
+      "The diff adds the global PROVIDER_RESPONSES dict and writes to it on every charge, with no eviction.",
+      "Payments RSS grew from 63.8 MB to 231 MB after the 13:05:33 deploy, while the other services stayed flat."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 151461
+  },
+  {
+   "at": 1791464991092,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791464991115,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791464991645,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of 61b90bcf5bbcad2268d3550c7c42409f8e86f3ba committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791465051711,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0022,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.232,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0303,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791465051753,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791463956835,
+    245.45454545454544
+   ],
+   [
+    1791463971835,
+    254.1771967782404
+   ],
+   [
+    1791463986835,
+    242.17741495609172
+   ],
+   [
+    1791464001835,
+    197.45454545454544
+   ],
+   [
+    1791464016835,
+    143.99738186578423
+   ],
+   [
+    1791464031835,
+    130.9114711176567
+   ],
+   [
+    1791464046835,
+    138.54545454545453
+   ],
+   [
+    1791464061835,
+    150.5481917853052
+   ],
+   [
+    1791464076835,
+    169.0878347666406
+   ],
+   [
+    1791464091835,
+    176.72727272727272
+   ],
+   [
+    1791464106835,
+    180.00327278677796
+   ],
+   [
+    1791464121835,
+    185.45454545454544
+   ],
+   [
+    1791464136835,
+    177.8181818181818
+   ],
+   [
+    1791464151835,
+    177.8181818181818
+   ],
+   [
+    1791464166835,
+    169.09090909090907
+   ],
+   [
+    1791464181835,
+    141.8181818181818
+   ],
+   [
+    1791464196835,
+    133.08848930019454
+   ],
+   [
+    1791464211835,
+    114.54545454545453
+   ],
+   [
+    1791464226835,
+    113.45454545454545
+   ],
+   [
+    1791464241835,
+    109.09289259804726
+   ],
+   [
+    1791464256835,
+    106.9090909090909
+   ],
+   [
+    1791464271835,
+    105.81818181818181
+   ],
+   [
+    1791464286835,
+    109.0909090909091
+   ],
+   [
+    1791464301835,
+    131.99999999999997
+   ],
+   [
+    1791464316835,
+    169.09398352697323
+   ],
+   [
+    1791464331835,
+    199.63636363636363
+   ],
+   [
+    1791464346835,
+    244.36363636363635
+   ],
+   [
+    1791464361835,
+    233.45030090361993
+   ],
+   [
+    1791464376835,
+    201.81451246340976
+   ],
+   [
+    1791464391835,
+    164.72727272727272
+   ],
+   [
+    1791464406835,
+    129.8158215305176
+   ],
+   [
+    1791464421835,
+    120.0
+   ],
+   [
+    1791464436835,
+    116.73151750972761
+   ],
+   [
+    1791464451835,
+    118.9090909090909
+   ],
+   [
+    1791464466835,
+    124.36589756177386
+   ],
+   [
+    1791464481835,
+    124.36363636363636
+   ],
+   [
+    1791464496835,
+    121.09090909090908
+   ],
+   [
+    1791464511835,
+    124.36363636363636
+   ],
+   [
+    1791464526835,
+    141.82076037746143
+   ],
+   [
+    1791464541835,
+    154.91190748922708
+   ],
+   [
+    1791464556835,
+    169.09090909090907
+   ],
+   [
+    1791464571835,
+    174.54545454545456
+   ],
+   [
+    1791464586835,
+    164.72427774040474
+   ],
+   [
+    1791464601835,
+    164.72427774040474
+   ],
+   [
+    1791464616835,
+    157.0909090909091
+   ],
+   [
+    1791464631835,
+    149.45454545454544
+   ],
+   [
+    1791464646835,
+    159.27272727272725
+   ],
+   [
+    1791464661835,
+    159.27272727272725
+   ],
+   [
+    1791464676835,
+    171.27272727272728
+   ],
+   [
+    1791464691835,
+    190.9090909090909
+   ],
+   [
+    1791464706835,
+    225.8222876779578
+   ],
+   [
+    1791464721835,
+    285.8233786068838
+   ],
+   [
+    1791464736835,
+    278.1868761250205
+   ],
+   [
+    1791464751835,
+    237.81385792985583
+   ],
+   [
+    1791464766835,
+    204.0
+   ],
+   [
+    1791464781835,
+    158.1818181818182
+   ],
+   [
+    1791464796835,
+    169.66111525244995
+   ],
+   [
+    1791464811835,
+    163.63636363636363
+   ],
+   [
+    1791464826835,
+    175.63636363636363
+   ],
+   [
+    1791464841835,
+    182.1851306387389
+   ],
+   [
+    1791464856835,
+    182.17850584534827
+   ],
+   [
+    1791464871835,
+    185.4511736150252
+   ],
+   [
+    1791464886835,
+    179.99672733223034
+   ],
+   [
+    1791464901835,
+    173.45454545454544
+   ],
+   [
+    1791464916835,
+    172.36363636363635
+   ],
+   [
+    1791464931835,
+    169.09398352697323
+   ],
+   [
+    1791464946835,
+    168.00305460099275
+   ],
+   [
+    1791464961835,
+    168.00305460099275
+   ],
+   [
+    1791464976835,
+    162.5484099710904
+   ],
+   [
+    1791464991835,
+    159.275623193149
+   ],
+   [
+    1791465006835,
+    154.9090909090909
+   ],
+   [
+    1791465021835,
+    157.0909090909091
+   ],
+   [
+    1791465036835,
+    168.0
+   ],
+   [
+    1791465051835,
+    169.0878347666406
+   ],
+   [
+    1791465066835,
+    169.09090909090907
+   ]
+  ],
+  "errors": [
+   [
+    1791463956835,
+    1.3595166163141996
+   ],
+   [
+    1791463971835,
+    3.4199726402188784
+   ],
+   [
+    1791463986835,
+    4.38957475994513
+   ],
+   [
+    1791464001835,
+    5.501618122977346
+   ],
+   [
+    1791464016835,
+    5.7324840764331215
+   ],
+   [
+    1791464031835,
+    4.838709677419355
+   ],
+   [
+    1791464046835,
+    5.405405405405405
+   ],
+   [
+    1791464061835,
+    4.575163398692811
+   ],
+   [
+    1791464076835,
+    2.542372881355932
+   ],
+   [
+    1791464091835,
+    1.257861635220126
+   ],
+   [
+    1791464106835,
+    0.6329113924050632
+   ],
+   [
+    1791464121835,
+    0.6172839506172839
+   ],
+   [
+    1791464136835,
+    0.8474576271186443
+   ],
+   [
+    1791464151835,
+    0.635593220338983
+   ],
+   [
+    1791464166835,
+    0.21978021978021978
+   ],
+   [
+    1791464181835,
+    0.5249343832020997
+   ],
+   [
+    1791464196835,
+    0.2857142857142857
+   ],
+   [
+    1791464211835,
+    0.32573289902280134
+   ],
+   [
+    1791464226835,
+    0.33222591362126247
+   ],
+   [
+    1791464241835,
+    0.0
+   ],
+   [
+    1791464256835,
+    0.33222591362126247
+   ],
+   [
+    1791464271835,
+    0.6622516556291391
+   ],
+   [
+    1791464286835,
+    0.9868421052631579
+   ],
+   [
+    1791464301835,
+    0.7874015748031495
+   ],
+   [
+    1791464316835,
+    1.1086474501108647
+   ],
+   [
+    1791464331835,
+    0.7619047619047619
+   ],
+   [
+    1791464346835,
+    0.6462035541195477
+   ],
+   [
+    1791464361835,
+    0.5154639175257731
+   ],
+   [
+    1791464376835,
+    0.3875968992248062
+   ],
+   [
+    1791464391835,
+    0.4545454545454546
+   ],
+   [
+    1791464406835,
+    1.1204481792717087
+   ],
+   [
+    1791464421835,
+    1.8461538461538463
+   ],
+   [
+    1791464436835,
+    1.8575851393188854
+   ],
+   [
+    1791464451835,
+    1.257861635220126
+   ],
+   [
+    1791464466835,
+    0.628930817610063
+   ],
+   [
+    1791464481835,
+    0.6230529595015576
+   ],
+   [
+    1791464496835,
+    0.6211180124223602
+   ],
+   [
+    1791464511835,
+    1.1940298507462688
+   ],
+   [
+    1791464526835,
+    0.7936507936507936
+   ],
+   [
+    1791464541835,
+    0.7299270072992701
+   ],
+   [
+    1791464556835,
+    0.4464285714285715
+   ],
+   [
+    1791464571835,
+    0.22075055187637968
+   ],
+   [
+    1791464586835,
+    0.22123893805309736
+   ],
+   [
+    1791464601835,
+    0.22675736961451243
+   ],
+   [
+    1791464616835,
+    0.46403712296983757
+   ],
+   [
+    1791464631835,
+    0.6928406466512702
+   ],
+   [
+    1791464646835,
+    0.6944444444444444
+   ],
+   [
+    1791464661835,
+    0.9111617312072893
+   ],
+   [
+    1791464676835,
+    0.4454342984409799
+   ],
+   [
+    1791464691835,
+    0.8
+   ],
+   [
+    1791464706835,
+    0.8077544426494345
+   ],
+   [
+    1791464721835,
+    1.0610079575596816
+   ],
+   [
+    1791464736835,
+    1.196808510638298
+   ],
+   [
+    1791464751835,
+    1.2420385032004637
+   ],
+   [
+    1791464766835,
+    1.5130884208189064
+   ],
+   [
+    1791464781835,
+    1.7228362977534735
+   ],
+   [
+    1791464796835,
+    0.4563645806407033
+   ],
+   [
+    1791464811835,
+    0.8846151058104099
+   ],
+   [
+    1791464826835,
+    0.8492569002123143
+   ],
+   [
+    1791464841835,
+    0.40983606557377045
+   ],
+   [
+    1791464856835,
+    0.823045267489712
+   ],
+   [
+    1791464871835,
+    0.819672131147541
+   ],
+   [
+    1791464886835,
+    1.2474012474012475
+   ],
+   [
+    1791464901835,
+    1.2958963282937366
+   ],
+   [
+    1791464916835,
+    1.0660980810234542
+   ],
+   [
+    1791464931835,
+    0.8771929824561403
+   ],
+   [
+    1791464946835,
+    0.8771929824561405
+   ],
+   [
+    1791464961835,
+    0.44150110375275936
+   ],
+   [
+    1791464976835,
+    0.4514672686230249
+   ],
+   [
+    1791464991835,
+    0.45351473922902485
+   ],
+   [
+    1791465006835,
+    1.1363636363636365
+   ],
+   [
+    1791465021835,
+    1.11358574610245
+   ],
+   [
+    1791465036835,
+    1.0822510822510825
+   ],
+   [
+    1791465051835,
+    0.21978021978021978
+   ],
+   [
+    1791465066835,
+    0.4273504273504274
+   ]
+  ],
+  "latency": [
+   [
+    1791463956835,
+    234.48571428571432
+   ],
+   [
+    1791463971835,
+    235.8948863636364
+   ],
+   [
+    1791463986835,
+    235.86890243902434
+   ],
+   [
+    1791464001835,
+    232.33333333333323
+   ],
+   [
+    1791464016835,
+    234.17499999999987
+   ],
+   [
+    1791464031835,
+    232.2727272727272
+   ],
+   [
+    1791464046835,
+    231.51515151515144
+   ],
+   [
+    1791464061835,
+    231.67452830188674
+   ],
+   [
+    1791464076835,
+    234.50819672131152
+   ],
+   [
+    1791464091835,
+    231.71153846153842
+   ],
+   [
+    1791464106835,
+    232.90697674418604
+   ],
+   [
+    1791464121835,
+    231.4642857142858
+   ],
+   [
+    1791464136835,
+    234.77611940298513
+   ],
+   [
+    1791464151835,
+    237.57812499999997
+   ],
+   [
+    1791464166835,
+    281.2500000000023
+   ],
+   [
+    1791464181835,
+    948.0769230769228
+   ],
+   [
+    1791464196835,
+    1450.0000000000007
+   ],
+   [
+    1791464211835,
+    1802.2727272727263
+   ],
+   [
+    1791464226835,
+    1836.0294117647063
+   ],
+   [
+    1791464241835,
+    1909.8684210526303
+   ],
+   [
+    1791464256835,
+    1949.3902439024398
+   ],
+   [
+    1791464271835,
+    1960.7142857142858
+   ],
+   [
+    1791464286835,
+    2004.3478260869572
+   ],
+   [
+    1791464301835,
+    1960.8490566037733
+   ],
+   [
+    1791464316835,
+    1987.5
+   ],
+   [
+    1791464331835,
+    1967.9054054054043
+   ],
+   [
+    1791464346835,
+    1817.2794117647063
+   ],
+   [
+    1791464361835,
+    1435.3658536585365
+   ],
+   [
+    1791464376835,
+    975.3246753246752
+   ],
+   [
+    1791464391835,
+    838.9830508474572
+   ],
+   [
+    1791464406835,
+    925.2906976744184
+   ],
+   [
+    1791464421835,
+    958.705357142857
+   ],
+   [
+    1791464436835,
+    954.6874999999998
+   ],
+   [
+    1791464451835,
+    955.4054054054055
+   ],
+   [
+    1791464466835,
+    949.5762711864405
+   ],
+   [
+    1791464481835,
+    944.2307692307692
+   ],
+   [
+    1791464496835,
+    950.8849557522124
+   ],
+   [
+    1791464511835,
+    947.3039215686274
+   ],
+   [
+    1791464526835,
+    899.2753623188405
+   ],
+   [
+    1791464541835,
+    805.6249999999998
+   ],
+   [
+    1791464556835,
+    242.38095238095232
+   ],
+   [
+    1791464571835,
+    234.60526315789474
+   ],
+   [
+    1791464586835,
+    237.38095238095232
+   ],
+   [
+    1791464601835,
+    238.4957627118644
+   ],
+   [
+    1791464616835,
+    238.2339449541284
+   ],
+   [
+    1791464631835,
+    238.3108108108108
+   ],
+   [
+    1791464646835,
+    245.26315789473685
+   ],
+   [
+    1791464661835,
+    242.5625
+   ],
+   [
+    1791464676835,
+    242.72556390977448
+   ],
+   [
+    1791464691835,
+    243.57142857142856
+   ],
+   [
+    1791464706835,
+    233.47383720930225
+   ],
+   [
+    1791464721835,
+    238.6778846153846
+   ],
+   [
+    1791464736835,
+    236.9950738916256
+   ],
+   [
+    1791464751835,
+    235.54166666666669
+   ],
+   [
+    1791464766835,
+    239.57792207792207
+   ],
+   [
+    1791464781835,
+    234.68750000000006
+   ],
+   [
+    1791464796835,
+    236.54415176600943
+   ],
+   [
+    1791464811835,
+    235.67622950819677
+   ],
+   [
+    1791464826835,
+    235.40697674418604
+   ],
+   [
+    1791464841835,
+    238.52941176470588
+   ],
+   [
+    1791464856835,
+    242.17857142857136
+   ],
+   [
+    1791464871835,
+    242.8860294117647
+   ],
+   [
+    1791464886835,
+    244.24812030075188
+   ],
+   [
+    1791464901835,
+    243.76000000000005
+   ],
+   [
+    1791464916835,
+    243.1818181818182
+   ],
+   [
+    1791464931835,
+    242.75000000000003
+   ],
+   [
+    1791464946835,
+    234.39024390243904
+   ],
+   [
+    1791464961835,
+    232.5595238095238
+   ],
+   [
+    1791464976835,
+    229.8124999999999
+   ],
+   [
+    1791464991835,
+    232.97826086956513
+   ],
+   [
+    1791465006835,
+    233.48623853211006
+   ],
+   [
+    1791465021835,
+    231.31465517241386
+   ],
+   [
+    1791465036835,
+    228.62204724409443
+   ],
+   [
+    1791465051835,
+    231.96564885496178
+   ],
+   [
+    1791465066835,
+    232.85714285714283
+   ]
+  ]
+ }
+}

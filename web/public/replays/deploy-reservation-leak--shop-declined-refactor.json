@@ -1,0 +1,1208 @@
+{
+ "scenario": "deploy-reservation-leak",
+ "variant": "shop-declined-refactor",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:15:04+00:00",
+ "injectedAt": 1791465112073,
+ "truth": {
+  "scenario": "deploy-reservation-leak",
+  "variant": "shop-declined-refactor",
+  "service": "shop",
+  "root_cause": "shop no longer releases the stock reservation when a charge is declined: the stock reserved for those orders is lost until the next restock (inventory stops logging 'reservation released').",
+  "action": "rollback",
+  "culprit_sha": "833bef570ca73464e2627b323df50b8bb30375d8",
+  "decoy_shas": [
+   "cccc29278fb50092e9e6222990d33d23930f232c",
+   "5fa2f837dfa156439bb2be3dd97b95d0ae517a04",
+   "f0caa6a048c9c96de7f47dd7c5aba098545ee176"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791465172176,
+   "type": "triage"
+  },
+  {
+   "at": 1791465179615,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "users",
+    "level": "error",
+    "minutes": 60,
+    "limit": 10
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465179617,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 240
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465179617,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 90,
+    "step_seconds": 120
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465179618,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as age, left(query,100) q from pg_stat_activity where datname is not null"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465179678,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "264 lines in 5 patterns for {service=\"users\", level=\"error\"}, last 60 min (most frequent first):\n\n132× [users] between 12:17:47 and 13:11:56\n   example: {\"ts\": \"2026-10-08T13:11:56.429+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"5c27ad7651c340b0aa25e6ee389acd1b\", \"method\": \"GET\", \"path\": \"/users/169\", \"status\": 500, \"duration_ms\": 0.5}\n\n89× [users] between 12:48:18 and 12:50:25\n   example: {\"ts\": \"2026-10-08T12:50:25.392+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f75ee31ac0374daf8ce33327703cfafa\", \"method\": \"GET\", \"path\": \"/users/373\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/app/services/users/handlers.py\\\", line 20, in get_user\\n    user[\\\"tier_label\\\"] = TIER_LABELS[row[\\\"tier\\\"]]\\n                         ~~~~~~~~~~~^^^^^^^^^^^^^\\nKeyError: 'trial'\\n\"}\n\n19× [users] between 12:24:59 and 13:11:33\n   example: {\"ts\": \"2026-10-08T13:11:33.559+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"4c40f95528d94591a4116b8f7e89fe00\", \"method\": \"GET\", \"path\": \"/users/32\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n16× [users] between 12:19:12 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n8× [users] between 12:17:47 and 13:11:56\n   example: {\"ts\": \"2026-10-08T13:11:56.429+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"5c27ad7651c340b0aa25e6ee389acd1b\", \"method\": \"GET\", \"path\": \"/users/169\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading"
+  },
+  {
+   "at": 1791465179679,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "f0caa6a 2026-10-08 13:11:33 +0000 Diego Martín: docs: troubleshooting section in the README\n\nREADME.md\n5fa2f83 2026-10-08 13:11:16 +0000 Marta Gil: users: debug log on cache hits\n\nservices/users/handlers.py\n833bef5 2026-10-08 13:10:12 +0000 Ana Ruiz: shop: simplify the declined payments flow\n\nservices/shop/handlers.py\ncccc292 2026-10-08 12:21:08 +0000 Ana Ruiz: shop: comment on the order of calls when creating an order\n\nservices/shop/handlers.py"
+  },
+  {
+   "at": 1791465179679,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 90 min:\n- service=inventory: current 0 | min 0 | max 0.4364 | avg 0.02648\n- service=payments: current 0 | min 0 | max 0.03636 | avg 0.01109\n- service=shop: current 0.01818 | min 0.01818 | max 5.709 | avg 0.5372\n- service=users: current 0 | min 0 | max 0.5091 | avg 0.04348"
+  },
+  {
+   "at": 1791465179679,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | age | q\n39087 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39223 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39239 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39623 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx\n39647 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39812 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39915 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as age, left(query,1\n34737 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | ROLLBACK;\n35191 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36786 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791465191852,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "833bef5"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465191853,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "5fa2f83"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465191854,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "minutes": 15,
+    "limit": 15
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465191854,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465191854,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "redis",
+    "minutes": 60,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465191918,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 833bef570ca73464e2627b323df50b8bb30375d8\nAuthor: Ana Ruiz <ana.ruiz@shop.example>\nDate:   2026-10-08 13:10:12 +0000\n\n    shop: simplify the declined payments flow\n---\n services/shop/handlers.py | 1 -\n 1 file changed, 1 deletion(-)\n\ndiff --git a/services/shop/handlers.py b/services/shop/handlers.py\nindex eee1a14..ea18497 100644\n--- a/services/shop/handlers.py\n+++ b/services/shop/handlers.py\n@@ -52,7 +52,6 @@ async def create_order(user_id: int, product_id: int, quantity: int) -> dict:\n         json={\"order_id\": str(order_id), \"user_id\": user_id, \"amount_cents\": amount_cents},\n     )\n     if charge.status_code == 402:\n-        await call(\"inventory\", \"POST\", f\"/reservations/{order_id}/release\")\n         await db.fail_order(order_id, \"payment_declined\")\n         raise HTTPException(402, \"payment_declined\")\n \n"
+  },
+  {
+   "at": 1791465191919,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 5fa2f837dfa156439bb2be3dd97b95d0ae517a04\nAuthor: Marta Gil <marta.gil@shop.example>\nDate:   2026-10-08 13:11:16 +0000\n\n    users: debug log on cache hits\n---\n services/users/handlers.py | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)\n\ndiff --git a/services/users/handlers.py b/services/users/handlers.py\nindex 8660aaa..29e5f36 100644\n--- a/services/users/handlers.py\n+++ b/services/users/handlers.py\n@@ -4,12 +4,13 @@ import json\n \n from fastapi import HTTPException\n \n-from services.common import cache, db, settings\n+from services.common import cache, db, logger, settings\n \n \n async def get_user(user_id: int) -> dict:\n     key = f\"user:{user_id}\"\n     if cached := await cache.get(key):\n+        logger.debug(\"cache hit\", extra={\"user_id\": user_id})\n         return json.loads(cached)\n     row = await db.fetchrow(\"SELECT id, email, name, tier FROM users WHERE id = $1\", user_id)\n     if row is None:\n"
+  },
+  {
+   "at": 1791465191920,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 7 patterns for {service=\"shop\"}, last 15 min (most frequent first):\n\n441× [shop] between 13:11:56 and 13:13:10\n   example: {\"ts\": \"2026-10-08T13:13:10.876+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"368bf0a0c081476daef8c81d66de5339\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 200, \"duration_ms\": 1.1}\n\n265× [shop] between 13:11:56 and 13:13:10\n   example: {\"ts\": \"2026-10-08T13:13:10.562+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9439090cfee8407e912f4914da90dbed\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 201, \"duration_ms\": 219.4}\n\n265× [shop] between 13:11:56 and 13:13:10\n   example: {\"ts\": \"2026-10-08T13:13:10.561+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order confirmed\", \"request_id\": \"9439090cfee8407e912f4914da90dbed\", \"order_id\": \"e4455e30-d12f-4792-9780-f17d3f1a9fb7\", \"amount_cents\": 39800}\n\n20× [shop] between 13:11:58 and 13:13:07\n   example: {\"ts\": \"2026-10-08T13:13:07.596+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"774ac334a97c4b76a6f7789f03f53654\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 404, \"duration_ms\": 6.0}\n\n7× [shop] between 13:12:00 and 13:13:02\n   example: {\"ts\": \"2026-10-08T13:13:02.861+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"41dd262f774443a7872ba28c3821b905\", \"order_id\": \"b989a02d-4f18-45da-817f-4fb4785c0dde\", \"reason\": \"payment_declined\"}\n\n1× [shop] between 13:12:31 and 13:12:31\n   example: {\"ts\": \"2026-10-08T13:12:31.704+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"fe1bcc9858f449519f15e03cc1adc985\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.6}\n\n1× [shop] between 13:12:31 and 13:12:31\n   example: {\"ts\": \"2026-10-08T13:12:31.704+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"fe1bcc9858f449519f15e03cc1adc985\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f"
+  },
+  {
+   "at": 1791465191920,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 20 min:\n- service=inventory: current 0 | min 0 | max 0.5273 | avg 0.05011\n- service=payments: current 0 | min 0 | max 0.03636 | avg 0.008426\n- service=shop: current 0.01818 | min 0 | max 0.6 | avg 0.09941\n- service=users: current 0 | min 0 | max 0.05455 | avg 0.01641"
+  },
+  {
+   "at": 1791465191920,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "60 lines in 5 patterns for {service=\"redis\"}, last 60 min (most frequent first):\n\n12× [redis] between 12:17:37 and 13:12:48\n   example: 1:M 08 Oct 2026 13:12:48.169 * Background saving terminated with success\n\n12× [redis] between 12:17:37 and 13:12:48\n   example: 15024:C 08 Oct 2026 13:12:48.079 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB\n\n12× [redis] between 12:17:37 and 13:12:48\n   example: 15024:C 08 Oct 2026 13:12:48.079 * DB saved on disk\n\n12× [redis] between 12:17:37 and 13:12:48\n   example: 1:M 08 Oct 2026 13:12:48.067 * Background saving started by pid 15024\n\n12× [redis] between 12:17:37 and 13:12:48\n   example: 1:M 08 Oct 2026 13:12:48.067 * 100 changes in 300 seconds. Saving..."
+  },
+  {
+   "at": 1791465200686,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "inventory",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791465200688,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "contains": "404",
+    "minutes": 15,
+    "limit": 5
+   },
+   "round": 3
+  },
+  {
+   "at": 1791465200688,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "inventory",
+    "sql": "select table_name from information_schema.tables where table_schema='public'"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791465200688,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "inventory reservations release stock payment declined",
+    "limit": 3
+   },
+   "round": 3
+  },
+  {
+   "at": 1791465202208,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 11 patterns for {service=\"inventory\"}, last 30 min (most frequent first):\n\n491× [inventory] between 13:11:19 and 13:13:19\n   example: {\"ts\": \"2026-10-08T13:13:19.500+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"bebf58aec40e4715803b13ef733d34b7\", \"method\": \"GET\", \"path\": \"/products/5\", \"status\": 200, \"duration_ms\": 1.4}\n\n488× [inventory] between 13:11:19 and 13:13:19\n   example: {\"ts\": \"2026-10-08T13:13:19.506+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"bebf58aec40e4715803b13ef733d34b7\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 201, \"duration_ms\": 2.0}\n\n4× [inventory] between 13:11:26 and 13:11:45\n   example: {\"ts\": \"2026-10-08T13:11:45.352+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"2cdb4c7a90e84d0fa0409601e238fe88\", \"method\": \"POST\", \"path\": \"/reservations/0b6a99c2-d958-42ca-8519-233e42654309/release\", \"status\": 200, \"duration_ms\": 2.3}\n\n4× [inventory] between 13:11:26 and 13:11:45\n   example: {\"ts\": \"2026-10-08T13:11:45.351+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"reservation released\", \"request_id\": \"2cdb4c7a90e84d0fa0409601e238fe88\", \"order_id\": \"0b6a99c2-d958-42ca-8519-233e42654309\"}\n\n3× [inventory] between 13:11:45 and 13:13:13\n   example: {\"ts\": \"2026-10-08T13:13:13.986+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9431cf646a35457e8281c123940a6b52\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 1.0}\n\n3× [inventory] between 13:11:45 and 13:13:13\n   example: {\"ts\": \"2026-10-08T13:13:13.986+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"9431cf646a35457e8281c123940a6b52\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n3× [inventory] between 13:11:49 and 13:12:49\n   example: {\"ts\": \"2026-10-08T13:12:49.940+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"cc2d708dfb16443d880298860d020f21\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 200, \"duration_ms\": 1.7}\n\n1× [inventory] between 13:12:59 and 13:12:59\n   example: {\"ts\": \"2026-10-08T13:12:59.647+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"SS-001\"]}\n\n1× [inventory] between 13:11:59 and 13:11:59\n   example: {\"ts\": \"2026-10-08T13:11:59.643+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"MN-001\", \"CB-001\"]}\n\n1× [inventory] between 13:11:43 and 13:11:43\n   example: {\"ts\": \"2026-10-08T13:11:43.813+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b99380570b994c6cbece1322cb3dce67\", \"method\": \"GET\", \"path\": \"/products/8\", \"status\": 500, \"duration_ms\": 0.8}\n\n… and 1 more patterns (1 lines): filter more"
+  },
+  {
+   "at": 1791465202210,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "293 lines in 8 patterns for {service=\"shop\"} |= \"404\", last 15 min (most frequent first):\n\n121× [shop] between 12:58:27 and 13:13:15\n   example: {\"ts\": \"2026-10-08T13:13:15.430+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"31b29953dfd44ba8bad3d467513e9935\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 404, \"duration_ms\": 5.5}\n\n81× [shop] between 12:58:25 and 13:13:16\n   example: {\"ts\": \"2026-10-08T13:13:16.824+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"574e796cbe5744fba0764b0229d404d5\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 200, \"duration_ms\": 0.9}\n\n56× [shop] between 12:58:33 and 13:13:12\n   example: {\"ts\": \"2026-10-08T13:13:12.179+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order confirmed\", \"request_id\": \"213bff3647714b7a948c569788da4656\", \"order_id\": \"fc36e1d2-6404-41db-8c3c-6e4c10515611\", \"amount_cents\": 2700}\n\n29× [shop] between 12:58:33 and 13:12:52\n   example: {\"ts\": \"2026-10-08T13:12:52.658+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"098298cb98404645b6bb03d002f531e1\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 201, \"duration_ms\": 144.6}\n\n3× [shop] between 13:04:06 and 13:08:35\n   example: {\"ts\": \"2026-10-08T13:08:35.018+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"db404e6477964569a5ebe00209938f9a\", \"order_id\": \"bf718d01-5014-4e2f-b388-c69490b47e66\", \"reason\": \"payment_declined\"}\n\n… and 3 more patterns (3 lines): filter more"
+  },
+  {
+   "at": 1791465202210,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "table_name\nreservations\nproducts"
+  },
+  {
+   "at": 1791465202210,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[runbooks/stock-not-recovering.md] (runbook)\n# Stock not recovering after failed orders\n\n**Symptom**: orders with `reason=\"out_of_stock\"` rise even though sales have not\ngrown, or product stock falls faster than confirmed orders.\n\n1. Compare the stock consumed with the confirmed orders: if more stock is deducted\n   than is sold, some reservations are not being released.\n2. When a charge is declined, `shop` must release the reservation and `inventory`\n   logs `reservation released`. Compare those logs with the `payment_declined`\n   orders (`orders_total`): if there are declines but no releases, the release is\n   not being called.\n3. Review recent changes to the order flow in `services/shop`, especially the\n   handling of declined charges.\n4. Mitigate: **roll back** the commit. The reservations already lost are recovered\n   by inventory's automatic restocking.\n\n\n---\n\n[services/inventory/handlers.py::release] (code)\nCode of the inventory service: function release in services/inventory/handlers.py. Catalogue, stock and reservations.\nasync def release(order_id: UUID) -> None:\n    async with db.transaction() as tx:\n        row = await tx.fetchrow(\n            \"UPDATE reservations SET released = true WHERE order_id = $1 AND NOT released \"\n            \"RETURNING product_id, quantity\",\n            order_id,\n        )\n        if row is None:\n            raise HTTPException(404, \"reservation_not_found\")\n        await tx.execute(\n            \"UPDATE products SET stock = stock + $2 WHERE id = $1\", row[\"product_id\"], row[\"quantity\"]\n        )\n\n---\n\n[docs/services/inventory.md#Endpoints] (doc)\ninventory\n\n## Endpoints\n\n| Method and path | Response |\n|---|---|\n| `GET /products` | All products: `id`, `sku`, `name`, `price_cents`, `stock` |\n| `GET /products/{product_id}` | One product. 404 `product_not_found` |\n| `POST /reservations` | Reserves stock. Body: `order_id`, `product_id`, `quantity`. 201 with `remaining_stock`; 409 `out_of_stock`; 404 `product_not_found` |\n| `POST /reservations/{order_id}/release` | Returns a reservation's stock. 404 `reservation_not_found` if it does not exist or was already released |\n\nReserving decrements the stock and records the reservation in a single\ntransaction: either both happen or neither does."
+  },
+  {
+   "at": 1791465214516,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "shop",
+    "root_cause": "Commit 833bef5 removed the call to inventory's POST /reservations/{order_id}/release from the payment-declined (402) branch of create_order in services/shop/handlers.py. Declined orders now keep their stock reserved and never return it, so stock leaks and out_of_stock failures will follow.",
+    "culprit_commit": "833bef570ca73464e2627b323df50b8bb30375d8",
+    "evidence": [
+     "The diff of 833bef5 (deployed 13:10:12) deletes `await call(\"inventory\", \"POST\", f\"/reservations/{order_id}/release\")` from the `charge.status_code == 402` branch, before db.fail_order.",
+     "Inventory logged 'reservation released' 4 times between 13:11:26 and 13:11:45 and none afterwards, although shop kept logging 'order failed ... payment_declined' (7 times between 13:12:00 and 13:13:02).",
+     "The runbook runbooks/stock-not-recovering.md says shop must release the reservation on a declined charge, and that no releases alongside declines means the release call is missing. Its mitigation is to roll back the commit.",
+     "Other changes are unrelated: 5fa2f83 only adds a debug log on a cache hit, and f0caa6a only changes the README.",
+     "The users and inventory 5xx errors (KeyError 'trial', Redis and asyncpg connection resets) are stable background noise that began before the incident. The 5xx rates are lower than the baseline, so they do not explain it."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Obtain approval and roll back 833bef5 (restore the release call in the 402 branch of create_order), then let the automatic deploy run.",
+     "Check that 'reservation released' appears in inventory logs again after each 'order failed: payment_declined' in shop.",
+     "Check that reservations with released=false from declined orders stop growing and that stock recovers through inventory's automatic restocking.",
+     "Watch out_of_stock rates in orders_total until they return to baseline."
+    ],
+    "action": {
+     "kind": "rollback",
+     "target": "833bef570ca73464e2627b323df50b8bb30375d8",
+     "reason": "The commit removed the release of the inventory reservation when a payment is declined, so stock is reserved and never returned. Rolling it back restores the release call, and the runbook says lost reservations are recovered by automatic restocking.",
+     "evidence": [
+      "The diff deletes the inventory release call from the 402 branch.",
+      "Releases in inventory stopped after 13:11:45, while payment_declined orders continued in shop.",
+      "The runbook stock-not-recovering.md prescribes a rollback of the commit."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 74023
+  },
+  {
+   "at": 1791465214524,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791465214548,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791465214571,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of 833bef570ca73464e2627b323df50b8bb30375d8 committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791465274642,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0042,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2329,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0339,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791465274684,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791464212073,
+    114.54545454545453
+   ],
+   [
+    1791464227073,
+    113.45454545454545
+   ],
+   [
+    1791464242073,
+    109.09289259804726
+   ],
+   [
+    1791464257073,
+    106.9090909090909
+   ],
+   [
+    1791464272073,
+    105.81818181818181
+   ],
+   [
+    1791464287073,
+    109.0909090909091
+   ],
+   [
+    1791464302073,
+    131.99999999999997
+   ],
+   [
+    1791464317073,
+    169.09398352697323
+   ],
+   [
+    1791464332073,
+    199.63636363636363
+   ],
+   [
+    1791464347073,
+    244.36363636363635
+   ],
+   [
+    1791464362073,
+    233.45030090361993
+   ],
+   [
+    1791464377073,
+    201.81451246340976
+   ],
+   [
+    1791464392073,
+    164.72727272727272
+   ],
+   [
+    1791464407073,
+    129.8158215305176
+   ],
+   [
+    1791464422073,
+    120.0
+   ],
+   [
+    1791464437073,
+    116.73151750972761
+   ],
+   [
+    1791464452073,
+    118.9090909090909
+   ],
+   [
+    1791464467073,
+    124.36589756177386
+   ],
+   [
+    1791464482073,
+    124.36363636363636
+   ],
+   [
+    1791464497073,
+    121.09090909090908
+   ],
+   [
+    1791464512073,
+    124.36363636363636
+   ],
+   [
+    1791464527073,
+    141.82076037746143
+   ],
+   [
+    1791464542073,
+    154.91190748922708
+   ],
+   [
+    1791464557073,
+    169.09090909090907
+   ],
+   [
+    1791464572073,
+    174.54545454545456
+   ],
+   [
+    1791464587073,
+    164.72427774040474
+   ],
+   [
+    1791464602073,
+    164.72427774040474
+   ],
+   [
+    1791464617073,
+    157.0909090909091
+   ],
+   [
+    1791464632073,
+    149.45454545454544
+   ],
+   [
+    1791464647073,
+    159.27272727272725
+   ],
+   [
+    1791464662073,
+    159.27272727272725
+   ],
+   [
+    1791464677073,
+    171.27272727272728
+   ],
+   [
+    1791464692073,
+    190.9090909090909
+   ],
+   [
+    1791464707073,
+    225.8222876779578
+   ],
+   [
+    1791464722073,
+    285.8233786068838
+   ],
+   [
+    1791464737073,
+    278.1868761250205
+   ],
+   [
+    1791464752073,
+    237.81385792985583
+   ],
+   [
+    1791464767073,
+    204.0
+   ],
+   [
+    1791464782073,
+    158.1818181818182
+   ],
+   [
+    1791464797073,
+    170.34481191251066
+   ],
+   [
+    1791464812073,
+    163.63636363636363
+   ],
+   [
+    1791464827073,
+    175.63636363636363
+   ],
+   [
+    1791464842073,
+    182.1851306387389
+   ],
+   [
+    1791464857073,
+    182.17850584534827
+   ],
+   [
+    1791464872073,
+    185.4511736150252
+   ],
+   [
+    1791464887073,
+    179.99672733223034
+   ],
+   [
+    1791464902073,
+    173.45454545454544
+   ],
+   [
+    1791464917073,
+    172.36363636363635
+   ],
+   [
+    1791464932073,
+    169.09398352697323
+   ],
+   [
+    1791464947073,
+    168.00305460099275
+   ],
+   [
+    1791464962073,
+    168.00305460099275
+   ],
+   [
+    1791464977073,
+    162.5484099710904
+   ],
+   [
+    1791464992073,
+    159.275623193149
+   ],
+   [
+    1791465007073,
+    154.9090909090909
+   ],
+   [
+    1791465022073,
+    157.0909090909091
+   ],
+   [
+    1791465037073,
+    168.0
+   ],
+   [
+    1791465052073,
+    169.0878347666406
+   ],
+   [
+    1791465067073,
+    169.09090909090907
+   ],
+   [
+    1791465082073,
+    180.00327278677796
+   ],
+   [
+    1791465097073,
+    223.64042982599688
+   ],
+   [
+    1791465112073,
+    253.09090909090907
+   ],
+   [
+    1791465127073,
+    305.4600992745323
+   ],
+   [
+    1791465142073,
+    297.823596792669
+   ],
+   [
+    1791465157073,
+    267.27272727272725
+   ],
+   [
+    1791465172073,
+    234.54545454545453
+   ],
+   [
+    1791465187073,
+    187.63636363636363
+   ],
+   [
+    1791465202073,
+    183.27272727272725
+   ],
+   [
+    1791465217073,
+    169.09398352697323
+   ],
+   [
+    1791465232073,
+    181.0909090909091
+   ],
+   [
+    1791465247073,
+    177.8181818181818
+   ],
+   [
+    1791465262073,
+    174.54228104943547
+   ],
+   [
+    1791465277073,
+    180.0
+   ],
+   [
+    1791465292073,
+    159.27272727272725
+   ]
+  ],
+  "errors": [
+   [
+    1791464212073,
+    0.32573289902280134
+   ],
+   [
+    1791464227073,
+    0.33222591362126247
+   ],
+   [
+    1791464242073,
+    0.0
+   ],
+   [
+    1791464257073,
+    0.33222591362126247
+   ],
+   [
+    1791464272073,
+    0.6622516556291391
+   ],
+   [
+    1791464287073,
+    0.9868421052631579
+   ],
+   [
+    1791464302073,
+    0.7874015748031495
+   ],
+   [
+    1791464317073,
+    1.1086474501108647
+   ],
+   [
+    1791464332073,
+    0.7619047619047619
+   ],
+   [
+    1791464347073,
+    0.6462035541195477
+   ],
+   [
+    1791464362073,
+    0.5154639175257731
+   ],
+   [
+    1791464377073,
+    0.3875968992248062
+   ],
+   [
+    1791464392073,
+    0.4545454545454546
+   ],
+   [
+    1791464407073,
+    1.1204481792717087
+   ],
+   [
+    1791464422073,
+    1.8461538461538463
+   ],
+   [
+    1791464437073,
+    1.8575851393188854
+   ],
+   [
+    1791464452073,
+    1.257861635220126
+   ],
+   [
+    1791464467073,
+    0.628930817610063
+   ],
+   [
+    1791464482073,
+    0.6230529595015576
+   ],
+   [
+    1791464497073,
+    0.6211180124223602
+   ],
+   [
+    1791464512073,
+    1.1940298507462688
+   ],
+   [
+    1791464527073,
+    0.7936507936507936
+   ],
+   [
+    1791464542073,
+    0.7299270072992701
+   ],
+   [
+    1791464557073,
+    0.4464285714285715
+   ],
+   [
+    1791464572073,
+    0.22075055187637968
+   ],
+   [
+    1791464587073,
+    0.22123893805309736
+   ],
+   [
+    1791464602073,
+    0.22675736961451243
+   ],
+   [
+    1791464617073,
+    0.46403712296983757
+   ],
+   [
+    1791464632073,
+    0.6928406466512702
+   ],
+   [
+    1791464647073,
+    0.6944444444444444
+   ],
+   [
+    1791464662073,
+    0.9111617312072893
+   ],
+   [
+    1791464677073,
+    0.4454342984409799
+   ],
+   [
+    1791464692073,
+    0.8
+   ],
+   [
+    1791464707073,
+    0.8077544426494345
+   ],
+   [
+    1791464722073,
+    1.0610079575596816
+   ],
+   [
+    1791464737073,
+    1.196808510638298
+   ],
+   [
+    1791464752073,
+    1.240478536592901
+   ],
+   [
+    1791464767073,
+    1.511479094367617
+   ],
+   [
+    1791464782073,
+    1.717795031677789
+   ],
+   [
+    1791464797073,
+    0.45673671091513607
+   ],
+   [
+    1791464812073,
+    0.8845582011408196
+   ],
+   [
+    1791464827073,
+    0.8492569002123143
+   ],
+   [
+    1791464842073,
+    0.40983606557377045
+   ],
+   [
+    1791464857073,
+    0.823045267489712
+   ],
+   [
+    1791464872073,
+    0.819672131147541
+   ],
+   [
+    1791464887073,
+    1.2474012474012475
+   ],
+   [
+    1791464902073,
+    1.2958963282937366
+   ],
+   [
+    1791464917073,
+    1.0660980810234542
+   ],
+   [
+    1791464932073,
+    0.8771929824561403
+   ],
+   [
+    1791464947073,
+    0.8771929824561405
+   ],
+   [
+    1791464962073,
+    0.44150110375275936
+   ],
+   [
+    1791464977073,
+    0.4514672686230249
+   ],
+   [
+    1791464992073,
+    0.45351473922902485
+   ],
+   [
+    1791465007073,
+    1.1363636363636365
+   ],
+   [
+    1791465022073,
+    1.11358574610245
+   ],
+   [
+    1791465037073,
+    1.0822510822510825
+   ],
+   [
+    1791465052073,
+    0.21978021978021978
+   ],
+   [
+    1791465067073,
+    0.4273504273504274
+   ],
+   [
+    1791465082073,
+    0.6
+   ],
+   [
+    1791465097073,
+    0.6462035541195477
+   ],
+   [
+    1791465112073,
+    1.0989010989010988
+   ],
+   [
+    1791465127073,
+    1.0650887573964496
+   ],
+   [
+    1791465142073,
+    0.8610086100861009
+   ],
+   [
+    1791465157073,
+    0.7102272727272728
+   ],
+   [
+    1791465172073,
+    0.34071550255536626
+   ],
+   [
+    1791465187073,
+    0.21929824561403508
+   ],
+   [
+    1791465202073,
+    0.8771929824561403
+   ],
+   [
+    1791465217073,
+    0.8714596949891068
+   ],
+   [
+    1791465232073,
+    0.8421052631578947
+   ],
+   [
+    1791465247073,
+    0.847457627118644
+   ],
+   [
+    1791465262073,
+    0.43103448275862066
+   ],
+   [
+    1791465277073,
+    0.423728813559322
+   ],
+   [
+    1791465292073,
+    0.4434589800443459
+   ]
+  ],
+  "latency": [
+   [
+    1791464212073,
+    1802.2727272727263
+   ],
+   [
+    1791464227073,
+    1836.0294117647063
+   ],
+   [
+    1791464242073,
+    1909.8684210526303
+   ],
+   [
+    1791464257073,
+    1949.3902439024398
+   ],
+   [
+    1791464272073,
+    1960.7142857142858
+   ],
+   [
+    1791464287073,
+    2004.3478260869572
+   ],
+   [
+    1791464302073,
+    1960.8490566037733
+   ],
+   [
+    1791464317073,
+    1987.5
+   ],
+   [
+    1791464332073,
+    1967.9054054054043
+   ],
+   [
+    1791464347073,
+    1817.2794117647063
+   ],
+   [
+    1791464362073,
+    1435.3658536585365
+   ],
+   [
+    1791464377073,
+    975.3246753246752
+   ],
+   [
+    1791464392073,
+    838.9830508474572
+   ],
+   [
+    1791464407073,
+    925.2906976744184
+   ],
+   [
+    1791464422073,
+    958.705357142857
+   ],
+   [
+    1791464437073,
+    954.6874999999998
+   ],
+   [
+    1791464452073,
+    955.4054054054055
+   ],
+   [
+    1791464467073,
+    949.5762711864405
+   ],
+   [
+    1791464482073,
+    944.2307692307692
+   ],
+   [
+    1791464497073,
+    950.8849557522124
+   ],
+   [
+    1791464512073,
+    947.3039215686274
+   ],
+   [
+    1791464527073,
+    899.2753623188405
+   ],
+   [
+    1791464542073,
+    805.6249999999998
+   ],
+   [
+    1791464557073,
+    242.38095238095232
+   ],
+   [
+    1791464572073,
+    234.60526315789474
+   ],
+   [
+    1791464587073,
+    237.38095238095232
+   ],
+   [
+    1791464602073,
+    238.4957627118644
+   ],
+   [
+    1791464617073,
+    238.2339449541284
+   ],
+   [
+    1791464632073,
+    238.3108108108108
+   ],
+   [
+    1791464647073,
+    245.26315789473685
+   ],
+   [
+    1791464662073,
+    242.5625
+   ],
+   [
+    1791464677073,
+    242.72556390977448
+   ],
+   [
+    1791464692073,
+    243.57142857142856
+   ],
+   [
+    1791464707073,
+    233.47383720930225
+   ],
+   [
+    1791464722073,
+    238.6778846153846
+   ],
+   [
+    1791464737073,
+    236.9950738916256
+   ],
+   [
+    1791464752073,
+    235.54166666666669
+   ],
+   [
+    1791464767073,
+    239.57792207792207
+   ],
+   [
+    1791464782073,
+    234.68750000000006
+   ],
+   [
+    1791464797073,
+    236.5798196986884
+   ],
+   [
+    1791464812073,
+    235.67622950819677
+   ],
+   [
+    1791464827073,
+    235.40697674418604
+   ],
+   [
+    1791464842073,
+    238.52941176470588
+   ],
+   [
+    1791464857073,
+    242.17857142857136
+   ],
+   [
+    1791464872073,
+    242.8860294117647
+   ],
+   [
+    1791464887073,
+    244.24812030075188
+   ],
+   [
+    1791464902073,
+    243.76000000000005
+   ],
+   [
+    1791464917073,
+    243.1818181818182
+   ],
+   [
+    1791464932073,
+    242.75000000000003
+   ],
+   [
+    1791464947073,
+    234.39024390243904
+   ],
+   [
+    1791464962073,
+    232.5595238095238
+   ],
+   [
+    1791464977073,
+    229.8124999999999
+   ],
+   [
+    1791464992073,
+    232.97826086956513
+   ],
+   [
+    1791465007073,
+    233.48623853211006
+   ],
+   [
+    1791465022073,
+    231.31465517241386
+   ],
+   [
+    1791465037073,
+    228.62204724409443
+   ],
+   [
+    1791465052073,
+    231.96564885496178
+   ],
+   [
+    1791465067073,
+    232.85714285714283
+   ],
+   [
+    1791465082073,
+    233.96946564885488
+   ],
+   [
+    1791465097073,
+    231.86363636363637
+   ],
+   [
+    1791465112073,
+    228.8235294117646
+   ],
+   [
+    1791465127073,
+    227.93141592920352
+   ],
+   [
+    1791465142073,
+    228.61486486486478
+   ],
+   [
+    1791465157073,
+    231.94029850746264
+   ],
+   [
+    1791465172073,
+    234.53651685393257
+   ],
+   [
+    1791465187073,
+    236.38297872340422
+   ],
+   [
+    1791465202073,
+    236.086956521739
+   ],
+   [
+    1791465217073,
+    232.05999999999997
+   ],
+   [
+    1791465232073,
+    233.4888059701493
+   ],
+   [
+    1791465247073,
+    232.08633093525185
+   ],
+   [
+    1791465262073,
+    232.391304347826
+   ],
+   [
+    1791465277073,
+    232.9452054794521
+   ],
+   [
+    1791465292073,
+    233.08139534883716
+   ]
+  ]
+ }
+}

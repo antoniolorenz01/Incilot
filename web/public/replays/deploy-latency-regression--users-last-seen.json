@@ -1,0 +1,1352 @@
+{
+ "scenario": "deploy-latency-regression",
+ "variant": "users-last-seen",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:03:13+00:00",
+ "injectedAt": 1791464360613,
+ "truth": {
+  "scenario": "deploy-latency-regression",
+  "variant": "users-last-seen",
+  "service": "users",
+  "root_cause": "Every profile lookup does a synchronous UPDATE of last_seen_at before reading the cache, so there are no cheap reads any more and the writes compete for row locks.",
+  "action": "rollback",
+  "culprit_sha": "982a57521787044c447b31f8fc0466893ddc738b",
+  "decoy_shas": [
+   "3191e70522c33792daf2648b0d18031320d3d4c4",
+   "0aeb148695d6681ef2618f0341726d138112534b"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791464420721,
+   "type": "triage"
+  },
+  {
+   "at": 1791464428143,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "level": "error",
+    "minutes": 20,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464428145,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 240
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464428145,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464428146,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "inventory",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-query_start as age, left(query,120) q from pg_stat_activity where datname is not null"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791464428220,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 33 patterns for {service=~\".+\", level=\"error\"}, last 20 min (most frequent first):\n\n320× [shop] between 12:44:50 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.453+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 502, \"duration_ms\": 672.1}\n\n144× [shop] between 12:44:50 and 12:46:15\n   example: {\"ts\": \"2026-10-08T12:46:15.550+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"75a094877db44bd596de996fd29d6de0\", \"target\": \"payments\", \"error\": \"ReadTimeout('')\"}\n\n101× [shop] between 12:48:18 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.453+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"target\": \"users\", \"status\": 500}\n\n101× [users] between 12:48:18 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"status\": 500, \"duration_ms\": 668.5}\n\n89× [users] between 12:48:18 and 12:50:25\n   example: {\"ts\": \"2026-10-08T12:50:25.392+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f75ee31ac0374daf8ce33327703cfafa\", \"method\": \"GET\", \"path\": \"/users/373\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/app/services/users/handlers.py\\\", line 20, in get_user\\n    user[\\\"tier_label\\\"] = TIER_LABELS[row[\\\"tier\\\"]]\\n                         ~~~~~~~~~~~^^^^^^^^^^^^^\\nKeyError: 'trial'\\n\"}\n\n63× [shop] between 12:46:47 and 13:00:04\n   example: {\"ts\": \"2026-10-08T13:00:04.113+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"abee227209504ca79c97a7cf05d7a8c9\", \"target\": \"inventory\", \"status\": 500}\n\n52× [inventory] between 12:47:22 and 13:00:04\n   example: {\"ts\": \"2026-10-08T13:00:04.112+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"abee227209504ca79c97a7cf05d7a8c9\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 1.0}\n\n43× [inventory] between 12:52:29 and 12:53:57\n   example: {\"ts\": \"2026-10-08T12:53:57.659+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"3236ed30400240bab8fa8124dc7edf38\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/app/services/inventory/handlers.py\\\", line 24, in reserve\\n    low_stock = quantity / stock > 0.2\\n                ~~~~~~~~~^~~~~~~\\nZeroDivisionError: division by zero\\n\"}\n\n10× [inventory] between 12:49:27 and 12:59:39\n   example: {\"ts\": \"2026-10-08T12:59:39.968+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"54de5e7395e54e84a80e5c524a1f5cd7\", \"method\": \"GET\", \"path\": \"/products/5\", \"status\": 500, \"duration_ms\": 0.8}\n\n8× [shop] between 12:46:46 and 12:58:23\n   example: {\"ts\": \"2026-10-08T12:58:23.649+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"7fe559c707e84285b19f253d7b701472\", \"target\": \"payments\", \"status\": 500}\n\n8× [payments] between 12:46:46 and 12:58:23\n   example: {\"ts\": \"2026-10-08T12:58:23.648+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"7fe559c707e84285b19f253d7b701472\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 0.9}\n\n7× [shop] between 12:48:56 and 12:59:57\n   example: {\"ts\": \"2026-10-08T12:59:57.824+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"40b700c6e1464fcd8346e7155c66a7a0\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.8}\n\n6× [users] between 12:56:17 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n4× [inventory] between 12:51:09 and 12:59:48\n   example: {\"ts\": \"2026-10-08T12:59:48.818+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"6d75949cfdbb429eb1ecc154ae2014e6\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while\n\n4× [inventory] between 12:50:27 and 12:59:39\n   example: {\"ts\": \"2026-10-08T12:59:39.968+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"54de5e7395e54e84a80e5c524a1f5cd7\", \"method\": \"GET\", \"path\": \"/products/5\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n4× [payments] between 12:46:46 and 12:54:45\n   example: {\"ts\": \"2026-10-08T12:54:45.599+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"07fb71196058443aa152959c8772b42b\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n4× [users] between 12:50:30 and 12:54:02\n   example: {\"ts\": \"2026-10-08T12:54:02.462+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bdac31be64244ed59d890b0d9f38b8f5\", \"method\": \"GET\", \"path\": \"/users/39\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n3× [inventory] between 12:47:22 and 13:00:04\n   example: {\"ts\": \"2026-10-08T13:00:04.112+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"abee227209504ca79c97a7cf05d7a8c9\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n3× [shop] between 12:52:21 and 12:59:57\n   example: {\"ts\": \"2026-10-08T12:59:57.824+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"40b700c6e1464fcd8346e7155c66a7a0\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f\n\n3× [payments] between 12:52:27 and 12:58:23\n   example: {\"ts\": \"2026-10-08T12:58:23.647+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"7fe559c\n… [truncated: 401 more characters]"
+  },
+  {
+   "at": 1791464428221,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "0aeb148 2026-10-08 12:58:35 +0000 Diego Martín: docs: troubleshooting section in the README\n\nREADME.md\n3191e70 2026-10-08 12:58:11 +0000 Marta Gil: chore: .editorconfig\n\n.editorconfig\n982a575 2026-10-08 12:57:45 +0000 Marta Gil: users: record last access on every profile lookup\n\nservices/users/handlers.py"
+  },
+  {
+   "at": 1791464428222,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 60 min:\n- service=inventory: current 0.05455 | min 0 | max 0.5818 | avg 0.0299\n- service=payments: current 0 | min 0 | max 0.05455 | avg 0.009177\n- service=shop: current 0.1091 | min 0 | max 5.8 | avg 0.5904\n- service=users: current 0.03636 | min 0 | max 0.7273 | avg 0.03636"
+  },
+  {
+   "at": 1791464428222,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | age | q\n38566 | idle | Client | ClientRead | 0:01:39.583531 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n38746 | active | None | None | -1 day, 23:59:59.984263 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-query_start as age, left(query,120) q from pg_stat_\n25008 | idle | Client | ClientRead | 0:00:00.030497 | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blo\n32695 | idle | Client | ClientRead | 0:00:00.748937 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n34737 | idle | Client | ClientRead | 0:01:07.585808 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | 0:10:14.195100 | ROLLBACK;\n35191 | idle | Client | ClientRead | 0:00:08.558965 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36786 | idle | Client | ClientRead | 0:00:00.745451 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36967 | idle | Client | ClientRead | 0:00:00.756863 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37157 | idle | Client | ClientRead | 0:00:01.743916 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37160 | idle | Client | ClientRead | 0:01:23.232663 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37243 | idle | Client | ClientRead | 0:00:08.563329 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791464437880,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "982a575"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464437882,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xage, left(query,120) q from pg_stat_activity where datname is not null and state <> 'idle'"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464437882,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464437883,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "users",
+    "minutes": 5,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791464437957,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 982a57521787044c447b31f8fc0466893ddc738b\nAuthor: Marta Gil <marta.gil@shop.example>\nDate:   2026-10-08 12:57:45 +0000\n\n    users: record last access on every profile lookup\n---\n services/users/handlers.py | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/services/users/handlers.py b/services/users/handlers.py\nindex 8660aaa..9d88c32 100644\n--- a/services/users/handlers.py\n+++ b/services/users/handlers.py\n@@ -8,6 +8,7 @@ from services.common import cache, db, settings\n \n \n async def get_user(user_id: int) -> dict:\n+    await db.execute(\"UPDATE users SET last_seen_at = now() WHERE id = $1\", user_id)\n     key = f\"user:{user_id}\"\n     if cached := await cache.get(key):\n         return json.loads(cached)\n"
+  },
+  {
+   "at": 1791464437958,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xage | q\n38763 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xage, left(query,120) q from pg_stat_"
+  },
+  {
+   "at": 1791464437958,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- service=inventory: current 0.004792 | min 0.00475 | max 10 | avg 0.4548\n- service=payments: current 0.2406 | min 0.00475 | max 10 | avg 0.5753\n- service=shop: current 0.9547 | min 0.2157 | max 2.44 | avg 0.7959\n- service=users: current 0.9711 | min 0.00475 | max 0.9711 | avg 0.05228"
+  },
+  {
+   "at": 1791464437959,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "797 lines in 4 patterns for {service=\"users\"}, last 5 min (most frequent first):\n\n755× [users] between 12:55:37 and 13:00:37\n   example: {\"ts\": \"2026-10-08T13:00:37.000+00:00\", \"level\": \"info\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"4fbfab9c0b804691bf246d8cd28f13f9\", \"method\": \"GET\", \"path\": \"/users/237\", \"status\": 200, \"duration_ms\": 605.5}\n\n30× [users] between 12:55:43 and 13:00:30\n   example: {\"ts\": \"2026-10-08T13:00:30.522+00:00\", \"level\": \"warning\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"13f95c2e36c848f1b14cbd4932742d21\", \"method\": \"GET\", \"path\": \"/users/515\", \"status\": 404, \"duration_ms\": 561.6}\n\n6× [users] between 12:56:17 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"status\": 500, \"duration_ms\": 668.5}\n\n6× [users] between 12:56:17 and 13:00:16\n   example: {\"ts\": \"2026-10-08T13:00:16.451+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bb0dd4c188364227a60d1d2b8746230c\", \"method\": \"GET\", \"path\": \"/users/513\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791464448149,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"users\"}[1m])))",
+    "minutes": 30
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464448150,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select l.pid, l.locktype, l.mode, l.granted, a.state, a.wait_event_type, now()-a.xact_start as xage, left(a.query,100) q from pg_locks l join pg_stat_activity a on a.pid=l.pid where a.datname is not null and l.pid <> pg_backend_pid() and l.locktype in ('relation','transactionid','tuple')"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464448150,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-state_change as since, left(query,100) q from pg_stat_activity where datname is not null"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464448151,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "postgres",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791464448235,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- (no labels): current 0.9734 | min 0.00475 | max 0.9767 | avg 0.05276"
+  },
+  {
+   "at": 1791464448236,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "0 rows"
+  },
+  {
+   "at": 1791464448236,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | since | q\n38566 | idle | Client | ClientRead | 0:01:59.612112 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n38779 | active | None | None | -1 day, 23:59:59.998293 | SELECT * FROM (select l.pid, l.locktype, l.mode, l.granted, a.state, a.wait_event_type, now()-a.xact\n38780 | active | None | None | -1 day, 23:59:59.997782 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-state_change as since, left(que\n25008 | idle | Client | ClientRead | 0:00:00.025314 | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx\n32695 | idle | Client | ClientRead | 0:00:00.010521 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n34737 | idle | Client | ClientRead | 0:01:27.614377 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | 0:10:34.223701 | ROLLBACK;\n35191 | idle | Client | ClientRead | 0:00:28.587566 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36786 | idle | Client | ClientRead | 0:00:00.124309 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n36967 | idle | Client | ClientRead | 0:00:01.330651 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37157 | idle | Client | ClientRead | 0:00:00.012956 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37160 | idle | Client | ClientRead | 0:01:43.261242 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n37243 | idle | Client | ClientRead | 0:00:28.591935 | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791464448237,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "6 lines in 4 patterns for {service=\"postgres\"}, last 15 min (most frequent first):\n\n3× [postgres] between 12:48:34 and 12:58:34\n   example: 2026-10-08 12:58:34.858 UTC [27] LOG:  checkpoint starting: time\n\n1× [postgres] between 12:57:19 and 12:57:19\n   example: 2026-10-08 12:57:19.784 UTC [27] LOG:  checkpoint complete: wrote 2254 buffers (13.8%); 0 WAL file(s) added, 0 removed, 1 recycled; write=225.127 s, sync=0.007 s, total=225.137 s; sync files=57, longest=0.002 s, average=0.001 s; distance=14257 kB, estimate=14257 kB; lsn=0/45D8D670, redo lsn=0/452BB548\n\n1× [postgres] between 12:51:23 and 12:51:23\n   example: 2026-10-08 12:51:23.548 UTC [27] LOG:  checkpoint complete: wrote 1691 buffers (10.3%); 0 WAL file(s) added, 0 removed, 1 recycled; write=168.905 s, sync=0.006 s, total=168.914 s; sync files=42, longest=0.002 s, average=0.001 s; distance=10996 kB, estimate=12626 kB; lsn=0/44CD8398, redo lsn=0/444CF118\n\n1× [postgres] between 12:46:15 and 12:46:15\n   example: 2026-10-08 12:46:15.586 UTC [27] LOG:  checkpoint complete: wrote 1613 buffers (9.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=161.228 s, sync=0.007 s, total=161.240 s; sync files=53, longest=0.002 s, average=0.001 s; distance=9402 kB, estimate=12807 kB; lsn=0/43D64178, redo lsn=0/43A11DD8"
+  },
+  {
+   "at": 1791464467932,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"users\"}[1m])))",
+    "minutes": 30,
+    "step_seconds": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464467934,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "services/users/handlers.py"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464467934,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select relname, n_tup_upd, n_tup_hot_upd, n_dead_tup, n_live_tup, seq_scan, idx_scan from pg_stat_user_tables"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464467934,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (target, le) (rate(upstream_request_duration_seconds_bucket{service=\"shop\"}[1m])))",
+    "minutes": 30
+   },
+   "round": 4
+  },
+  {
+   "at": 1791464467996,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 30 min:\n- (no labels): current 0.9734 | min 0.00475 | max 0.9734 | avg 0.06898"
+  },
+  {
+   "at": 1791464467996,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "\"\"\"User profiles.\"\"\"\n\nimport json\n\nfrom fastapi import HTTPException\n\nfrom services.common import cache, db, settings\n\n\nasync def get_user(user_id: int) -> dict:\n    await db.execute(\"UPDATE users SET last_seen_at = now() WHERE id = $1\", user_id)\n    key = f\"user:{user_id}\"\n    if cached := await cache.get(key):\n        return json.loads(cached)\n    row = await db.fetchrow(\"SELECT id, email, name, tier FROM users WHERE id = $1\", user_id)\n    if row is None:\n        raise HTTPException(404, \"user_not_found\")\n    user = dict(row)\n    await cache.set(key, json.dumps(user), ex=settings.CACHE_TTL_SECONDS)\n    return user\n"
+  },
+  {
+   "at": 1791464467997,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "relname | n_tup_upd | n_tup_hot_upd | n_dead_tup | n_live_tup | seq_scan | idx_scan\nusers | 0 | 0 | 0 | 500 | 29 | 51945"
+  },
+  {
+   "at": 1791464467997,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 30 min:\n- target=inventory: current 0.008572 | min 0.008009 | max 2.424 | avg 0.3024\n- target=payments: current 0.2411 | min 0.2267 | max 2.425 | avg 0.482\n- target=users: current 0.9732 | min 0.00525 | max 0.9732 | avg 0.07131"
+  },
+  {
+   "at": 1791464480391,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "users",
+    "sql": "select column_name, data_type from information_schema.columns where table_name='users'"
+   },
+   "round": 5
+  },
+  {
+   "at": 1791464480392,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum(rate(http_request_duration_seconds_sum{service=\"users\"}[1m])) / sum(rate(http_request_duration_seconds_count{service=\"users\"}[1m]))",
+    "minutes": 10,
+    "step_seconds": 30
+   },
+   "round": 5
+  },
+  {
+   "at": 1791464480393,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "users db.execute write cache last_seen_at latency",
+    "limit": 3
+   },
+   "round": 5
+  },
+  {
+   "at": 1791464480393,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/users.env"
+   },
+   "round": 5
+  },
+  {
+   "at": 1791464483974,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "column_name | data_type\nid | integer\ncreated_at | timestamp with time zone\nemail | text\nname | text\ntier | text"
+  },
+  {
+   "at": 1791464483975,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 10 min:\n- (no labels): current 0.6095 | min 0.001061 | max 0.615 | avg 0.09976"
+  },
+  {
+   "at": 1791464483975,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[services/users/handlers.py::get_user] (code)\nCode of the users service: function get_user in services/users/handlers.py. User profiles.\nasync def get_user(user_id: int) -> dict:\n    await db.execute(\"UPDATE users SET last_seen_at = now() WHERE id = $1\", user_id)\n    key = f\"user:{user_id}\"\n    if cached := await cache.get(key):\n        return json.loads(cached)\n    row = await db.fetchrow(\"SELECT id, email, name, tier FROM users WHERE id = $1\", user_id)\n    if row is None:\n        raise HTTPException(404, \"user_not_found\")\n    user = dict(row)\n    await cache.set(key, json.dumps(user), ex=settings.CACHE_TTL_SECONDS)\n    return user\n\n---\n\n[docs/services/users.md#Data] (doc)\nusers\n\n## Data\n\n**Postgres**, database `users`, table `users`: `id`, `email` (unique), `name`, `tier`\n(`standard` or `premium`), `created_at`.\n\nOn startup with an empty table, 500 users are loaded (IDs 1–500,\n`user{i}@example.com`). One in ten is `premium`.\n\n**Redis**, db 0: key `user:{id}` holding the profile, TTL 300 s. Only users that\nexist are cached.\n\n---\n\n[docs/services/users.md#Failure behaviour] (doc)\nusers\n\n## Failure behaviour\n\n- **Redis down**: every lookup returns 500; the cache is read before Postgres.\n- **Postgres down**: users that are not cached return 500.\n- In both cases `shop` sees it as `users_error` (502)."
+  },
+  {
+   "at": 1791464483976,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://users@postgres:5432/users\nDB_POOL_SIZE=10\nREDIS_URL=redis://redis:6379/0\nCACHE_TTL_SECONDS=300\n"
+  },
+  {
+   "at": 1791464503301,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "users",
+    "root_cause": "Commit 982a575 added a synchronous UPDATE users SET last_seen_at = now() at the start of every get_user call, before the Redis cache check. This puts a database write on every profile lookup, cache hits included, and it bypasses the cache. The users service has been slow since the deploy at 12:57:45, and shop's order and profile calls to users are slow as a result. The users table has no last_seen_at column.",
+    "culprit_commit": "982a57521787044c447b31f8fc0466893ddc738b",
+    "evidence": [
+     "Commit 982a575 (Marta Gil, 12:57:45) adds `await db.execute(\"UPDATE users SET last_seen_at = now() WHERE id = $1\", user_id)` as the first line of get_user in services/users/handlers.py, before the cache lookup.",
+     "The users p95 latency was about 0.005s before the deploy and is now about 0.97s (30-minute min 0.00475, current 0.9734). Mean users latency is about 0.61s, against a 30-minute average of about 0.1s.",
+     "The shop-to-users upstream p95 is 0.973s (min 0.005s), while the inventory upstream is 0.0086s. Payments is at 0.24s, so the slowdown is specific to users.",
+     "Users logs for 12:55–13:00 show /users/* returning 200 at about 600ms, and the 404s also take about 560ms. Before the change these requests were served in milliseconds.",
+     "The users table schema (id, created_at, email, name, tier) has no last_seen_at column. pg_stat_user_tables shows n_tup_upd = 0, so the write is not succeeding.",
+     "The other errors are older or stable background noise. The users KeyError 'trial' ran from 12:48–12:50, the payments ReadTimeouts from 12:44–12:46, and the inventory ZeroDivisionError from 12:52–12:53. All of them predate the 12:59:20 alert onset.",
+     "The later commits 3191e70 (.editorconfig) and 0aeb148 (README) touch no runtime code."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Roll back commit 982a575 (or revert the single added line in services/users/handlers.py) and let the automatic deploy run.",
+     "Check that users p95 latency returns to about 5ms and that shop's upstream latency for the users target recovers.",
+     "Confirm that the shop 502s on POST /orders and the users 5xx rate stay at baseline.",
+     "If last-access tracking is still wanted, re-implement it with a proper migration adding the last_seen_at column. Make the write asynchronous or throttled, and keep it out of the cached read path."
+    ],
+    "action": {
+     "kind": "rollback",
+     "target": "982a57521787044c447b31f8fc0466893ddc738b",
+     "reason": "This commit put a database write on every user lookup, ahead of the cache. It is the only runtime change near the onset, and users latency rose from milliseconds to about 1s right after it. Rolling it back restores the cached read path.",
+     "evidence": [
+      "The deploy at 12:57:45 was followed by users p95 rising from 0.005s to 0.97s.",
+      "The change is a single UPDATE added before the cache check in get_user.",
+      "The users table has no last_seen_at column, and n_tup_upd = 0."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 154785
+  },
+  {
+   "at": 1791464503309,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791464503334,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791464503360,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of 982a57521787044c447b31f8fc0466893ddc738b committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791464563432,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0044,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2336,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0578,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791464563473,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791463460614,
+    17.454228104943546
+   ],
+   [
+    1791463475614,
+    0.0
+   ],
+   [
+    1791463490614,
+    0.0
+   ],
+   [
+    1791463505614,
+    0.0
+   ],
+   [
+    1791463520614,
+    0.0
+   ],
+   [
+    1791463535614,
+    0.0
+   ],
+   [
+    1791463550614,
+    0.0
+   ],
+   [
+    1791463565614,
+    0.0
+   ],
+   [
+    1791463580614,
+    10.909487617731553
+   ],
+   [
+    1791463595614,
+    58.90909090909091
+   ],
+   [
+    1791463610614,
+    102.54731904216442
+   ],
+   [
+    1791463625614,
+    157.08805294449192
+   ],
+   [
+    1791463640614,
+    174.5486281568756
+   ],
+   [
+    1791463655614,
+    176.73369940725118
+   ],
+   [
+    1791463670614,
+    180.0
+   ],
+   [
+    1791463685614,
+    172.36363636363635
+   ],
+   [
+    1791463700614,
+    176.72727272727272
+   ],
+   [
+    1791463715614,
+    172.36990436015856
+   ],
+   [
+    1791463730614,
+    145.09090909090907
+   ],
+   [
+    1791463745614,
+    141.8181818181818
+   ],
+   [
+    1791463760614,
+    128.72727272727272
+   ],
+   [
+    1791463775614,
+    124.36589756177386
+   ],
+   [
+    1791463790614,
+    134.1818181818182
+   ],
+   [
+    1791463805614,
+    135.2751868215786
+   ],
+   [
+    1791463820614,
+    131.99999999999997
+   ],
+   [
+    1791463835614,
+    136.36611574755906
+   ],
+   [
+    1791463850614,
+    156.0
+   ],
+   [
+    1791463865614,
+    161.45748104510994
+   ],
+   [
+    1791463880614,
+    172.36677030491467
+   ],
+   [
+    1791463895614,
+    185.45791741668032
+   ],
+   [
+    1791463910614,
+    184.3602843584662
+   ],
+   [
+    1791463925614,
+    195.27272727272725
+   ],
+   [
+    1791463940614,
+    206.18181818181816
+   ],
+   [
+    1791463955614,
+    245.45454545454544
+   ],
+   [
+    1791463970614,
+    254.1771967782404
+   ],
+   [
+    1791463985614,
+    242.17741495609172
+   ],
+   [
+    1791464000614,
+    197.45454545454544
+   ],
+   [
+    1791464015614,
+    143.99738186578423
+   ],
+   [
+    1791464030614,
+    130.9114711176567
+   ],
+   [
+    1791464045614,
+    138.54545454545453
+   ],
+   [
+    1791464060614,
+    150.5481917853052
+   ],
+   [
+    1791464075614,
+    169.0878347666406
+   ],
+   [
+    1791464090614,
+    176.72727272727272
+   ],
+   [
+    1791464105614,
+    180.00327278677796
+   ],
+   [
+    1791464120614,
+    185.45454545454544
+   ],
+   [
+    1791464135614,
+    177.8181818181818
+   ],
+   [
+    1791464150614,
+    177.8181818181818
+   ],
+   [
+    1791464165614,
+    169.09090909090907
+   ],
+   [
+    1791464180614,
+    141.8181818181818
+   ],
+   [
+    1791464195614,
+    133.08848930019454
+   ],
+   [
+    1791464210614,
+    114.54545454545453
+   ],
+   [
+    1791464225614,
+    113.45454545454545
+   ],
+   [
+    1791464240614,
+    109.09289259804726
+   ],
+   [
+    1791464255614,
+    106.9090909090909
+   ],
+   [
+    1791464270614,
+    105.81818181818181
+   ],
+   [
+    1791464285614,
+    109.0909090909091
+   ],
+   [
+    1791464300614,
+    131.99999999999997
+   ],
+   [
+    1791464315614,
+    169.09398352697323
+   ],
+   [
+    1791464330614,
+    199.63636363636363
+   ],
+   [
+    1791464345614,
+    244.36363636363635
+   ],
+   [
+    1791464360614,
+    233.45030090361993
+   ],
+   [
+    1791464375614,
+    201.81451246340976
+   ],
+   [
+    1791464390614,
+    164.72727272727272
+   ],
+   [
+    1791464405614,
+    129.8158215305176
+   ],
+   [
+    1791464420614,
+    120.0
+   ],
+   [
+    1791464435614,
+    116.73151750972764
+   ],
+   [
+    1791464450614,
+    118.9090909090909
+   ],
+   [
+    1791464465614,
+    124.36589756177386
+   ],
+   [
+    1791464480614,
+    124.36363636363636
+   ],
+   [
+    1791464495614,
+    121.09090909090908
+   ],
+   [
+    1791464510614,
+    124.36363636363636
+   ],
+   [
+    1791464525614,
+    141.82076037746143
+   ],
+   [
+    1791464540614,
+    154.91190748922708
+   ],
+   [
+    1791464555614,
+    169.09090909090907
+   ],
+   [
+    1791464570614,
+    174.54545454545456
+   ],
+   [
+    1791464585614,
+    164.72427774040474
+   ]
+  ],
+  "errors": [
+   [
+    1791463460614,
+    28.62745098039216
+   ],
+   [
+    1791463475614,
+    36.785714285714285
+   ],
+   [
+    1791463490614,
+    37.014925373134325
+   ],
+   [
+    1791463505614,
+    38.35978835978836
+   ],
+   [
+    1791463520614,
+    38.87323943661972
+   ],
+   [
+    1791463535614,
+    39.473684210526315
+   ],
+   [
+    1791463550614,
+    38.84297520661158
+   ],
+   [
+    1791463565614,
+    39.62264150943396
+   ],
+   [
+    1791463580614,
+    34.08071748878924
+   ],
+   [
+    1791463595614,
+    18.77133105802048
+   ],
+   [
+    1791463610614,
+    9.243697478991596
+   ],
+   [
+    1791463625614,
+    2.5581395348837206
+   ],
+   [
+    1791463640614,
+    0.21929824561403508
+   ],
+   [
+    1791463655614,
+    0.6507592190889371
+   ],
+   [
+    1791463670614,
+    0.423728813559322
+   ],
+   [
+    1791463685614,
+    0.425531914893617
+   ],
+   [
+    1791463700614,
+    0.847457627118644
+   ],
+   [
+    1791463715614,
+    2.553191489361702
+   ],
+   [
+    1791463730614,
+    5.286343612334802
+   ],
+   [
+    1791463745614,
+    8.067940552016987
+   ],
+   [
+    1791463760614,
+    8.49673202614379
+   ],
+   [
+    1791463775614,
+    8.805031446540879
+   ],
+   [
+    1791463790614,
+    8.45360824742268
+   ],
+   [
+    1791463805614,
+    8.333333333333334
+   ],
+   [
+    1791463820614,
+    8.93970893970894
+   ],
+   [
+    1791463835614,
+    6.956521739130435
+   ],
+   [
+    1791463850614,
+    4.338394793926248
+   ],
+   [
+    1791463865614,
+    3.8379530916844353
+   ],
+   [
+    1791463880614,
+    1.5317286652078772
+   ],
+   [
+    1791463895614,
+    1.0570824524312896
+   ],
+   [
+    1791463910614,
+    1.0615711252653928
+   ],
+   [
+    1791463925614,
+    0.41928721174004197
+   ],
+   [
+    1791463940614,
+    0.3759398496240602
+   ],
+   [
+    1791463955614,
+    1.3595166163141996
+   ],
+   [
+    1791463970614,
+    3.4199726402188784
+   ],
+   [
+    1791463985614,
+    4.38957475994513
+   ],
+   [
+    1791464000614,
+    5.501618122977346
+   ],
+   [
+    1791464015614,
+    5.7324840764331215
+   ],
+   [
+    1791464030614,
+    4.838709677419355
+   ],
+   [
+    1791464045614,
+    5.405405405405405
+   ],
+   [
+    1791464060614,
+    4.575163398692811
+   ],
+   [
+    1791464075614,
+    2.542372881355932
+   ],
+   [
+    1791464090614,
+    1.257861635220126
+   ],
+   [
+    1791464105614,
+    0.6329113924050632
+   ],
+   [
+    1791464120614,
+    0.6172839506172839
+   ],
+   [
+    1791464135614,
+    0.8474576271186443
+   ],
+   [
+    1791464150614,
+    0.635593220338983
+   ],
+   [
+    1791464165614,
+    0.21978021978021978
+   ],
+   [
+    1791464180614,
+    0.5249343832020997
+   ],
+   [
+    1791464195614,
+    0.2857142857142857
+   ],
+   [
+    1791464210614,
+    0.32573289902280134
+   ],
+   [
+    1791464225614,
+    0.33222591362126247
+   ],
+   [
+    1791464240614,
+    0.0
+   ],
+   [
+    1791464255614,
+    0.33222591362126247
+   ],
+   [
+    1791464270614,
+    0.6622516556291391
+   ],
+   [
+    1791464285614,
+    0.9868421052631579
+   ],
+   [
+    1791464300614,
+    0.7874015748031495
+   ],
+   [
+    1791464315614,
+    1.1086474501108647
+   ],
+   [
+    1791464330614,
+    0.7619047619047619
+   ],
+   [
+    1791464345614,
+    0.6462035541195477
+   ],
+   [
+    1791464360614,
+    0.5154639175257731
+   ],
+   [
+    1791464375614,
+    0.3875968992248062
+   ],
+   [
+    1791464390614,
+    0.4545454545454546
+   ],
+   [
+    1791464405614,
+    1.1204481792717087
+   ],
+   [
+    1791464420614,
+    1.8461538461538463
+   ],
+   [
+    1791464435614,
+    1.8575851393188854
+   ],
+   [
+    1791464450614,
+    1.257861635220126
+   ],
+   [
+    1791464465614,
+    0.628930817610063
+   ],
+   [
+    1791464480614,
+    0.6230529595015576
+   ],
+   [
+    1791464495614,
+    0.6211180124223602
+   ],
+   [
+    1791464510614,
+    1.1940298507462688
+   ],
+   [
+    1791464525614,
+    0.7936507936507936
+   ],
+   [
+    1791464540614,
+    0.7299270072992701
+   ],
+   [
+    1791464555614,
+    0.4464285714285715
+   ],
+   [
+    1791464570614,
+    0.22075055187637968
+   ],
+   [
+    1791464585614,
+    0.22123893805309736
+   ]
+  ],
+  "latency": [
+   [
+    1791463460614,
+    2222.826086956522
+   ],
+   [
+    1791463475614,
+    2287.8787878787875
+   ],
+   [
+    1791463490614,
+    2304.7520661157027
+   ],
+   [
+    1791463505614,
+    2320.212765957447
+   ],
+   [
+    1791463520614,
+    2336.1111111111118
+   ],
+   [
+    1791463535614,
+    2343.589743589743
+   ],
+   [
+    1791463550614,
+    2335.326086956522
+   ],
+   [
+    1791463565614,
+    2326.5060240963853
+   ],
+   [
+    1791463580614,
+    2319.4078947368416
+   ],
+   [
+    1791463595614,
+    2154.9999999999995
+   ],
+   [
+    1791463610614,
+    1757.0312500000005
+   ],
+   [
+    1791463625614,
+    525.0000000000007
+   ],
+   [
+    1791463640614,
+    238.4251968503937
+   ],
+   [
+    1791463655614,
+    237.25000000000009
+   ],
+   [
+    1791463670614,
+    236.40287769784166
+   ],
+   [
+    1791463685614,
+    235.68702290076328
+   ],
+   [
+    1791463700614,
+    236.6153846153846
+   ],
+   [
+    1791463715614,
+    231.5476190476191
+   ],
+   [
+    1791463730614,
+    233.12499999999991
+   ],
+   [
+    1791463745614,
+    229.675
+   ],
+   [
+    1791463760614,
+    230.30219780219784
+   ],
+   [
+    1791463775614,
+    229.80113636363637
+   ],
+   [
+    1791463790614,
+    230.859375
+   ],
+   [
+    1791463805614,
+    233.33333333333326
+   ],
+   [
+    1791463820614,
+    230.42500000000004
+   ],
+   [
+    1791463835614,
+    228.36538461538458
+   ],
+   [
+    1791463850614,
+    230.8686440677965
+   ],
+   [
+    1791463865614,
+    231.1585365853658
+   ],
+   [
+    1791463880614,
+    236.11328125
+   ],
+   [
+    1791463895614,
+    234.83333333333326
+   ],
+   [
+    1791463910614,
+    236.875
+   ],
+   [
+    1791463925614,
+    233.25704225352106
+   ],
+   [
+    1791463940614,
+    234.7058823529411
+   ],
+   [
+    1791463955614,
+    234.48571428571432
+   ],
+   [
+    1791463970614,
+    235.8948863636364
+   ],
+   [
+    1791463985614,
+    235.86890243902434
+   ],
+   [
+    1791464000614,
+    232.33333333333323
+   ],
+   [
+    1791464015614,
+    234.17499999999987
+   ],
+   [
+    1791464030614,
+    232.2727272727272
+   ],
+   [
+    1791464045614,
+    231.51515151515144
+   ],
+   [
+    1791464060614,
+    231.67452830188674
+   ],
+   [
+    1791464075614,
+    234.50819672131152
+   ],
+   [
+    1791464090614,
+    231.71153846153842
+   ],
+   [
+    1791464105614,
+    232.90697674418604
+   ],
+   [
+    1791464120614,
+    231.4642857142858
+   ],
+   [
+    1791464135614,
+    234.77611940298513
+   ],
+   [
+    1791464150614,
+    237.57812499999997
+   ],
+   [
+    1791464165614,
+    281.2500000000023
+   ],
+   [
+    1791464180614,
+    948.0769230769228
+   ],
+   [
+    1791464195614,
+    1450.0000000000007
+   ],
+   [
+    1791464210614,
+    1802.2727272727263
+   ],
+   [
+    1791464225614,
+    1836.0294117647063
+   ],
+   [
+    1791464240614,
+    1909.8684210526303
+   ],
+   [
+    1791464255614,
+    1949.3902439024398
+   ],
+   [
+    1791464270614,
+    1960.7142857142858
+   ],
+   [
+    1791464285614,
+    2004.3478260869572
+   ],
+   [
+    1791464300614,
+    1960.8490566037733
+   ],
+   [
+    1791464315614,
+    1987.5
+   ],
+   [
+    1791464330614,
+    1967.9054054054043
+   ],
+   [
+    1791464345614,
+    1817.2794117647063
+   ],
+   [
+    1791464360614,
+    1435.3658536585365
+   ],
+   [
+    1791464375614,
+    975.3246753246752
+   ],
+   [
+    1791464390614,
+    838.9830508474572
+   ],
+   [
+    1791464405614,
+    925.2906976744184
+   ],
+   [
+    1791464420614,
+    958.705357142857
+   ],
+   [
+    1791464435614,
+    954.6874999999998
+   ],
+   [
+    1791464450614,
+    955.4054054054055
+   ],
+   [
+    1791464465614,
+    949.5762711864405
+   ],
+   [
+    1791464480614,
+    944.2307692307692
+   ],
+   [
+    1791464495614,
+    950.8849557522124
+   ],
+   [
+    1791464510614,
+    947.3039215686274
+   ],
+   [
+    1791464525614,
+    899.2753623188405
+   ],
+   [
+    1791464540614,
+    805.6249999999998
+   ],
+   [
+    1791464555614,
+    242.38095238095232
+   ],
+   [
+    1791464570614,
+    234.60526315789474
+   ],
+   [
+    1791464585614,
+    237.38095238095232
+   ]
+  ]
+ }
+}

@@ -1,0 +1,1278 @@
+{
+ "scenario": "config-payment-declines",
+ "variant": "strict-fraud-check",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T12:31:17+00:00",
+ "injectedAt": 1791462455968,
+ "truth": {
+  "scenario": "config-payment-declines",
+  "variant": "strict-fraud-check",
+  "service": "payments",
+  "root_cause": "FRAUD_CHECK_LEVEL=strict makes the provider decline almost half of legitimate charges.",
+  "action": "revert_config",
+  "culprit_sha": "7235f5d4edf8d0bb9146522f2fa119b0bdc07990",
+  "decoy_shas": [
+   "bbb9cca13507fa689c2974ecd931dd459a3375e8",
+   "c468ff71eca2415f52c357efc11931949a0e7c33"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791462516064,
+   "type": "triage"
+  },
+  {
+   "at": 1791462525709,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "users",
+    "level": "error",
+    "minutes": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462525710,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 180
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462525710,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462525711,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "level": "error",
+    "minutes": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791462525774,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "38 lines in 4 patterns for {service=\"users\", level=\"error\"}, last 30 min (most frequent first):\n\n19× [users] between 11:59:04 and 12:28:34\n   example: {\"ts\": \"2026-10-08T12:28:34.976+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d5dcda8d30c64cefa2d891c98d5d1b4a\", \"method\": \"GET\", \"path\": \"/users/77\", \"status\": 500, \"duration_ms\": 0.8}\n\n8× [users] between 12:01:06 and 12:17:47\n   example: {\"ts\": \"2026-10-08T12:17:47.632+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"bfe36bef86bd4b3db171b22266b330f9\", \"method\": \"GET\", \"path\": \"/users/457\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading\n\n6× [users] between 12:05:29 and 12:28:34\n   example: {\"ts\": \"2026-10-08T12:28:34.976+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d5dcda8d30c64cefa2d891c98d5d1b4a\", \"method\": \"GET\", \"path\": \"/users/77\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n5× [users] between 11:59:04 and 12:21:40\n   example: {\"ts\": \"2026-10-08T12:21:40.479+00:00\", \"level\": \"error\", \"service\": \"users\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d7126a7586a54c8e84d691a5088e4b7f\", \"method\": \"GET\", \"path\": \"/users/212\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791462525775,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "c468ff7 2026-10-08 12:26:00 +0000 Lucía Fernández: docs: payment reconciliation process\n\ndocs/payments-reconciliation.md\n7235f5d 2026-10-08 12:24:18 +0000 Lucía Fernández: config(payments): enable the provider's strict anti-fraud check\n\nconfig/payments.env\nbbb9cca 2026-10-08 12:05:59 +0000 Ana Ruiz: config(shop): explicit LOG_LEVEL\n\nconfig/shop.env"
+  },
+  {
+   "at": 1791462525775,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 60 min:\n- service=inventory: current 0 | min 0 | max 0.09091 | avg 0.02074\n- service=payments: current 0 | min 0 | max 0.03636 | avg 0.01086\n- service=shop: current 0.03636 | min 0 | max 5.691 | avg 0.492\n- service=users: current 0.03636 | min 0 | max 0.7273 | avg 0.02975"
+  },
+  {
+   "at": 1791462525776,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 12 patterns for {service=\"shop\", level=\"error\"}, last 30 min (most frequent first):\n\n394× [shop] between 12:19:12 and 12:28:34\n   example: {\"ts\": \"2026-10-08T12:28:34.978+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d5dcda8d30c64cefa2d891c98d5d1b4a\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 502, \"duration_ms\": 5.6}\n\n368× [shop] between 12:21:02 and 12:22:39\n   example: {\"ts\": \"2026-10-08T12:22:39.983+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"22fb3f53eefe4e55bf5cc591797fb948\", \"target\": \"payments\", \"error\": \"ConnectError('All connection attempts failed')\"}\n\n105× [shop] between 12:18:42 and 12:27:47\n   example: {\"ts\": \"2026-10-08T12:27:47.963+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"a7c8a8b67ddc4236b269f51b5a5c9387\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.6}\n\n100× [shop] between 12:18:42 and 12:18:59\n   example: {\"ts\": \"2026-10-08T12:18:59.482+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"cc84bc4fb21743908a808e7e8985541b\", \"target\": \"inventory\", \"error\": \"ConnectError('[Errno -3] Temporary failure in name resolution')\"}\n\n11× [shop] between 12:19:43 and 12:26:04\n   example: {\"ts\": \"2026-10-08T12:26:04.209+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"2437b472eb4f45789219945e18fb2793\", \"target\": \"inventory\", \"status\": 500}\n\n8× [shop] between 12:19:53 and 12:25:30\n   example: {\"ts\": \"2026-10-08T12:25:30.311+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"805c654da1354dbd825a4fcd5022e356\", \"target\": \"payments\", \"status\": 500}\n\n5× [shop] between 12:19:12 and 12:28:34\n   example: {\"ts\": \"2026-10-08T12:28:34.978+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"d5dcda8d30c64cefa2d891c98d5d1b4a\", \"target\": \"users\", \"status\": 500}\n\n3× [shop] between 12:23:54 and 12:27:47\n   example: {\"ts\": \"2026-10-08T12:27:47.963+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"a7c8a8b67ddc4236b269f51b5a5c9387\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n2× [shop] between 12:24:47 and 12:27:26\n   example: {\"ts\": \"2026-10-08T12:27:26.389+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"1c433596e91243698903a47d1ac2d77f\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f\n\n2× [shop] between 12:24:23 and 12:25:31\n   example: {\"ts\": \"2026-10-08T12:25:31.129+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d750701e8f5045cba13b8ee44db5abad\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [shop] between 12:24:45 and 12:24:45\n   example: {\"ts\": \"2026-10-08T12:24:45.481+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"2cf4d136fa704cacacf82c6569d91460\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading fr\n\n1× [shop] between 12:21:23 and 12:21:23\n   example: {\"ts\": \"2026-10-08T12:21:23.313+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"reservation release failed\", \"request_id\": \"f4c1d87c69af4a5197e67a5262fe766a\", \"order_id\": \"c47ae8fd-1264-4b71-94dd-7e289aea31d3\"}"
+  },
+  {
+   "at": 1791462539000,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "postgres",
+    "minutes": 60
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462539001,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "redis",
+    "minutes": 60
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462539001,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462539001,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "7235f5d"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462539001,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 15
+   },
+   "round": 2
+  },
+  {
+   "at": 1791462539074,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "32 lines in 21 patterns for {service=\"postgres\"}, last 60 min (most frequent first):\n\n12× [postgres] between 11:33:32 and 12:28:33\n   example: 2026-10-08 12:28:33.700 UTC [27] LOG:  checkpoint starting: time\n\n1× [postgres] between 12:26:22 and 12:26:22\n   example: 2026-10-08 12:26:22.601 UTC [27] LOG:  checkpoint complete: wrote 1690 buffers (10.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=168.644 s, sync=0.007 s, total=168.654 s; sync files=47, longest=0.002 s, average=0.001 s; distance=11234 kB, estimate=12036 kB; lsn=0/413D1890, redo lsn=0/40B933A0\n\n1× [postgres] between 12:21:00 and 12:21:00\n   example: 2026-10-08 12:21:00.860 UTC [27] LOG:  checkpoint complete: wrote 1473 buffers (9.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=147.084 s, sync=0.006 s, total=147.094 s; sync files=35, longest=0.002 s, average=0.001 s; distance=11037 kB, estimate=12125 kB; lsn=0/407878A0, redo lsn=0/4009A998\n\n1× [postgres] between 12:16:12 and 12:16:12\n   example: 2026-10-08 12:16:12.724 UTC [27] LOG:  checkpoint complete: wrote 1592 buffers (9.7%); 0 WAL file(s) added, 0 removed, 1 recycled; write=158.989 s, sync=0.003 s, total=158.996 s; sync files=16, longest=0.001 s, average=0.001 s; distance=11749 kB, estimate=12245 kB; lsn=0/3FE8AD80, redo lsn=0/3F5D31E8\n\n1× [postgres] between 12:11:42 and 12:11:42\n   example: 2026-10-08 12:11:42.675 UTC [27] LOG:  checkpoint complete: wrote 1893 buffers (11.6%); 0 WAL file(s) added, 0 removed, 1 recycled; write=189.060 s, sync=0.004 s, total=189.065 s; sync files=23, longest=0.001 s, average=0.001 s; distance=12301 kB, estimate=12301 kB; lsn=0/3F37D8D0, redo lsn=0/3EA59B00\n\n1× [postgres] between 12:06:02 and 12:06:02\n   example: 2026-10-08 12:06:02.510 UTC [27] LOG:  checkpoint complete: wrote 1494 buffers (9.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=149.476 s, sync=0.007 s, total=149.485 s; sync files=47, longest=0.002 s, average=0.001 s; distance=10279 kB, estimate=12099 kB; lsn=0/3E613D18, redo lsn=0/3DE56700\n\n1× [postgres] between 12:01:34 and 12:01:34\n   example: 2026-10-08 12:01:34.926 UTC [27] LOG:  checkpoint complete: wrote 1827 buffers (11.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=182.691 s, sync=0.007 s, total=182.702 s; sync files=51, longest=0.002 s, average=0.001 s; distance=11909 kB, estimate=12301 kB; lsn=0/3DBDC4A0, redo lsn=0/3D44C920\n\n1× [postgres] between 11:56:28 and 11:56:28\n   example: 2026-10-08 11:56:28.206 UTC [27] LOG:  checkpoint complete: wrote 1758 buffers (10.7%); 0 WAL file(s) added, 0 removed, 1 recycled; write=175.473 s, sync=0.007 s, total=175.482 s; sync files=43, longest=0.002 s, average=0.001 s; distance=11979 kB, estimate=12344 kB; lsn=0/3D236040, redo lsn=0/3C8AB2A8\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t);\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t\"langchain_metadata\" JSON\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t            ,\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t            \"embedding\" vector(1536) NOT NULL\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t            \"content\" TEXT NOT NULL,\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: \t            \"langchain_id\" UUID PRIMARY KEY,\n\n1× [postgres] between 11:56:07 and 11:56:07\n   example: 2026-10-08 11:56:07.119 UTC [32759] STATEMENT:  CREATE TABLE \"public\".\"knowledge\"(\n\n… and 6 more patterns (6 lines): filter more"
+  },
+  {
+   "at": 1791462539076,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "60 lines in 5 patterns for {service=\"redis\"}, last 60 min (most frequent first):\n\n12× [redis] between 11:32:28 and 12:27:39\n   example: 1:M 08 Oct 2026 12:27:39.125 * Background saving terminated with success\n\n12× [redis] between 11:32:28 and 12:27:39\n   example: 11788:C 08 Oct 2026 12:27:39.031 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB\n\n12× [redis] between 11:32:28 and 12:27:39\n   example: 11788:C 08 Oct 2026 12:27:39.031 * DB saved on disk\n\n12× [redis] between 11:32:28 and 12:27:39\n   example: 1:M 08 Oct 2026 12:27:39.023 * Background saving started by pid 11788\n\n12× [redis] between 11:32:28 and 12:27:39\n   example: 1:M 08 Oct 2026 12:27:39.022 * 100 changes in 300 seconds. Saving..."
+  },
+  {
+   "at": 1791462539076,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 7 patterns for {service=\"payments\"}, last 30 min (most frequent first):\n\n712× [payments] between 12:24:07 and 12:28:58\n   example: {\"ts\": \"2026-10-08T12:28:58.634+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"0abc256af48e4613b2a5ec8747e63c8d\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 188.1}\n\n141× [payments] between 12:24:09 and 12:28:58\n   example: {\"ts\": \"2026-10-08T12:28:58.493+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b29f80b743004003a778d47a4fc13d6a\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 164.6}\n\n141× [payments] between 12:24:09 and 12:28:58\n   example: {\"ts\": \"2026-10-08T12:28:58.493+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"b29f80b743004003a778d47a4fc13d6a\", \"order_id\": \"ef1a402d-f4c6-459e-bfab-630707aeb4eb\", \"reason\": \"card_declined\"}\n\n3× [payments] between 12:24:36 and 12:25:30\n   example: {\"ts\": \"2026-10-08T12:25:30.309+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"805c654da1354dbd825a4fcd5022e356\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.0}\n\n1× [payments] between 12:25:30 and 12:25:30\n   example: {\"ts\": \"2026-10-08T12:25:30.309+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"805c654da1354dbd825a4fcd5022e356\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi\n\n1× [payments] between 12:25:13 and 12:25:13\n   example: {\"ts\": \"2026-10-08T12:25:13.798+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"20d92783a0124376a7afb753bfb270b9\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n1× [payments] between 12:24:36 and 12:24:36\n   example: {\"ts\": \"2026-10-08T12:24:36.379+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"8f151c839cca480799e6edaa05541e08\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791462539076,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 7235f5d4edf8d0bb9146522f2fa119b0bdc07990\nAuthor: Lucía Fernández <lucia.fernandez@shop.example>\nDate:   2026-10-08 12:24:18 +0000\n\n    config(payments): enable the provider's strict anti-fraud check\n---\n config/payments.env | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/config/payments.env b/config/payments.env\nindex 078ce79..ff8a2f4 100644\n--- a/config/payments.env\n+++ b/config/payments.env\n@@ -3,3 +3,4 @@ DB_POOL_SIZE=10\n PROVIDER_URL=https://api.payprovider.example/v2\n PROVIDER_TIMEOUT_SECONDS=3\n RATE_LIMIT_RPS=50\n+FRAUD_CHECK_LEVEL=strict\n"
+  },
+  {
+   "at": 1791462539077,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 15 min:\n- service=inventory: current 0 | min 0 | max 0.05455 | avg 0.01642\n- service=payments: current 0 | min 0 | max 0.05455 | avg 0.01349\n- service=shop: current 0.03636 | min 0.01818 | max 5.709 | avg 0.9367\n- service=users: current 0.03636 | min 0 | max 0.03636 | avg 0.005865"
+  },
+  {
+   "at": 1791462555595,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(http_requests_total{service=\"payments\",path=\"/charges\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462555597,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(orders_total[1m]))",
+    "minutes": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462555597,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "contains": "declined",
+    "minutes": 60,
+    "limit": 5
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462555598,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "FRAUD_CHECK_LEVEL strict card declined payments",
+    "limit": 3
+   },
+   "round": 3
+  },
+  {
+   "at": 1791462557324,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "no data for that query in the requested window"
+  },
+  {
+   "at": 1791462557326,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 60 min:\n- status=confirmed: current 2.236 | min 0 | max 5.309 | avg 2.653\n- status=failed: current 1.818 | min 0 | max 3.818 | avg 0.4748\n- status=rejected: current 0.2364 | min 0 | max 0.3273 | avg 0.1355"
+  },
+  {
+   "at": 1791462557326,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "664 lines in 1 patterns for {service=\"payments\"} |= \"declined\", last 60 min (most frequent first):\n\n664× [payments] between 11:29:22 and 12:29:15\n   example: {\"ts\": \"2026-10-08T12:29:15.213+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"614bd093373e49a9adb66b3e64bfa6f9\", \"order_id\": \"6a87df00-9763-4eb9-bf2f-9f98c66edf3e\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791462557326,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[docs/services/payments.md#Service-specific logs] (doc)\npayments\n\n## Service-specific logs\n\n| `msg` | Level | Fields |\n|---|---|---|\n| `payment declined` | warning | `order_id`, `reason` |\n\n---\n\n[config/payments.env] (config)\nConfiguration of the payments service: environment variables (config/payments.env).\nDATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v2\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\nFRAUD_CHECK_LEVEL=strict\n\n\n---\n\n[runbooks/payment-declines-and-429.md] (runbook)\n# Failed orders rising in payments (declines or 429)\n\n**Symptom**: `orders_total{status=\"failed\"}` with `reason=\"payment_declined\"`\nrises, or `payments` responds 429 and orders fail with `payments_unavailable`.\n\n1. Tell the cases apart with the payments metrics: 402 (declines from the\n   provider) or 429 (our own rate limit).\n2. **402, declines**: compare the rate with the usual one (~3%). If it jumped\n   suddenly, review the recent changes to `config/payments.env` (provider\n   endpoint, anti-fraud checks) and to `services/payments`.\n3. **429, rate limit**: compare `RATE_LIMIT_RPS` with the real charge traffic.\n   A limit meant for several replicas running on a single one cuts traffic off.\n4. Mitigate: **revert the config change** and confirm that the rate returns to\n   normal. If there were no internal changes, follow the external provider runbook.\n"
+  },
+  {
+   "at": 1791462567796,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462567798,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status, reason) (rate(orders_total[1m]))",
+    "minutes": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462567798,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "contains": "payment_declined",
+    "minutes": 60,
+    "limit": 5
+   },
+   "round": 4
+  },
+  {
+   "at": 1791462567875,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 60 min:\n- status=201: current 2.455 | min 0 | max 5.6 | avg 2.776\n- status=402: current 1.964 | min 0 | max 1.982 | avg 0.1893\n- status=500: current 0.01818 | min 0 | max 0.05455 | avg 0.01127"
+  },
+  {
+   "at": 1791462567876,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "5 series, last 60 min:\n- reason=inventory_unavailable, status=failed: current 0.01818 | min 0 | max 0.05454 | avg 0.01067\n- reason=payment_declined, status=failed: current 1.855 | min 0 | max 1.964 | avg 0.1773\n- reason=payments_unavailable, status=failed: current 0.01818 | min 0 | max 3.382 | avg 0.2888\n- reason=user_not_found, status=rejected: current 0.2182 | min 0 | max 0.2909 | avg 0.1363\n- status=confirmed: current 2.4 | min 0 | max 5.709 | avg 2.647"
+  },
+  {
+   "at": 1791462567876,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "678 lines in 1 patterns for {service=\"shop\"} |= \"payment_declined\", last 60 min (most frequent first):\n\n678× [shop] between 11:29:29 and 12:29:26\n   example: {\"ts\": \"2026-10-08T12:29:26.706+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"bfa2f4ce81b94f1ebdac7e320975e93b\", \"order_id\": \"0bbc88d3-e7a4-496f-8c39-8ce874283ac7\", \"reason\": \"payment_declined\"}"
+  },
+  {
+   "at": 1791462587582,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "Commit 7235f5d added FRAUD_CHECK_LEVEL=strict to config/payments.env. The provider's strict anti-fraud check now declines a large share of legitimate charges (HTTP 402 card_declined), so orders fail with reason payment_declined.",
+    "culprit_commit": "7235f5d4edf8d0bb9146522f2fa119b0bdc07990",
+    "evidence": [
+     "Commit 7235f5d (12:24:18 UTC, config/payments.env) adds FRAUD_CHECK_LEVEL=strict. Declines began right after it was deployed.",
+     "payments http_requests_total status=402 is now about 1.96/s, against an hourly average of 0.19/s. Status 201 fell from a peak of 5.6/s to about 2.4/s.",
+     "orders_total{status=failed, reason=payment_declined} is now about 1.86/s, against an hourly average of 0.18/s.",
+     "payments logs show 141 'payment declined' (card_declined) warnings between 12:24:09 and 12:28:58, in a window where the only config change was this commit.",
+     "The runbook payment-declines-and-429 says a sudden jump in 402s should be traced to recent anti-fraud changes in config/payments.env and mitigated by reverting the change.",
+     "The shop 502/500 errors, Redis and Postgres connection resets, and users 500s were already present in the hour before. They are stable background noise and do not explain the incident."
+    ],
+    "confidence": "high",
+    "plan": [
+     "Revert commit 7235f5d (remove FRAUD_CHECK_LEVEL=strict from config/payments.env) so the merge auto-deploys.",
+     "Check that payments 402s return to about 3% of charges and that orders_total{reason=payment_declined} falls back to baseline.",
+     "Check that 201 charges and confirmed orders recover to about 5/s.",
+     "Review the anti-fraud level with the payments owner, and trial any stricter setting on a small share of traffic before enabling it fully."
+    ],
+    "action": {
+     "kind": "revert_config",
+     "target": "7235f5d4edf8d0bb9146522f2fa119b0bdc07990",
+     "reason": "Reverting the strict anti-fraud setting should restore the normal decline rate of about 3%, which resolves the payment_declined order failures.",
+     "evidence": [
+      "402 rate on payments rose from a 0.19/s average to about 1.96/s after the 12:24:18 config commit.",
+      "payment_declined order failures rose from 0.18/s to about 1.86/s.",
+      "The runbook recommends reverting the anti-fraud config change for a sudden jump in 402s."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 132363
+  },
+  {
+   "at": 1791462587589,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791462587616,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791462587638,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of the 7235f5d4edf8d0bb9146522f2fa119b0bdc07990 config committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791462647690,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0066,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2347,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0245,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791462647721,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791461555968,
+    182.1851306387389
+   ],
+   [
+    1791461570968,
+    170.1849124529537
+   ],
+   [
+    1791461585968,
+    153.8181818181818
+   ],
+   [
+    1791461600968,
+    147.2754050073638
+   ],
+   [
+    1791461615968,
+    163.63636363636363
+   ],
+   [
+    1791461630968,
+    174.54545454545456
+   ],
+   [
+    1791461645968,
+    196.36363636363635
+   ],
+   [
+    1791461660968,
+    234.54545454545453
+   ],
+   [
+    1791461675968,
+    262.90909090909093
+   ],
+   [
+    1791461690968,
+    270.5503736431572
+   ],
+   [
+    1791461705968,
+    234.54545454545453
+   ],
+   [
+    1791461720968,
+    184.36363636363637
+   ],
+   [
+    1791461735968,
+    159.26983145760985
+   ],
+   [
+    1791461750968,
+    152.72449591825603
+   ],
+   [
+    1791461765968,
+    152.72727272727272
+   ],
+   [
+    1791461780968,
+    157.0909090909091
+   ],
+   [
+    1791461795968,
+    163.63338848384575
+   ],
+   [
+    1791461810968,
+    162.54545454545453
+   ],
+   [
+    1791461825968,
+    162.54545454545453
+   ],
+   [
+    1791461840968,
+    161.45454545454547
+   ],
+   [
+    1791461855968,
+    154.906274431374
+   ],
+   [
+    1791461870968,
+    109.0909090909091
+   ],
+   [
+    1791461885968,
+    65.45573555882835
+   ],
+   [
+    1791461900968,
+    22.908674387738404
+   ],
+   [
+    1791461915968,
+    0.0
+   ],
+   [
+    1791461930968,
+    0.0
+   ],
+   [
+    1791461945968,
+    15.272449591825602
+   ],
+   [
+    1791461960968,
+    54.54545454545455
+   ],
+   [
+    1791461975968,
+    112.36567937598866
+   ],
+   [
+    1791461990968,
+    163.63933889707087
+   ],
+   [
+    1791462005968,
+    188.73070419462175
+   ],
+   [
+    1791462020968,
+    181.08761658878927
+   ],
+   [
+    1791462035968,
+    178.90583807567137
+   ],
+   [
+    1791462050968,
+    173.45139179287648
+   ],
+   [
+    1791462065968,
+    164.72727272727272
+   ],
+   [
+    1791462080968,
+    116.72515045180997
+   ],
+   [
+    1791462095968,
+    69.81691241977418
+   ],
+   [
+    1791462110968,
+    26.18181818181818
+   ],
+   [
+    1791462125968,
+    0.0
+   ],
+   [
+    1791462140968,
+    0.0
+   ],
+   [
+    1791462155968,
+    0.0
+   ],
+   [
+    1791462170968,
+    46.90909090909091
+   ],
+   [
+    1791462185968,
+    135.2702678133125
+   ],
+   [
+    1791462200968,
+    197.45813560246552
+   ],
+   [
+    1791462215968,
+    232.35941164706097
+   ],
+   [
+    1791462230968,
+    215.99999999999997
+   ],
+   [
+    1791462245968,
+    169.09090909090907
+   ],
+   [
+    1791462260968,
+    169.0878347666406
+   ],
+   [
+    1791462275968,
+    173.45454545454544
+   ],
+   [
+    1791462290968,
+    172.36363636363635
+   ],
+   [
+    1791462305968,
+    158.1789422010509
+   ],
+   [
+    1791462320968,
+    152.72727272727272
+   ],
+   [
+    1791462335968,
+    156.00283641520755
+   ],
+   [
+    1791462350968,
+    154.91190748922708
+   ],
+   [
+    1791462365968,
+    160.36363636363635
+   ],
+   [
+    1791462380968,
+    157.0909090909091
+   ],
+   [
+    1791462395968,
+    157.09376534118806
+   ],
+   [
+    1791462410968,
+    174.5486281568756
+   ],
+   [
+    1791462425968,
+    171.27584137893416
+   ],
+   [
+    1791462440968,
+    168.0
+   ],
+   [
+    1791462455968,
+    170.1818181818182
+   ],
+   [
+    1791462470968,
+    154.91190748922708
+   ],
+   [
+    1791462485968,
+    137.45704467353954
+   ],
+   [
+    1791462500968,
+    106.9110347460863
+   ],
+   [
+    1791462515968,
+    92.72895870834016
+   ],
+   [
+    1791462530968,
+    86.18181818181817
+   ],
+   [
+    1791462545968,
+    117.81818181818181
+   ],
+   [
+    1791462560968,
+    145.09090909090907
+   ],
+   [
+    1791462575968,
+    154.9090909090909
+   ],
+   [
+    1791462590968,
+    161.45748104510994
+   ],
+   [
+    1791462605968,
+    152.72449591825603
+   ],
+   [
+    1791462620968,
+    156.0
+   ],
+   [
+    1791462635968,
+    149.45454545454544
+   ],
+   [
+    1791462650968,
+    163.63636363636363
+   ],
+   [
+    1791462665968,
+    177.82141493481703
+   ]
+  ],
+  "errors": [
+   [
+    1791461555968,
+    0.42643923240938175
+   ],
+   [
+    1791461570968,
+    0.6578947368421052
+   ],
+   [
+    1791461585968,
+    0.6896551724137931
+   ],
+   [
+    1791461600968,
+    0.4662004662004662
+   ],
+   [
+    1791461615968,
+    0.45558086560364464
+   ],
+   [
+    1791461630968,
+    0.6607929515418502
+   ],
+   [
+    1791461645968,
+    0.9633911368015415
+   ],
+   [
+    1791461660968,
+    0.9478672985781991
+   ],
+   [
+    1791461675968,
+    0.6775067750677508
+   ],
+   [
+    1791461690968,
+    0.4026845637583893
+   ],
+   [
+    1791461705968,
+    0.7800312012480499
+   ],
+   [
+    1791461720968,
+    0.7827788649706457
+   ],
+   [
+    1791461735968,
+    0.9280742459396751
+   ],
+   [
+    1791461750968,
+    0.6976744186046513
+   ],
+   [
+    1791461765968,
+    0.23094688221709006
+   ],
+   [
+    1791461780968,
+    0.22675736961451248
+   ],
+   [
+    1791461795968,
+    0.22123893805309736
+   ],
+   [
+    1791461810968,
+    0.228310502283105
+   ],
+   [
+    1791461825968,
+    0.4545454545454546
+   ],
+   [
+    1791461840968,
+    0.45351473922902497
+   ],
+   [
+    1791461855968,
+    1.5981735159817354
+   ],
+   [
+    1791461870968,
+    12.770562770562771
+   ],
+   [
+    1791461885968,
+    33.48729792147806
+   ],
+   [
+    1791461900968,
+    57.731958762886606
+   ],
+   [
+    1791461915968,
+    82.79883381924199
+   ],
+   [
+    1791461930968,
+    100.0
+   ],
+   [
+    1791461945968,
+    88.48484848484848
+   ],
+   [
+    1791461960968,
+    57.92349726775956
+   ],
+   [
+    1791461975968,
+    29.496402877697843
+   ],
+   [
+    1791461990968,
+    8.061002178649238
+   ],
+   [
+    1791462005968,
+    0.6276150627615062
+   ],
+   [
+    1791462020968,
+    0.635593220338983
+   ],
+   [
+    1791462035968,
+    0.6437768240343349
+   ],
+   [
+    1791462050968,
+    0.6410256410256412
+   ],
+   [
+    1791462065968,
+    1.9480519480519483
+   ],
+   [
+    1791462080968,
+    13.20754716981132
+   ],
+   [
+    1791462095968,
+    23.18548387096774
+   ],
+   [
+    1791462110968,
+    32.33532934131737
+   ],
+   [
+    1791462125968,
+    35.496957403651116
+   ],
+   [
+    1791462140968,
+    34.166666666666664
+   ],
+   [
+    1791462155968,
+    34.86725663716814
+   ],
+   [
+    1791462170968,
+    29.166666666666668
+   ],
+   [
+    1791462185968,
+    20.423412204234122
+   ],
+   [
+    1791462200968,
+    14.114832535885169
+   ],
+   [
+    1791462215968,
+    1.9345238095238095
+   ],
+   [
+    1791462230968,
+    0.1773049645390071
+   ],
+   [
+    1791462245968,
+    0.44742729306487694
+   ],
+   [
+    1791462260968,
+    0.443458980044346
+   ],
+   [
+    1791462275968,
+    0.44943820224719105
+   ],
+   [
+    1791462290968,
+    1.0940919037199126
+   ],
+   [
+    1791462305968,
+    1.1389521640091116
+   ],
+   [
+    1791462320968,
+    1.6091954022988506
+   ],
+   [
+    1791462335968,
+    1.834862385321101
+   ],
+   [
+    1791462350968,
+    1.3793103448275863
+   ],
+   [
+    1791462365968,
+    1.1574074074074074
+   ],
+   [
+    1791462380968,
+    0.9237875288683602
+   ],
+   [
+    1791462395968,
+    0.4662004662004662
+   ],
+   [
+    1791462410968,
+    0.2232142857142857
+   ],
+   [
+    1791462425968,
+    0.0
+   ],
+   [
+    1791462440968,
+    0.0
+   ],
+   [
+    1791462455968,
+    0.21691973969631237
+   ],
+   [
+    1791462470968,
+    0.43010752688172044
+   ],
+   [
+    1791462485968,
+    0.4273504273504274
+   ],
+   [
+    1791462500968,
+    0.6696428571428572
+   ],
+   [
+    1791462515968,
+    0.4454342984409799
+   ],
+   [
+    1791462530968,
+    0.45871559633027514
+   ],
+   [
+    1791462545968,
+    0.3577817531305904
+   ],
+   [
+    1791462560968,
+    0.7342143906020558
+   ],
+   [
+    1791462575968,
+    0.9043927648578811
+   ],
+   [
+    1791462590968,
+    0.8894536213468868
+   ],
+   [
+    1791462605968,
+    0.9202453987730062
+   ],
+   [
+    1791462620968,
+    0.36496350364963503
+   ],
+   [
+    1791462635968,
+    0.45045045045045046
+   ],
+   [
+    1791462650968,
+    0.881057268722467
+   ],
+   [
+    1791462665968,
+    1.5184381778741862
+   ]
+  ],
+  "latency": [
+   [
+    1791461555968,
+    234.81707317073167
+   ],
+   [
+    1791461570968,
+    235.12605042016807
+   ],
+   [
+    1791461585968,
+    234.12162162162159
+   ],
+   [
+    1791461600968,
+    232.54672897196266
+   ],
+   [
+    1791461615968,
+    231.3125
+   ],
+   [
+    1791461630968,
+    233.16793893129764
+   ],
+   [
+    1791461645968,
+    233.61301369863008
+   ],
+   [
+    1791461660968,
+    231.22832369942194
+   ],
+   [
+    1791461675968,
+    231.61538461538464
+   ],
+   [
+    1791461690968,
+    232.98780487804865
+   ],
+   [
+    1791461705968,
+    232.16101694915253
+   ],
+   [
+    1791461720968,
+    235.37769784172653
+   ],
+   [
+    1791461735968,
+    236.25
+   ],
+   [
+    1791461750968,
+    234.50413223140495
+   ],
+   [
+    1791461765968,
+    231.98770491803285
+   ],
+   [
+    1791461780968,
+    229.70238095238096
+   ],
+   [
+    1791461795968,
+    231.57480314960628
+   ],
+   [
+    1791461810968,
+    231.97580645161287
+   ],
+   [
+    1791461825968,
+    232.78688524590163
+   ],
+   [
+    1791461840968,
+    235.06198347107434
+   ],
+   [
+    1791461855968,
+    233.31896551724128
+   ],
+   [
+    1791461870968,
+    224.5180722891565
+   ],
+   [
+    1791461885968,
+    206.52777777777766
+   ],
+   [
+    1791461900968,
+    152.10526315789508
+   ],
+   [
+    1791461915968,
+    9.320833333333333
+   ],
+   [
+    1791461930968,
+    8.572222222222218
+   ],
+   [
+    1791461945968,
+    105.76923076923038
+   ],
+   [
+    1791461960968,
+    200.10869565217388
+   ],
+   [
+    1791461975968,
+    223.7941176470588
+   ],
+   [
+    1791461990968,
+    232.05999999999997
+   ],
+   [
+    1791462005968,
+    237.4295774647887
+   ],
+   [
+    1791462020968,
+    237.29927007299267
+   ],
+   [
+    1791462035968,
+    238.6397058823529
+   ],
+   [
+    1791462050968,
+    241.3953488372093
+   ],
+   [
+    1791462065968,
+    239.7033898305084
+   ],
+   [
+    1791462080968,
+    230.85294117647067
+   ],
+   [
+    1791462095968,
+    219.37500000000006
+   ],
+   [
+    1791462110968,
+    129.4999999999995
+   ],
+   [
+    1791462125968,
+    34.73958333333331
+   ],
+   [
+    1791462140968,
+    40.54054054054054
+   ],
+   [
+    1791462155968,
+    42.1590909090909
+   ],
+   [
+    1791462170968,
+    128.88888888888914
+   ],
+   [
+    1791462185968,
+    216.9827586206896
+   ],
+   [
+    1791462200968,
+    224.453125
+   ],
+   [
+    1791462215968,
+    236.92307692307685
+   ],
+   [
+    1791462230968,
+    234.79999999999995
+   ],
+   [
+    1791462245968,
+    231.43145161290315
+   ],
+   [
+    1791462260968,
+    232.67857142857133
+   ],
+   [
+    1791462275968,
+    233.03571428571422
+   ],
+   [
+    1791462290968,
+    237.88934426229505
+   ],
+   [
+    1791462305968,
+    322.0238095238095
+   ],
+   [
+    1791462320968,
+    398.89705882352956
+   ],
+   [
+    1791462335968,
+    413.7500000000002
+   ],
+   [
+    1791462350968,
+    420.3125
+   ],
+   [
+    1791462365968,
+    403.9473684210526
+   ],
+   [
+    1791462380968,
+    394.2567567567567
+   ],
+   [
+    1791462395968,
+    403.4375
+   ],
+   [
+    1791462410968,
+    393.023255813953
+   ],
+   [
+    1791462425968,
+    390.1785714285715
+   ],
+   [
+    1791462440968,
+    354.77941176470597
+   ],
+   [
+    1791462455968,
+    319.4999999999995
+   ],
+   [
+    1791462470968,
+    244.81707317073176
+   ],
+   [
+    1791462485968,
+    232.85714285714292
+   ],
+   [
+    1791462500968,
+    232.9921259842519
+   ],
+   [
+    1791462515968,
+    233.1976744186047
+   ],
+   [
+    1791462530968,
+    235.84000000000006
+   ],
+   [
+    1791462545968,
+    237.61834319526625
+   ],
+   [
+    1791462560968,
+    239.40954773869353
+   ],
+   [
+    1791462575968,
+    240.2142857142857
+   ],
+   [
+    1791462590968,
+    243.76865671641792
+   ],
+   [
+    1791462605968,
+    240.9433962264151
+   ],
+   [
+    1791462620968,
+    240.93525179856118
+   ],
+   [
+    1791462635968,
+    240.68965517241372
+   ],
+   [
+    1791462650968,
+    233.01652892561984
+   ],
+   [
+    1791462665968,
+    235.9883720930232
+   ]
+  ]
+ }
+}

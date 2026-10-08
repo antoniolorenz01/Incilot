@@ -1,0 +1,1118 @@
+{
+ "scenario": "deploy-stuck-migration",
+ "variant": "products-add-column",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:18:59+00:00",
+ "injectedAt": 1791465336015,
+ "truth": {
+  "scenario": "deploy-stuck-migration",
+  "variant": "products-add-column",
+  "service": "inventory",
+  "root_cause": "Migration 0007 hung inside a transaction holding an ACCESS EXCLUSIVE lock on products: every query on products waits and inventory times out.",
+  "action": "terminate_session",
+  "culprit_sha": "64c0bc999628f428ad01ca37334b5718d9c28afa",
+  "decoy_shas": [
+   "6f8b327e81a9020045c3a0be1f3c53f1e8eaffd1",
+   "cc1fb4b1d68c1f765cb429039cc4d2bcc915b822"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791465396125,
+   "type": "triage"
+  },
+  {
+   "at": 1791465422417,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "inventory",
+    "minutes": 20,
+    "limit": 15
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465422419,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 180,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465422419,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "inventory",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,150) q from pg_stat_activity where datname is not null order by xact_start"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465422420,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le,service) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 30,
+    "step_seconds": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791465422489,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 15 patterns for {service=\"inventory\"}, last 20 min (most frequent first):\n\n482× [inventory] between 13:12:54 and 13:15:34\n   example: {\"ts\": \"2026-10-08T13:15:34.970+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"e8840a0448ad433384820d4ffef65919\", \"method\": \"GET\", \"path\": \"/products/8\", \"status\": 200, \"duration_ms\": 1.0}\n\n479× [inventory] between 13:12:54 and 13:15:34\n   example: {\"ts\": \"2026-10-08T13:15:34.975+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"e8840a0448ad433384820d4ffef65919\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 201, \"duration_ms\": 1.9}\n\n10× [inventory] between 13:13:51 and 13:15:19\n   example: {\"ts\": \"2026-10-08T13:15:19.334+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"3e279eaae5804ebd9f1c59385594a503\", \"method\": \"POST\", \"path\": \"/reservations/10657b25-4a60-4e00-a3c0-fb949ebd037a/release\", \"status\": 200, \"duration_ms\": 2.7}\n\n10× [inventory] between 13:13:51 and 13:15:19\n   example: {\"ts\": \"2026-10-08T13:15:19.334+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"reservation released\", \"request_id\": \"3e279eaae5804ebd9f1c59385594a503\", \"order_id\": \"10657b25-4a60-4e00-a3c0-fb949ebd037a\"}\n\n5× [inventory] between 13:13:20 and 13:15:20\n   example: {\"ts\": \"2026-10-08T13:15:20.872+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"610ccf1e269645dfaad468b64996ec4c\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 200, \"duration_ms\": 3.1}\n\n3× [inventory] between 13:13:12 and 13:15:06\n   example: {\"ts\": \"2026-10-08T13:15:06.211+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b2174d2d4e4c4528a4eb7074e4927eb3\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 1.3}\n\n2× [inventory] between 13:15:20 and 13:15:42\n   example: {\"ts\": \"2026-10-08T13:15:42.169+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"689c653f717a4713a7a4ebcbad3ae69f\", \"method\": \"GET\", \"path\": \"/products/8\", \"status\": 500, \"duration_ms\": 0.5}\n\n2× [inventory] between 13:13:12 and 13:13:13\n   example: {\"ts\": \"2026-10-08T13:13:13.986+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"9431cf646a35457e8281c123940a6b52\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n1× [inventory] between 13:15:42 and 13:15:42\n   example: {\"ts\": \"2026-10-08T13:15:42.169+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"689c653f717a4713a7a4ebcbad3ae69f\", \"method\": \"GET\", \"path\": \"/products/8\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [inventory] between 13:15:20 and 13:15:20\n   example: {\"ts\": \"2026-10-08T13:15:20.885+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"45d58b45fd2545c0ae619d5ea12e40dc\", \"method\": \"GET\", \"path\": \"/products/4\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n1× [inventory] between 13:15:06 and 13:15:06\n   example: {\"ts\": \"2026-10-08T13:15:06.211+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"b2174d2d4e4c4528a4eb7074e4927eb3\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [inventory] between 13:14:29 and 13:14:29\n   example: {\"ts\": \"2026-10-08T13:14:29.662+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"KB-001\"]}\n\n1× [inventory] between 13:13:59 and 13:13:59\n   example: {\"ts\": \"2026-10-08T13:13:59.656+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"DK-001\"]}\n\n1× [inventory] between 13:13:29 and 13:13:29\n   example: {\"ts\": \"2026-10-08T13:13:29.652+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"HP-001\"]}\n\n1× [inventory] between 13:12:59 and 13:12:59\n   example: {\"ts\": \"2026-10-08T13:12:59.647+00:00\", \"level\": \"info\", \"service\": \"inventory\", \"logger\": \"incilot_sim.services.inventory\", \"msg\": \"restocked\", \"skus\": [\"SS-001\"]}"
+  },
+  {
+   "at": 1791465422489,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "cc1fb4b 2026-10-08 13:13:52 +0000 Lucía Fernández: docs: payment reconciliation process\n\ndocs/payments-reconciliation.md\n6f8b327 2026-10-08 13:13:19 +0000 Ana Ruiz: shop: comment on the order of calls when creating an order\n\nservices/shop/handlers.py\n64c0bc9 2026-10-08 13:12:31 +0000 Diego Martín: inventory: discontinued column on products\n\nmigrations/inventory/0007_products_discontinued.sql"
+  },
+  {
+   "at": 1791465422490,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xact_age | q\n40153 | active | Timeout | PgSleep | 0:01:27.454432 | BEGIN; ALTER TABLE products ADD COLUMN IF NOT EXISTS discontinued boolean NOT NULL DEFAULT false; SELECT pg_sleep(86400);\n35191 | active | Lock | relation | 0:01:27.330178 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n36786 | active | Lock | relation | 0:01:27.241493 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40154 | active | Lock | relation | 0:01:27.130431 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40155 | active | Lock | relation | 0:01:26.533160 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40156 | active | Lock | relation | 0:01:26.230753 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40165 | active | Lock | relation | 0:01:24.739925 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40166 | active | Lock | relation | 0:01:24.378983 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40167 | active | Lock | relation | 0:01:23.853198 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40168 | active | Lock | relation | 0:01:23.397729 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40169 | active | Lock | relation | 0:01:22.994103 | SELECT id, sku, name, price_cents, stock FROM products WHERE id = $1\n40294 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,150) q from pg_stat_activity where datname is \n34737 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39812 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39647 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blob)\n    VALUES ($1, $2, $3, $4,\n39623 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n39223 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | ROLLBACK;\n39087 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791465422490,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- service=inventory: current 0.00475 | min 0.00475 | max 0.9596 | avg 0.1134\n- service=payments: current 0.2441 | min 0.2383 | max 10 | avg 0.4065\n- service=shop: current 2.425 | min 0.2278 | max 2.425 | avg 0.5744\n- service=users: current 0.00475 | min 0.00475 | max 0.9731 | avg 0.1072"
+  },
+  {
+   "at": 1791465430085,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "64c0bc9"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465430087,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "inventory",
+    "sql": "select l.pid, l.locktype, l.relation::regclass rel, l.mode, l.granted from pg_locks l where l.relation::regclass::text = 'products' order by granted desc"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465430088,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "migrations/inventory/0007_products_discontinued.sql"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791465430129,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 64c0bc999628f428ad01ca37334b5718d9c28afa\nAuthor: Diego Martín <diego.martin@shop.example>\nDate:   2026-10-08 13:12:31 +0000\n\n    inventory: discontinued column on products\n---\n migrations/inventory/0007_products_discontinued.sql | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/migrations/inventory/0007_products_discontinued.sql b/migrations/inventory/0007_products_discontinued.sql\nnew file mode 100644\nindex 0000000..87091d4\n--- /dev/null\n+++ b/migrations/inventory/0007_products_discontinued.sql\n@@ -0,0 +1 @@\n+ALTER TABLE products ADD COLUMN discontinued boolean NOT NULL DEFAULT false;\n"
+  },
+  {
+   "at": 1791465430130,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | locktype | rel | mode | granted\n40153 | relation | products | AccessExclusiveLock | True\n40155 | relation | products | AccessShareLock | False\n40168 | relation | products | AccessShareLock | False\n40156 | relation | products | AccessShareLock | False\n40165 | relation | products | AccessShareLock | False\n40169 | relation | products | AccessShareLock | False\n40167 | relation | products | AccessShareLock | False\n40166 | relation | products | AccessShareLock | False\n36786 | relation | products | AccessShareLock | False\n35191 | relation | products | AccessShareLock | False\n40154 | relation | products | AccessShareLock | False"
+  },
+  {
+   "at": 1791465430131,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "ALTER TABLE products ADD COLUMN discontinued boolean NOT NULL DEFAULT false;\n"
+  },
+  {
+   "at": 1791465449123,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "inventory",
+    "root_cause": "The inventory database migration for commit 64c0bc9 (ALTER TABLE products ADD COLUMN discontinued) is held in an open transaction (session 40153) that is stuck in pg_sleep(86400) and holds an AccessExclusiveLock on products. Every read of products is blocked behind it, so inventory requests hang, shop times out calling inventory and returns 502s.",
+    "culprit_commit": "64c0bc9",
+    "evidence": [
+     "pg_stat_activity (inventory): pid 40153 has been active for about 1m27s with 'BEGIN; ALTER TABLE products ADD COLUMN IF NOT EXISTS discontinued boolean NOT NULL DEFAULT false; SELECT pg_sleep(86400);', and is not committing.",
+     "pg_locks: pid 40153 holds AccessExclusiveLock on products (granted). Ten other sessions are waiting for AccessShareLock on products (granted=False), each running SELECT ... FROM products WHERE id = $1.",
+     "Commit 64c0bc9 (13:12:31) adds migrations/inventory/0007_products_discontinued.sql, which runs the same ALTER TABLE products ADD COLUMN discontinued. Inventory errors (ConnectionDoesNotExist and connection reset) begin at about 13:13, right after the deploy. The migration file in the repo contains only the ALTER, so the sleeping transaction comes from how the migration was run, not from the SQL file itself.",
+     "Shop logs show 'upstream unavailable' with target inventory and ReadTimeout, and GET /products and POST /orders return 502 after about 2s. Shop 5xx rate is 0.286 against 0.0683 before (x4.19), and p95 latency for shop is 2.4s.",
+     "Users and payments show no 5xx errors and are not the origin. Shop is only the one complaining."
+    ],
+    "confidence": "high",
+    "plan": [
+     "Terminate backend session 40153 on the inventory database so the transaction rolls back, the AccessExclusiveLock is released and the queued reads proceed.",
+     "Check pg_stat_activity and pg_locks on inventory: there should be no sessions waiting on a Lock for products.",
+     "Check that the shop 5xx rate and p95 latency return to baseline and that the ReadTimeout errors for inventory stop.",
+     "Find out why the migration run holds the transaction open with pg_sleep(86400), since the committed file does not contain it. Fix the migration runner or process.",
+     "Re-run the migration safely: use a short lock_timeout and run it in a low-traffic window. Confirm the discontinued column exists afterwards."
+    ],
+    "action": {
+     "kind": "terminate_session",
+     "target": "40153",
+     "reason": "This session holds an AccessExclusiveLock on inventory.products while sleeping inside an open migration transaction. Terminating it rolls back the transaction and releases the lock, which unblocks all queued product queries.",
+     "evidence": [
+      "pid 40153 runs 'BEGIN; ALTER TABLE products ADD COLUMN ...; SELECT pg_sleep(86400);'",
+      "pg_locks shows 40153 holding AccessExclusiveLock on products, with 10 sessions waiting for AccessShareLock",
+      "Shop 502s are caused by ReadTimeout when calling inventory"
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 62957
+  },
+  {
+   "at": 1791465449130,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791465449154,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791465449211,
+   "type": "execution",
+   "status": "executed",
+   "detail": "session 40153 terminated",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791465509286,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0036,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2338,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0291,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791465509315,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791464436015,
+    116.73151750972761
+   ],
+   [
+    1791464451015,
+    118.9090909090909
+   ],
+   [
+    1791464466015,
+    124.36589756177386
+   ],
+   [
+    1791464481015,
+    124.36363636363636
+   ],
+   [
+    1791464496015,
+    121.09090909090908
+   ],
+   [
+    1791464511015,
+    124.36363636363636
+   ],
+   [
+    1791464526015,
+    141.82076037746143
+   ],
+   [
+    1791464541015,
+    154.91190748922708
+   ],
+   [
+    1791464556015,
+    169.09090909090907
+   ],
+   [
+    1791464571015,
+    174.54545454545456
+   ],
+   [
+    1791464586015,
+    164.72427774040474
+   ],
+   [
+    1791464601015,
+    164.72427774040474
+   ],
+   [
+    1791464616015,
+    157.0909090909091
+   ],
+   [
+    1791464631015,
+    149.45454545454544
+   ],
+   [
+    1791464646015,
+    159.27272727272725
+   ],
+   [
+    1791464661015,
+    159.27272727272725
+   ],
+   [
+    1791464676015,
+    171.27272727272728
+   ],
+   [
+    1791464691015,
+    190.9090909090909
+   ],
+   [
+    1791464706015,
+    225.8222876779578
+   ],
+   [
+    1791464721015,
+    285.8233786068838
+   ],
+   [
+    1791464736015,
+    278.1868761250205
+   ],
+   [
+    1791464751015,
+    237.81385792985583
+   ],
+   [
+    1791464766015,
+    204.0
+   ],
+   [
+    1791464781015,
+    158.1818181818182
+   ],
+   [
+    1791464796015,
+    167.30552171778697
+   ],
+   [
+    1791464811015,
+    163.63636363636363
+   ],
+   [
+    1791464826015,
+    175.63636363636363
+   ],
+   [
+    1791464841015,
+    182.1851306387389
+   ],
+   [
+    1791464856015,
+    182.17850584534827
+   ],
+   [
+    1791464871015,
+    185.4511736150252
+   ],
+   [
+    1791464886015,
+    179.99672733223034
+   ],
+   [
+    1791464901015,
+    173.45454545454544
+   ],
+   [
+    1791464916015,
+    172.36363636363635
+   ],
+   [
+    1791464931015,
+    169.09398352697323
+   ],
+   [
+    1791464946015,
+    168.00305460099275
+   ],
+   [
+    1791464961015,
+    168.00305460099275
+   ],
+   [
+    1791464976015,
+    162.5484099710904
+   ],
+   [
+    1791464991015,
+    159.275623193149
+   ],
+   [
+    1791465006015,
+    154.9090909090909
+   ],
+   [
+    1791465021015,
+    157.0909090909091
+   ],
+   [
+    1791465036015,
+    168.0
+   ],
+   [
+    1791465051015,
+    169.0878347666406
+   ],
+   [
+    1791465066015,
+    169.09090909090907
+   ],
+   [
+    1791465081015,
+    180.00327278677796
+   ],
+   [
+    1791465096015,
+    223.64042982599688
+   ],
+   [
+    1791465111015,
+    253.09090909090907
+   ],
+   [
+    1791465126015,
+    305.4600992745323
+   ],
+   [
+    1791465141015,
+    297.823596792669
+   ],
+   [
+    1791465156015,
+    267.27272727272725
+   ],
+   [
+    1791465171015,
+    234.54545454545453
+   ],
+   [
+    1791465186015,
+    187.63636363636363
+   ],
+   [
+    1791465201015,
+    183.27272727272725
+   ],
+   [
+    1791465216015,
+    169.09398352697323
+   ],
+   [
+    1791465231015,
+    181.0909090909091
+   ],
+   [
+    1791465246015,
+    177.8181818181818
+   ],
+   [
+    1791465261015,
+    174.54228104943547
+   ],
+   [
+    1791465276015,
+    180.0
+   ],
+   [
+    1791465291015,
+    159.27272727272725
+   ],
+   [
+    1791465306015,
+    166.9090909090909
+   ],
+   [
+    1791465321015,
+    174.55180188370483
+   ],
+   [
+    1791465336015,
+    179.99672733223034
+   ],
+   [
+    1791465351015,
+    135.2702678133125
+   ],
+   [
+    1791465366015,
+    81.81966944853544
+   ],
+   [
+    1791465381015,
+    34.90909090909091
+   ],
+   [
+    1791465396015,
+    0.0
+   ],
+   [
+    1791465411015,
+    0.0
+   ],
+   [
+    1791465426015,
+    0.0
+   ],
+   [
+    1791465441015,
+    0.0
+   ],
+   [
+    1791465456015,
+    14.181818181818182
+   ],
+   [
+    1791465471015,
+    57.81818181818182
+   ],
+   [
+    1791465486015,
+    110.17781171593761
+   ],
+   [
+    1791465501015,
+    157.0909090909091
+   ],
+   [
+    1791465516015,
+    230.18181818181816
+   ],
+   [
+    1791465531015,
+    276.01003672860827
+   ]
+  ],
+  "errors": [
+   [
+    1791464436015,
+    1.8575851393188854
+   ],
+   [
+    1791464451015,
+    1.257861635220126
+   ],
+   [
+    1791464466015,
+    0.628930817610063
+   ],
+   [
+    1791464481015,
+    0.6230529595015576
+   ],
+   [
+    1791464496015,
+    0.6211180124223602
+   ],
+   [
+    1791464511015,
+    1.1940298507462688
+   ],
+   [
+    1791464526015,
+    0.7936507936507936
+   ],
+   [
+    1791464541015,
+    0.7299270072992701
+   ],
+   [
+    1791464556015,
+    0.4464285714285715
+   ],
+   [
+    1791464571015,
+    0.22075055187637968
+   ],
+   [
+    1791464586015,
+    0.22123893805309736
+   ],
+   [
+    1791464601015,
+    0.22675736961451243
+   ],
+   [
+    1791464616015,
+    0.46403712296983757
+   ],
+   [
+    1791464631015,
+    0.6928406466512702
+   ],
+   [
+    1791464646015,
+    0.6944444444444444
+   ],
+   [
+    1791464661015,
+    0.9111617312072893
+   ],
+   [
+    1791464676015,
+    0.4454342984409799
+   ],
+   [
+    1791464691015,
+    0.8
+   ],
+   [
+    1791464706015,
+    0.8077544426494345
+   ],
+   [
+    1791464721015,
+    1.0610079575596816
+   ],
+   [
+    1791464736015,
+    1.196808510638298
+   ],
+   [
+    1791464751015,
+    1.2474107627934523
+   ],
+   [
+    1791464766015,
+    1.5186327562732833
+   ],
+   [
+    1791464781015,
+    1.7402014059457052
+   ],
+   [
+    1791464796015,
+    0.4550596552621124
+   ],
+   [
+    1791464811015,
+    0.8848112199961436
+   ],
+   [
+    1791464826015,
+    0.8492569002123143
+   ],
+   [
+    1791464841015,
+    0.40983606557377045
+   ],
+   [
+    1791464856015,
+    0.823045267489712
+   ],
+   [
+    1791464871015,
+    0.819672131147541
+   ],
+   [
+    1791464886015,
+    1.2474012474012475
+   ],
+   [
+    1791464901015,
+    1.2958963282937366
+   ],
+   [
+    1791464916015,
+    1.0660980810234542
+   ],
+   [
+    1791464931015,
+    0.8771929824561403
+   ],
+   [
+    1791464946015,
+    0.8771929824561405
+   ],
+   [
+    1791464961015,
+    0.44150110375275936
+   ],
+   [
+    1791464976015,
+    0.4514672686230249
+   ],
+   [
+    1791464991015,
+    0.45351473922902485
+   ],
+   [
+    1791465006015,
+    1.1363636363636365
+   ],
+   [
+    1791465021015,
+    1.11358574610245
+   ],
+   [
+    1791465036015,
+    1.0822510822510825
+   ],
+   [
+    1791465051015,
+    0.21978021978021978
+   ],
+   [
+    1791465066015,
+    0.4273504273504274
+   ],
+   [
+    1791465081015,
+    0.6
+   ],
+   [
+    1791465096015,
+    0.6462035541195477
+   ],
+   [
+    1791465111015,
+    1.0989010989010988
+   ],
+   [
+    1791465126015,
+    1.0650887573964496
+   ],
+   [
+    1791465141015,
+    0.8610086100861009
+   ],
+   [
+    1791465156015,
+    0.7102272727272728
+   ],
+   [
+    1791465171015,
+    0.34071550255536626
+   ],
+   [
+    1791465186015,
+    0.21929824561403508
+   ],
+   [
+    1791465201015,
+    0.8771929824561403
+   ],
+   [
+    1791465216015,
+    0.8714596949891068
+   ],
+   [
+    1791465231015,
+    0.8421052631578947
+   ],
+   [
+    1791465246015,
+    0.847457627118644
+   ],
+   [
+    1791465261015,
+    0.43103448275862066
+   ],
+   [
+    1791465276015,
+    0.423728813559322
+   ],
+   [
+    1791465291015,
+    0.4434589800443459
+   ],
+   [
+    1791465306015,
+    0.43383947939262474
+   ],
+   [
+    1791465321015,
+    0.211864406779661
+   ],
+   [
+    1791465336015,
+    0.43103448275862066
+   ],
+   [
+    1791465351015,
+    6.249999999999999
+   ],
+   [
+    1791465366015,
+    17.217619028069926
+   ],
+   [
+    1791465381015,
+    38.530274767022235
+   ],
+   [
+    1791465396015,
+    79.2305214698625
+   ],
+   [
+    1791465411015,
+    100.0
+   ],
+   [
+    1791465426015,
+    100.0
+   ],
+   [
+    1791465441015,
+    100.0
+   ],
+   [
+    1791465456015,
+    70.07874015748031
+   ],
+   [
+    1791465471015,
+    28.054298642533936
+   ],
+   [
+    1791465486015,
+    11.585365853658535
+   ],
+   [
+    1791465501015,
+    2.7586206896551726
+   ],
+   [
+    1791465516015,
+    0.3361344537815126
+   ],
+   [
+    1791465531015,
+    0.5555555555555556
+   ]
+  ],
+  "latency": [
+   [
+    1791464436015,
+    954.6874999999998
+   ],
+   [
+    1791464451015,
+    955.4054054054055
+   ],
+   [
+    1791464466015,
+    949.5762711864405
+   ],
+   [
+    1791464481015,
+    944.2307692307692
+   ],
+   [
+    1791464496015,
+    950.8849557522124
+   ],
+   [
+    1791464511015,
+    947.3039215686274
+   ],
+   [
+    1791464526015,
+    899.2753623188405
+   ],
+   [
+    1791464541015,
+    805.6249999999998
+   ],
+   [
+    1791464556015,
+    242.38095238095232
+   ],
+   [
+    1791464571015,
+    234.60526315789474
+   ],
+   [
+    1791464586015,
+    237.38095238095232
+   ],
+   [
+    1791464601015,
+    238.4957627118644
+   ],
+   [
+    1791464616015,
+    238.2339449541284
+   ],
+   [
+    1791464631015,
+    238.3108108108108
+   ],
+   [
+    1791464646015,
+    245.26315789473685
+   ],
+   [
+    1791464661015,
+    242.5625
+   ],
+   [
+    1791464676015,
+    242.72556390977448
+   ],
+   [
+    1791464691015,
+    243.57142857142856
+   ],
+   [
+    1791464706015,
+    233.47383720930225
+   ],
+   [
+    1791464721015,
+    238.6778846153846
+   ],
+   [
+    1791464736015,
+    236.9950738916256
+   ],
+   [
+    1791464751015,
+    235.54166666666669
+   ],
+   [
+    1791464766015,
+    239.57792207792207
+   ],
+   [
+    1791464781015,
+    234.68750000000006
+   ],
+   [
+    1791464796015,
+    236.48077173844672
+   ],
+   [
+    1791464811015,
+    235.67622950819677
+   ],
+   [
+    1791464826015,
+    235.40697674418604
+   ],
+   [
+    1791464841015,
+    238.52941176470588
+   ],
+   [
+    1791464856015,
+    242.17857142857136
+   ],
+   [
+    1791464871015,
+    242.8860294117647
+   ],
+   [
+    1791464886015,
+    244.24812030075188
+   ],
+   [
+    1791464901015,
+    243.76000000000005
+   ],
+   [
+    1791464916015,
+    243.1818181818182
+   ],
+   [
+    1791464931015,
+    242.75000000000003
+   ],
+   [
+    1791464946015,
+    234.39024390243904
+   ],
+   [
+    1791464961015,
+    232.5595238095238
+   ],
+   [
+    1791464976015,
+    229.8124999999999
+   ],
+   [
+    1791464991015,
+    232.97826086956513
+   ],
+   [
+    1791465006015,
+    233.48623853211006
+   ],
+   [
+    1791465021015,
+    231.31465517241386
+   ],
+   [
+    1791465036015,
+    228.62204724409443
+   ],
+   [
+    1791465051015,
+    231.96564885496178
+   ],
+   [
+    1791465066015,
+    232.85714285714283
+   ],
+   [
+    1791465081015,
+    233.96946564885488
+   ],
+   [
+    1791465096015,
+    231.86363636363637
+   ],
+   [
+    1791465111015,
+    228.8235294117646
+   ],
+   [
+    1791465126015,
+    227.93141592920352
+   ],
+   [
+    1791465141015,
+    228.61486486486478
+   ],
+   [
+    1791465156015,
+    231.94029850746264
+   ],
+   [
+    1791465171015,
+    234.53651685393257
+   ],
+   [
+    1791465186015,
+    236.38297872340422
+   ],
+   [
+    1791465201015,
+    236.086956521739
+   ],
+   [
+    1791465216015,
+    232.05999999999997
+   ],
+   [
+    1791465231015,
+    233.4888059701493
+   ],
+   [
+    1791465246015,
+    232.08633093525185
+   ],
+   [
+    1791465261015,
+    232.391304347826
+   ],
+   [
+    1791465276015,
+    232.9452054794521
+   ],
+   [
+    1791465291015,
+    233.08139534883716
+   ],
+   [
+    1791465306015,
+    234.33999999999995
+   ],
+   [
+    1791465321015,
+    232.2727272727273
+   ],
+   [
+    1791465336015,
+    239.04761904761898
+   ],
+   [
+    1791465351015,
+    1136.3636363636335
+   ],
+   [
+    1791465366015,
+    2030.8510638297869
+   ],
+   [
+    1791465381015,
+    2303.125
+   ],
+   [
+    1791465396015,
+    2404.8387096774195
+   ],
+   [
+    1791465411015,
+    2425.0
+   ],
+   [
+    1791465426015,
+    2425.0
+   ],
+   [
+    1791465441015,
+    2424.2187499999995
+   ],
+   [
+    1791465456015,
+    2392.9775280898875
+   ],
+   [
+    1791465471015,
+    2232.6612903225805
+   ],
+   [
+    1791465486015,
+    1816.666666666666
+   ],
+   [
+    1791465501015,
+    244.29999999999995
+   ],
+   [
+    1791465516015,
+    235.7680722891567
+   ],
+   [
+    1791465531015,
+    237.9999999999999
+   ]
+  ]
+ }
+}

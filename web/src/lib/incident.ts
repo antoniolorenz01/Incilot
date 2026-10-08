@@ -116,6 +116,10 @@ export type Truth = {
   decoy_shas: string[];
 };
 
+function commitsIn(text: string): string[] {
+  return text.match(/\b[0-9a-f]{7,40}\b/g) ?? [];
+}
+
 /** Same idea as the evals: would the proposed action fix the incident? */
 export function grade(truth: Truth, diagnosis: Diagnosis) {
   const reverts = ["rollback", "revert_config"];
@@ -124,7 +128,8 @@ export function grade(truth: Truth, diagnosis: Diagnosis) {
   const t = target.trim().toLowerCase();
   let action = false;
   if (sameKind) {
-    if (reverts.includes(kind)) action = t.length >= 7 && (truth.culprit_sha ?? "").startsWith(t);
+    // The agent may write just the SHA or e.g. "config/users.env (commit 5eb28d2)".
+    if (reverts.includes(kind)) action = commitsIn(t).some((sha) => (truth.culprit_sha ?? "").startsWith(sha));
     else if (kind === "restart") action = t.includes(truth.service);
     else action = true;
   }

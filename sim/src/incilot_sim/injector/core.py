@@ -253,9 +253,10 @@ class Injector:
 
     async def _literal_effect(self, kind: str, target: str) -> None:
         if kind in ("rollback", "revert_config"):
-            if not SHA.match(target):
+            shas = commits_in(target)
+            if not shas:
                 raise ValueError(f"invalid commit: {target}")
-            revert(self.repo, target, ON_CALL, datetime.now(UTC))
+            revert(self.repo, shas[0], ON_CALL, datetime.now(UTC))
         elif kind == "restart":
             if target not in COMPANY_SERVICES:
                 raise ValueError(f"cannot restart {target}: only {', '.join(COMPANY_SERVICES)}")
@@ -282,7 +283,7 @@ class Injector:
             raise ValueError(f"unknown action: {kind}")
 
 
-SHA = re.compile(r"^[0-9a-f]{7,40}$")
+SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
 # What a wrong (literal) action may touch: the company's services and their databases,
 # never the agent, the injector, observability or the shared Postgres and Redis. The
 # demo is public, so an amended action comes from a stranger.
@@ -297,6 +298,12 @@ EXECUTED = {
 REVERTS = {"rollback", "revert_config"}
 
 
+def commits_in(target: str) -> list[str]:
+    """The commit SHAs in an action's target: the agent may write just the SHA, or
+    something like "config/users.env (commit 5eb28d2)"."""
+    return SHA.findall(target.lower())
+
+
 def resolves(injection: dict, kind: str, target: str) -> bool:
     """Does the action resolve the active incident? (rollback and revert_config are equivalent)."""
     expected = injection["action"]
@@ -305,7 +312,7 @@ def resolves(injection: dict, kind: str, target: str) -> bool:
     target = target.strip().lower()
     if kind in REVERTS:
         culprit = injection["culprit_sha"] or ""
-        return len(target) >= 7 and culprit.startswith(target)
+        return any(culprit.startswith(sha) for sha in commits_in(target))
     if kind == "restart":
         return injection["service"] in target
     return True  # terminate_session and escalate: the right kind is enough

@@ -1,0 +1,1138 @@
+{
+ "scenario": "infra-service-down",
+ "variant": "payments-down",
+ "model": "Claude Sonnet (via Claude Code)",
+ "recordedAt": "2026-10-08T13:46:56+00:00",
+ "injectedAt": 1791467026960,
+ "truth": {
+  "scenario": "infra-service-down",
+  "variant": "payments-down",
+  "service": "payments",
+  "root_cause": "The payments container is down: orders fail at the charge step (payments_unavailable) and the reservation is released.",
+  "action": "restart",
+  "culprit_sha": null,
+  "decoy_shas": [
+   "98b586cce5ca4aad7c81f375181132e8a10f8e5e"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791467087043,
+   "type": "triage"
+  },
+  {
+   "at": 1791467094402,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "contains": "name resolution",
+    "minutes": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791467094404,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 180
+   },
+   "round": 1
+  },
+  {
+   "at": 1791467094404,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service, target, status) (rate(upstream_requests_total[1m]))",
+    "minutes": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791467094404,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791467094404,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/shop.env"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791467094466,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 2 patterns for {service=\"shop\"} |= \"name resolution\", last 20 min (most frequent first):\n\n795× [shop] between 13:40:09 and 13:41:46\n   example: {\"ts\": \"2026-10-08T13:41:46.265+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"44a8ebcdb20f45b492608a9cb0f445e4\", \"target\": \"inventory\", \"error\": \"ConnectError('[Errno -3] Temporary failure in name resolution')\"}\n\n205× [shop] between 13:43:47 and 13:44:53\n   example: {\"ts\": \"2026-10-08T13:44:53.889+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"1de988cd088d44c58b23d7cfa743db04\", \"target\": \"payments\", \"error\": \"ConnectError('[Errno -3] Temporary failure in name resolution')\"}"
+  },
+  {
+   "at": 1791467094468,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "98b586c 2026-10-08 13:17:18 +0000 Diego Martín: ci: cache pip dependencies\n\n.github/workflows/ci.yml"
+  },
+  {
+   "at": 1791467094468,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "14 series, last 30 min:\n- service=shop, status=200, target=inventory: current 6.254 | min 0 | max 6.436 | avg 2.475\n- service=shop, status=200, target=users: current 3.127 | min 0 | max 6.236 | avg 2.179\n- service=shop, status=201, target=inventory: current 3.091 | min 0 | max 6.236 | avg 2.103\n- service=shop, status=201, target=payments: current 0 | min 0 | max 6.109 | avg 1.773\n- service=shop, status=402, target=payments: current 0 | min 0 | max 0.1455 | avg 0.04948\n- service=shop, status=404, target=users: current 0.09091 | min 0 | max 0.2546 | avg 0.08584\n- service=shop, status=500, target=inventory: current 0.03636 | min 0 | max 0.07273 | avg 0.0161\n- service=shop, status=500, target=payments: current 0 | min 0 | max 0.03636 | avg 0.003279\n- service=shop, status=500, target=users: current 0 | min 0 | max 0.03636 | avg 0.006855\n- service=shop, status=error, target=inventory: current 0 | min 0 | max 10.07 | avg 2.788\n- service=shop, status=error, target=payments: current 3.091 | min 0 | max 3.091 | avg 0.08981\n- service=shop, status=error, target=users: current 0 | min 0 | max 3.473 | avg 0.8519\n- service=shop, status=timeout, target=inventory: current 0 | min 0 | max 1.782 | avg 0.2086\n- service=shop, status=timeout, target=payments: current 0 | min 0 | max 2.564 | avg 0.2634"
+  },
+  {
+   "at": 1791467094468,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 10 patterns for {service=\"payments\"}, last 20 min (most frequent first):\n\n930× [payments] between 13:34:34 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.535+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"fe5a2e980eba4487a3dc34764f5dde1c\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 132.2}\n\n31× [payments] between 13:34:41 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.419+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"ee742ece6ee8454f8dc25ad251d73955\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 138.8}\n\n31× [payments] between 13:34:41 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.418+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"ee742ece6ee8454f8dc25ad251d73955\", \"order_id\": \"c4f8af19-7db7-4ec0-a13d-4f6a1b25cf68\", \"reason\": \"card_declined\"}\n\n2× [payments] between 13:34:50 and 13:39:23\n   example: {\"ts\": \"2026-10-08T13:39:23.984+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"b059264bcf3e4c89ba7203d5d272419f\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 0.9}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.789+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Finished server process [1]\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.789+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Application shutdown complete.\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.784+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Waiting for application shutdown.\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.683+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Shutting down\"}\n\n1× [payments] between 13:39:23 and 13:39:23\n   example: {\"ts\": \"2026-10-08T13:39:23.984+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"b059264bcf3e4c89ba7203d5d272419f\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n1× [payments] between 13:34:50 and 13:34:50\n   example: {\"ts\": \"2026-10-08T13:34:50.641+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"e7ba12255a1c475c976070928dad09db\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi"
+  },
+  {
+   "at": 1791467094468,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://shop@postgres:5432/shop\nDB_POOL_SIZE=10\nUSERS_URL=http://users:8000\nINVENTORY_URL=http://inventory:8000\nPAYMENTS_URL=http://payments:8000\nUPSTREAM_TIMEOUT_SECONDS=2\nREDIS_URL=redis://redis:6379/1\nCATALOG_CACHE_TTL_SECONDS=30\n"
+  },
+  {
+   "at": 1791467103247,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 5,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791467103249,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total[1m]))",
+    "minutes": 15
+   },
+   "round": 2
+  },
+  {
+   "at": 1791467103249,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "payments service down name resolution failure runbook restart"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791467103250,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 1440,
+    "path": "config/payments.env"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791467104655,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "362 lines in 7 patterns for {service=\"payments\"}, last 5 min (most frequent first):\n\n330× [payments] between 13:41:47 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.535+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"fe5a2e980eba4487a3dc34764f5dde1c\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 132.2}\n\n14× [payments] between 13:42:04 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.419+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"ee742ece6ee8454f8dc25ad251d73955\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 138.8}\n\n14× [payments] between 13:42:04 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.418+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"ee742ece6ee8454f8dc25ad251d73955\", \"order_id\": \"c4f8af19-7db7-4ec0-a13d-4f6a1b25cf68\", \"reason\": \"card_declined\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.789+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Finished server process [1]\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.789+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Application shutdown complete.\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.784+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Waiting for application shutdown.\"}\n\n1× [payments] between 13:43:46 and 13:43:46\n   example: {\"ts\": \"2026-10-08T13:43:46.683+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Shutting down\"}"
+  },
+  {
+   "at": 1791467104656,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 15 min:\n- service=inventory: current 9.236 | min 0 | max 11.89 | avg 4.908\n- service=payments: current 0.8714 | min 0 | max 5.855 | avg 2.01\n- service=shop: current 8.891 | min 5.018 | max 16.2 | avg 9.094\n- service=users: current 3.2 | min 0 | max 6.109 | avg 2.608"
+  },
+  {
+   "at": 1791467104656,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[docs/services/payments.md#Failure behaviour] (doc)\npayments\n\n## Failure behaviour\n\n- **Postgres down**: charges return 500; `shop` marks the order `failed`\n  (`payments_unavailable`) and releases the reservation.\n- **Latency > 2 s**: `shop` times out even if the charge completes later.\n  This can leave a `captured` charge for a `failed` order.\n\n---\n\n[runbooks/payment-declines-and-429.md] (runbook)\n# Failed orders rising in payments (declines or 429)\n\n**Symptom**: `orders_total{status=\"failed\"}` with `reason=\"payment_declined\"`\nrises, or `payments` responds 429 and orders fail with `payments_unavailable`.\n\n1. Tell the cases apart with the payments metrics: 402 (declines from the\n   provider) or 429 (our own rate limit).\n2. **402, declines**: compare the rate with the usual one (~3%). If it jumped\n   suddenly, review the recent changes to `config/payments.env` (provider\n   endpoint, anti-fraud checks) and to `services/payments`.\n3. **429, rate limit**: compare `RATE_LIMIT_RPS` with the real charge traffic.\n   A limit meant for several replicas running on a single one cuts traffic off.\n4. Mitigate: **revert the config change** and confirm that the rate returns to\n   normal. If there were no internal changes, follow the external provider runbook.\n\n\n---\n\n[docs/services/shop.md#Failure behaviour] (doc)\nshop\n\n## Failure behaviour\n\n- **`users` or `inventory` down**: orders fail with 502 before they are created.\n  `GET /products` keeps working while the catalogue is cached.\n- **`payments` down or slow (> 2 s)**: the order ends up `failed`\n  (`payments_unavailable`) and the stock reservation is released.\n- **Releasing a reservation fails**: `reservation release failed` is logged;\n  that stock stays reserved until the next `inventory` restock.\n- **Redis down**: `GET /products` returns 500 (the cache is not optional).\n  Orders fail with 502 `users_error`, because `users` also depends on Redis.\n- **Postgres down**: it is a shared instance, so orders fail with 502 at the\n  first dependency that needs it (`users_error` if the user is not cached,\n  otherwise `inventory_error`). `GET /orders/{id}` returns 500."
+  },
+  {
+   "at": 1791467104656,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "no commits in the last 1440 minutes"
+  },
+  {
+   "at": 1791467126510,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "The payments service shut down at 13:43:46 UTC (graceful uvicorn shutdown) and has not come back. Its hostname no longer resolves, so shop gets 'Temporary failure in name resolution' when calling payments and returns 502 on POST /orders. This looks like an infrastructure or runtime stop, not a code or config change.",
+    "culprit_commit": null,
+    "evidence": [
+     "Payments logs at 13:43:46 show 'Shutting down', 'Waiting for application shutdown', 'Application shutdown complete' and 'Finished server process [1]'. There are no startup logs after that.",
+     "Payments request rate fell from a peak of about 5.9 req/s to 0.87 req/s at the latest point of the 15-minute window, and payments logged no requests after 13:43:46.",
+     "Shop logs show NEW errors: 'upstream unavailable' with target=payments and error ConnectError 'Temporary failure in name resolution'. There were 205 between 13:43:47 and 13:44:53.",
+     "Shop upstream metrics show status=error for target=payments at 3.09/s, while status=201 for payments fell to 0.",
+     "The shop 502 errors on POST /orders are growing (186 in the last minute, against 8 in the hour before).",
+     "There are no commits in the last 24 hours touching config/payments.env, and the only recent commit (98b586c) is a CI pip-cache change. So no change explains the stop.",
+     "The earlier burst of name-resolution errors against inventory (13:40-13:41) ended by itself and predates the alert. The users and inventory 5xx errors are isolated single events and are background noise."
+    ],
+    "confidence": "high",
+    "plan": [
+     "Restart the payments service and confirm that the process starts and the 'payments' hostname resolves again.",
+     "Check that payments logs show POST /charges requests returning 201 again, and that shop upstream status=error for target=payments drops to 0.",
+     "Check that the shop 502 rate on POST /orders returns to baseline (about 0.14).",
+     "Reconcile orders that failed during the outage, and check for any reservations left unreleased or captured charges tied to failed orders.",
+     "Find out why the container stopped (orchestrator or host events), and add a restart policy and a health check on payments."
+    ],
+    "action": {
+     "kind": "restart",
+     "target": "payments",
+     "reason": "Payments shut down at 13:43:46 and never restarted, so shop cannot resolve or reach it. Restarting it should restore charges and stop the 502 errors on order creation.",
+     "evidence": [
+      "Payments logs end with 'Application shutdown complete' at 13:43:46, with no startup after it.",
+      "Shop logs show 205 name-resolution failures with target=payments between 13:43:47 and 13:44:53.",
+      "There are no config or code commits that could explain the stop."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 61279
+  },
+  {
+   "at": 1791467126520,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791467126546,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791467126707,
+   "type": "execution",
+   "status": "executed",
+   "detail": "payments restarted",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791467186760,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0046,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.238,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0321,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791467186790,
+   "type": "done"
+  }
+ ],
+ "health": {
+  "orders": [
+   [
+    1791466126960,
+    51.272727272727266
+   ],
+   [
+    1791466141960,
+    50.18273059510173
+   ],
+   [
+    1791466156960,
+    55.63636363636363
+   ],
+   [
+    1791466171960,
+    57.81923307696504
+   ],
+   [
+    1791466186960,
+    53.45357357138961
+   ],
+   [
+    1791466201960,
+    75.27272727272727
+   ],
+   [
+    1791466216960,
+    153.815385174815
+   ],
+   [
+    1791466231960,
+    232.3678612338406
+   ],
+   [
+    1791466246960,
+    303.27272727272725
+   ],
+   [
+    1791466261960,
+    300.0
+   ],
+   [
+    1791466276960,
+    258.5454545454545
+   ],
+   [
+    1791466291960,
+    212.73114056619215
+   ],
+   [
+    1791466306960,
+    177.82141493481703
+   ],
+   [
+    1791466321960,
+    150.54545454545453
+   ],
+   [
+    1791466336960,
+    104.72727272727272
+   ],
+   [
+    1791466351960,
+    53.45357357138961
+   ],
+   [
+    1791466366960,
+    5.4544462827948585
+   ],
+   [
+    1791466381960,
+    0.0
+   ],
+   [
+    1791466396960,
+    0.0
+   ],
+   [
+    1791466411960,
+    0.0
+   ],
+   [
+    1791466426960,
+    19.636720667648508
+   ],
+   [
+    1791466441960,
+    71.99869093289212
+   ],
+   [
+    1791466456960,
+    176.7240595625534
+   ],
+   [
+    1791466471960,
+    278.1868761250205
+   ],
+   [
+    1791466486960,
+    329.4605356461027
+   ],
+   [
+    1791466501960,
+    345.8181818181818
+   ],
+   [
+    1791466516960,
+    298.9090909090909
+   ],
+   [
+    1791466531960,
+    257.45454545454544
+   ],
+   [
+    1791466546960,
+    196.36363636363635
+   ],
+   [
+    1791466561960,
+    122.18403970981291
+   ],
+   [
+    1791466576960,
+    70.90780167633316
+   ],
+   [
+    1791466591960,
+    16.363636363636363
+   ],
+   [
+    1791466606960,
+    0.0
+   ],
+   [
+    1791466621960,
+    0.0
+   ],
+   [
+    1791466636960,
+    0.0
+   ],
+   [
+    1791466651960,
+    0.0
+   ],
+   [
+    1791466666960,
+    0.0
+   ],
+   [
+    1791466681960,
+    0.0
+   ],
+   [
+    1791466696960,
+    38.18181818181818
+   ],
+   [
+    1791466711960,
+    85.0909090909091
+   ],
+   [
+    1791466726960,
+    130.9090909090909
+   ],
+   [
+    1791466741960,
+    163.63636363636363
+   ],
+   [
+    1791466756960,
+    180.00327278677796
+   ],
+   [
+    1791466771960,
+    174.54545454545456
+   ],
+   [
+    1791466786960,
+    180.0
+   ],
+   [
+    1791466801960,
+    174.5486281568756
+   ],
+   [
+    1791466816960,
+    121.09090909090908
+   ],
+   [
+    1791466831960,
+    70.9090909090909
+   ],
+   [
+    1791466846960,
+    30.545454545454543
+   ],
+   [
+    1791466861960,
+    0.0
+   ],
+   [
+    1791466876960,
+    0.0
+   ],
+   [
+    1791466891960,
+    0.0
+   ],
+   [
+    1791466906960,
+    0.0
+   ],
+   [
+    1791466921960,
+    38.18181818181818
+   ],
+   [
+    1791466936960,
+    78.54545454545455
+   ],
+   [
+    1791466951960,
+    125.45454545454545
+   ],
+   [
+    1791466966960,
+    168.0
+   ],
+   [
+    1791466981960,
+    159.27272727272725
+   ],
+   [
+    1791466996960,
+    157.08805294449192
+   ],
+   [
+    1791467011960,
+    151.6391207112857
+   ],
+   [
+    1791467026960,
+    165.8211967490318
+   ],
+   [
+    1791467041960,
+    132.00240004363718
+   ],
+   [
+    1791467056960,
+    93.81818181818181
+   ],
+   [
+    1791467071960,
+    46.90994381716032
+   ],
+   [
+    1791467086960,
+    0.0
+   ],
+   [
+    1791467101960,
+    0.0
+   ],
+   [
+    1791467116960,
+    0.0
+   ],
+   [
+    1791467131960,
+    4.3635570262358865
+   ],
+   [
+    1791467146960,
+    42.54545454545455
+   ],
+   [
+    1791467161960,
+    92.72727272727272
+   ],
+   [
+    1791467176960,
+    126.5477554137348
+   ],
+   [
+    1791467191960,
+    154.906274431374
+   ],
+   [
+    1791467206960,
+    164.73026782305135
+   ]
+  ],
+  "errors": [
+   [
+    1791466126960,
+    14.102564102564106
+   ],
+   [
+    1791466141960,
+    15.652173913043477
+   ],
+   [
+    1791466156960,
+    14.049586776859504
+   ],
+   [
+    1791466171960,
+    15.086206896551724
+   ],
+   [
+    1791466186960,
+    14.529914529914528
+   ],
+   [
+    1791466201960,
+    10.869565217391305
+   ],
+   [
+    1791466216960,
+    4.967602591792657
+   ],
+   [
+    1791466231960,
+    2.1374045801526713
+   ],
+   [
+    1791466246960,
+    1.0843373493975903
+   ],
+   [
+    1791466261960,
+    0.7317073170731708
+   ],
+   [
+    1791466276960,
+    0.9915014164305949
+   ],
+   [
+    1791466291960,
+    1.0291595197255576
+   ],
+   [
+    1791466306960,
+    0.8350730688935283
+   ],
+   [
+    1791466321960,
+    11.699779249448124
+   ],
+   [
+    1791466336960,
+    34.13461538461538
+   ],
+   [
+    1791466351960,
+    62.92428198433419
+   ],
+   [
+    1791466366960,
+    95.7957957957958
+   ],
+   [
+    1791466381960,
+    100.0
+   ],
+   [
+    1791466396960,
+    100.0
+   ],
+   [
+    1791466411960,
+    100.0
+   ],
+   [
+    1791466426960,
+    82.46575342465754
+   ],
+   [
+    1791466441960,
+    51.73267326732673
+   ],
+   [
+    1791466456960,
+    21.379310344827584
+   ],
+   [
+    1791466471960,
+    3.1724137931034484
+   ],
+   [
+    1791466486960,
+    0.8235294117647057
+   ],
+   [
+    1791466501960,
+    0.5611672278338945
+   ],
+   [
+    1791466516960,
+    0.26041666666666663
+   ],
+   [
+    1791466531960,
+    0.4594180704441041
+   ],
+   [
+    1791466546960,
+    4.143126177024482
+   ],
+   [
+    1791466561960,
+    15.863453815261044
+   ],
+   [
+    1791466576960,
+    24.950099800399204
+   ],
+   [
+    1791466591960,
+    35.08771929824562
+   ],
+   [
+    1791466606960,
+    38.03921568627451
+   ],
+   [
+    1791466621960,
+    38.178294573643406
+   ],
+   [
+    1791466636960,
+    38.658777120315584
+   ],
+   [
+    1791466651960,
+    38.492063492063494
+   ],
+   [
+    1791466666960,
+    38.00000000000001
+   ],
+   [
+    1791466681960,
+    38.35616438356165
+   ],
+   [
+    1791466696960,
+    29.878048780487802
+   ],
+   [
+    1791466711960,
+    21.255060728744937
+   ],
+   [
+    1791466726960,
+    10.526315789473683
+   ],
+   [
+    1791466741960,
+    0.9195402298850575
+   ],
+   [
+    1791466756960,
+    0.6607929515418502
+   ],
+   [
+    1791466771960,
+    0.6607929515418502
+   ],
+   [
+    1791466786960,
+    0.42735042735042733
+   ],
+   [
+    1791466801960,
+    0.43383947939262474
+   ],
+   [
+    1791466816960,
+    16.00877192982456
+   ],
+   [
+    1791466831960,
+    37.79904306220095
+   ],
+   [
+    1791466846960,
+    69.43820224719101
+   ],
+   [
+    1791466861960,
+    94.78079331941545
+   ],
+   [
+    1791466876960,
+    100.0
+   ],
+   [
+    1791466891960,
+    100.0
+   ],
+   [
+    1791466906960,
+    100.0
+   ],
+   [
+    1791466921960,
+    75.53956834532374
+   ],
+   [
+    1791466936960,
+    43.18766066838046
+   ],
+   [
+    1791466951960,
+    18.720379146919434
+   ],
+   [
+    1791466966960,
+    0.8620689655172413
+   ],
+   [
+    1791466981960,
+    0.8849557522123894
+   ],
+   [
+    1791466996960,
+    0.44943820224719105
+   ],
+   [
+    1791467011960,
+    0.22935779816513757
+   ],
+   [
+    1791467026960,
+    0.44742729306487705
+   ],
+   [
+    1791467041960,
+    8.459869848156181
+   ],
+   [
+    1791467056960,
+    17.995910020449895
+   ],
+   [
+    1791467071960,
+    27.64227642276423
+   ],
+   [
+    1791467086960,
+    35.4251012145749
+   ],
+   [
+    1791467101960,
+    35.58282208588957
+   ],
+   [
+    1791467116960,
+    34.791666666666664
+   ],
+   [
+    1791467131960,
+    33.542976939203356
+   ],
+   [
+    1791467146960,
+    25.70194384449244
+   ],
+   [
+    1791467161960,
+    17.521367521367523
+   ],
+   [
+    1791467176960,
+    6.997742663656884
+   ],
+   [
+    1791467191960,
+    0.683371298405467
+   ],
+   [
+    1791467206960,
+    0.43956043956043955
+   ]
+  ],
+  "latency": [
+   [
+    1791466126960,
+    2288.5542168674697
+   ],
+   [
+    1791466141960,
+    2289.6341463414633
+   ],
+   [
+    1791466156960,
+    2283.9285714285706
+   ],
+   [
+    1791466171960,
+    2297.6744186046512
+   ],
+   [
+    1791466186960,
+    2283.3333333333326
+   ],
+   [
+    1791466201960,
+    2216.4383561643835
+   ],
+   [
+    1791466216960,
+    1819.1176470588225
+   ],
+   [
+    1791466231960,
+    515.6250000000011
+   ],
+   [
+    1791466246960,
+    238.63636363636357
+   ],
+   [
+    1791466261960,
+    233.04347826086956
+   ],
+   [
+    1791466276960,
+    231.49746192893394
+   ],
+   [
+    1791466291960,
+    230.88855421686756
+   ],
+   [
+    1791466306960,
+    230.34671532846718
+   ],
+   [
+    1791466321960,
+    227.25609756097558
+   ],
+   [
+    1791466336960,
+    218.9534883720929
+   ],
+   [
+    1791466351960,
+    192.8333333333332
+   ],
+   [
+    1791466366960,
+    9.768181818181818
+   ],
+   [
+    1791466381960,
+    9.608552631578949
+   ],
+   [
+    1791466396960,
+    9.571428571428571
+   ],
+   [
+    1791466411960,
+    9.501953125
+   ],
+   [
+    1791466426960,
+    95.83333333333293
+   ],
+   [
+    1791466441960,
+    203.09090909090895
+   ],
+   [
+    1791466456960,
+    226.66666666666657
+   ],
+   [
+    1791466471960,
+    235.4665071770335
+   ],
+   [
+    1791466486960,
+    235.1214574898785
+   ],
+   [
+    1791466501960,
+    239.04527559055117
+   ],
+   [
+    1791466516960,
+    239.77876106194694
+   ],
+   [
+    1791466531960,
+    236.28238341968907
+   ],
+   [
+    1791466546960,
+    240.2551020408164
+   ],
+   [
+    1791466561960,
+    218.49999999999997
+   ],
+   [
+    1791466576960,
+    192.8499999999997
+   ],
+   [
+    1791466591960,
+    9.101351351351347
+   ],
+   [
+    1791466606960,
+    8.138297872340413
+   ],
+   [
+    1791466621960,
+    8.32
+   ],
+   [
+    1791466636960,
+    8.22959183673469
+   ],
+   [
+    1791466651960,
+    7.714285714285699
+   ],
+   [
+    1791466666960,
+    7.708333333333328
+   ],
+   [
+    1791466681960,
+    7.108974358974358
+   ],
+   [
+    1791466696960,
+    146.666666666667
+   ],
+   [
+    1791466711960,
+    210.75
+   ],
+   [
+    1791466726960,
+    227.5757575757576
+   ],
+   [
+    1791466741960,
+    237.71008403361355
+   ],
+   [
+    1791466756960,
+    240.90551181102364
+   ],
+   [
+    1791466771960,
+    244.17355371900817
+   ],
+   [
+    1791466786960,
+    249.50819672131155
+   ],
+   [
+    1791466801960,
+    241.11344537815123
+   ],
+   [
+    1791466816960,
+    233.10344827586187
+   ],
+   [
+    1791466831960,
+    221.44230769230762
+   ],
+   [
+    1791466846960,
+    157.06521739130397
+   ],
+   [
+    1791466861960,
+    9.15159574468085
+   ],
+   [
+    1791466876960,
+    8.723684210526313
+   ],
+   [
+    1791466891960,
+    8.289062500000004
+   ],
+   [
+    1791466906960,
+    7.7743902439024355
+   ],
+   [
+    1791466921960,
+    170.74999999999972
+   ],
+   [
+    1791466936960,
+    214.60526315789477
+   ],
+   [
+    1791466951960,
+    228.16666666666657
+   ],
+   [
+    1791466966960,
+    232.24999999999991
+   ],
+   [
+    1791466981960,
+    233.42105263157893
+   ],
+   [
+    1791466996960,
+    234.79729729729732
+   ],
+   [
+    1791467011960,
+    240.72727272727275
+   ],
+   [
+    1791467026960,
+    241.0365853658537
+   ],
+   [
+    1791467041960,
+    236.42499999999998
+   ],
+   [
+    1791467056960,
+    228.81756756756744
+   ],
+   [
+    1791467071960,
+    192.36842105263156
+   ],
+   [
+    1791467086960,
+    38.785714285714214
+   ],
+   [
+    1791467101960,
+    33.23275862068959
+   ],
+   [
+    1791467116960,
+    36.363636363636324
+   ],
+   [
+    1791467131960,
+    43.3445945945946
+   ],
+   [
+    1791467146960,
+    190.26785714285737
+   ],
+   [
+    1791467161960,
+    225.99999999999974
+   ],
+   [
+    1791467176960,
+    233.45108695652158
+   ],
+   [
+    1791467191960,
+    236.79203539823
+   ],
+   [
+    1791467206960,
+    234.45121951219502
+   ]
+  ]
+ }
+}
