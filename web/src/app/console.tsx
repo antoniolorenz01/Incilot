@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { DiagnosisPanel, type Decision } from "@/components/incident/diagnosis-panel";
 import { History } from "@/components/incident/history";
 import { Architecture } from "@/components/incident/architecture";
+import { DemoNotice } from "@/components/incident/demo-notice";
 import { Explain, TechMode } from "@/components/incident/explain";
 import { COLUMNS, Status, Steps } from "@/components/incident/progress";
 import { Switch } from "@/components/ui/switch";
 import { FOCUS } from "@/lib/explain";
 import { recordedHealth } from "@/lib/health";
-import { RECORDED, REPO_URL } from "@/lib/mode";
+import { RECORDED } from "@/lib/mode";
 import { Player, SPEED } from "@/lib/recording";
 import { ResultPanel } from "@/components/incident/result-panel";
 import { ShopHealth } from "@/components/incident/shop-health";
@@ -413,6 +414,7 @@ export function Console() {
             <p className={`font-pixel text-xl ${readOnly ? "text-muted-foreground" : status.tone}`} aria-live="polite">
               {readOnly ? "Past investigation" : status.text}
             </p>
+            {RECORDED && <DemoNotice model={model} />}
             <Architecture />
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={tech} onCheckedChange={setTech} />
@@ -425,24 +427,6 @@ export function Console() {
         <div className="shrink-0 space-y-2">
           <Steps phase={investigation.phase} hint={hint} />
           {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
-          {RECORDED && (
-            <p className="border-2 border-accent p-3 text-xs text-foreground">
-              <span className="text-accent">Demo mode.</span> Everything here really happened: the real agent
-              investigated the real shop{model ? ` (${model})` : ""}, and each run was recorded so it’s instant and
-              free. Simulating plays one of those runs; you take the decision. To run it live:{" "}
-              <a
-                className="underline hover:text-accent"
-                href={`https://codespaces.new/${REPO_URL.split("github.com/")[1]}`}
-              >
-                open it in Codespaces
-              </a>{" "}
-              or{" "}
-              <a className="underline hover:text-accent" href={`${REPO_URL}#run-it-locally`}>
-                run it locally
-              </a>
-              .
-            </p>
-          )}
           {replay && (
             <div
               role="status"
