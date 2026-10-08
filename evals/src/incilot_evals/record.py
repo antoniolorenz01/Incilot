@@ -88,8 +88,8 @@ def record(injector: httpx.Client, agent: httpx.Client, scenario: str, variant: 
         if injector.get("/injections/active").status_code == 200:
             injector.post("/injections/active/recover")
 
-    verification = next((e["verification"] for e in events if e["type"] == "verification"), None)
-    if not last or last["type"] != "done" or not (verification or {}).get("recovered"):
+    verification = next((e for e in events if e["type"] == "verification"), {})
+    if not last or last["type"] != "done" or not verification.get("recovered"):
         print("      not saved: the shop did not recover")
         return None
     path = OUT / f"{scenario}.json"
