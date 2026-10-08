@@ -187,7 +187,10 @@ services:
   agent-redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "agent"]
+    # Saved to disk: the event streams are what replays past investigations.
+    command: ["redis-server", "--requirepass", "agent", "--appendonly", "yes"]
+    volumes:
+      - agent-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "agent", "--no-auth-warning", "ping"]
       interval: 5s
@@ -279,4 +282,5 @@ services:
 
 volumes:
   postgres-data:
+  agent-redis-data:
   company-repo:
