@@ -5,21 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/incident/diagnosis-panel";
 import { grade, type Investigation, type Truth } from "@/lib/incident";
 
+const WAITING = {
+  live: "Waiting for your decision.",
+  watching: "Waiting for the other visitor’s decision.",
+  past: "",
+  replay: "In this recording, the visitor approves the proposal next.",
+};
+
 /** Step 4: whether the shop recovered and whether the agent got it right. */
 export function ResultPanel({
   investigation,
   truth,
-  readOnly,
-  watching,
+  mode,
   onEnd,
 }: {
   investigation: Investigation;
   truth: Truth | null;
-  readOnly: boolean;
-  /** Another visitor's simulation: they decide and end it, not you. */
-  watching: boolean;
+  /** live: your simulation · watching: another visitor's (they decide and end it) ·
+   *  past: a finished investigation · replay: a recording. */
+  mode: "live" | "watching" | "past" | "replay";
   onEnd: () => void;
 }) {
+  const readOnly = mode === "past";
   const [revealed, setRevealed] = useState(false);
   const { diagnosis, phase, verification, execution } = investigation;
   const result = truth && diagnosis ? grade(truth, diagnosis) : null;
@@ -42,11 +49,7 @@ export function ResultPanel({
       className="flex max-h-[65%] shrink-0 flex-col gap-3 overflow-y-auto border-2 border-foreground p-4 text-xs"
     >
       <h2 className="text-sm text-foreground">Outcome</h2>
-      {phase === "awaiting_approval" && !readOnly && (
-        <p className="text-muted-foreground">
-          {watching ? "Waiting for the other visitor’s decision." : "Waiting for your decision."}
-        </p>
-      )}
+      {phase === "awaiting_approval" && !readOnly && <p className="text-muted-foreground">{WAITING[mode]}</p>}
       {(execution || verification || phase === "executing") && (
         <Section title="The shop" topic="verification">
           {phase === "executing" && !verification && (
@@ -107,9 +110,9 @@ export function ResultPanel({
           )}
         </Section>
       )}
-      {finished && !watching && (
+      {finished && mode !== "watching" && (
         <Button variant="ghost" size="sm" className="self-start" onClick={onEnd}>
-          {readOnly ? "Back" : "End and simulate another"}
+          {mode === "live" ? "End and simulate another" : "Back"}
         </Button>
       )}
     </section>

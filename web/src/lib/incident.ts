@@ -81,6 +81,18 @@ export function reduce(state: Investigation, event: AgentEvent): Investigation {
 }
 
 /** The right answer, as stored by the injector. */
+/** A recorded investigation (web/public/replays, made with `make record`). */
+export type Replay = {
+  scenario: string;
+  variant: string;
+  recordedAt: string;
+  truth: Truth;
+  events: (AgentEvent & { at: number })[];
+};
+
+/** An entry of web/public/replays/index.json. */
+export type ReplayEntry = { file: string; title: string; category: string; recordedAt: string };
+
 export type Truth = {
   scenario: string;
   variant: string;

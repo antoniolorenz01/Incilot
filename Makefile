@@ -68,6 +68,12 @@ eval:
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.run $(ARGS)
 
+# Replays for the public demo: full investigations (approved, verified) saved to
+# web/public/replays. Spends one real investigation each.
+record:
+	docker compose up -d --quiet-pull
+	uv run python -m incilot_evals.record $(ARGS)
+
 # Claude Code as the agent's model (local only, on your subscription): leave this running
 # and set LLM_PROVIDER=claude-code in .env, then `make up`. Needs `claude` logged in.
 claude-bridge:
@@ -80,4 +86,4 @@ web:
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval claude-bridge web company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval record claude-bridge web company-repo

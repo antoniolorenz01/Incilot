@@ -103,6 +103,14 @@ export const TOPICS = {
     body: "Every investigation is saved with its diagnosis, the decision and whether it was resolved. You can replay it in full.",
     stack: ["Postgres"],
   },
+  replays: {
+    title: "Recorded investigations",
+    body:
+      "Real investigations by the agent, recorded from start to finish: the fault, every query, the diagnosis, " +
+      "the approval and the shop recovering. They play at their own pace (sped up) and cost nothing, " +
+      "so they always work, even when someone else is using the shop.",
+    stack: ["Redis Streams", "recorded events"],
+  },
   tech: {
     title: "Technical mode",
     body:

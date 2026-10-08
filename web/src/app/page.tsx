@@ -14,7 +14,15 @@ import { ResultPanel } from "@/components/incident/result-panel";
 import { ShopHealth } from "@/components/incident/shop-health";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
 import { Terminal } from "@/components/incident/terminal";
-import { type AgentEvent, type Investigation, type Truth, initial, reduce } from "@/lib/incident";
+import {
+  type AgentEvent,
+  type Investigation,
+  type Replay,
+  type ReplayEntry,
+  type Truth,
+  initial,
+  reduce,
+} from "@/lib/incident";
 
 type Action =
   { type: "reset" } | { type: "breaking" } | { type: "investigating" } | { type: "event"; event: AgentEvent };
@@ -47,6 +55,10 @@ type Demo = {
 };
 
 const DEMO_POLL_MS = 4_000;
+// Recordings play faster than they happened, and long waits (the minute measuring the
+// shop after the fix) are shortened.
+const REPLAY_SPEED = 3;
+const REPLAY_MAX_GAP_MS = 5_000;
 
 function fetchDemo(): Promise<Demo | null> {
   return fetch("/api/demo")
@@ -78,11 +90,15 @@ export default function Home() {
   // Watching another visitor's simulation live (no decision possible either).
   const [watching, setWatching] = useState(false);
   const [demo, setDemo] = useState<Demo | null>(null);
+  // Playing a recording: its title, the timers still pending and how to show the rest.
+  const [replay, setReplay] = useState<string | null>(null);
+  const replayTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const replayRest = useRef<() => void>(() => {});
   const [tech, setTech] = useState(false);
   // What the page shows, for the poll below (it runs outside React's render).
-  const view = useRef({ investigationId, readOnly, watching, phase: investigation.phase });
+  const view = useRef({ investigationId, readOnly: readOnly || replay !== null, watching, phase: investigation.phase });
   useEffect(() => {
-    view.current = { investigationId, readOnly, watching, phase: investigation.phase };
+    view.current = { investigationId, readOnly: readOnly || replay !== null, watching, phase: investigation.phase };
   });
 
   const listen = useCallback((id: string) => {
@@ -131,7 +147,7 @@ export default function Home() {
       const { investigationId: shown, readOnly: past, watching: watched, phase } = view.current;
       const turn = next.turn;
       if (turn && !turn.mine) {
-        if (past) return; // reading a past investigation: don't pull them away
+        if (past) return; // reading a past investigation or a recording: don't pull them away
         if (turn.investigationId && turn.investigationId !== shown) {
           setWatching(true);
           setTruth(null);
@@ -201,8 +217,52 @@ export default function Home() {
     }
   }, [investigation.diagnosis, truth, readOnly]);
 
+  function stopReplay() {
+    replayTimers.current.forEach(clearTimeout);
+    replayTimers.current = [];
+    setReplay(null);
+  }
+
+  async function playReplay(entry: ReplayEntry) {
+    const recording: Replay | null = await fetch(`/replays/${entry.file}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    if (!recording) {
+      toast.error("Could not load the recording.");
+      return;
+    }
+    stopReplay();
+    clearTimeout(warmupTimer.current);
+    setCountdownTo(null);
+    setWatching(false);
+    setReadOnly(false);
+    resetView();
+    setReplay(entry.title);
+    dispatch({ type: "breaking" });
+
+    const pending = [...recording.events];
+    const show = (event: AgentEvent) => {
+      dispatch({ type: "event", event });
+      if (event.type === "diagnosis") setTruth(recording.truth);
+    };
+    replayRest.current = () => {
+      replayTimers.current.forEach(clearTimeout);
+      replayTimers.current = [];
+      while (pending.length) show(pending.shift()!);
+    };
+    let delay = 1_500;
+    replayTimers.current.push(setTimeout(() => dispatch({ type: "investigating" }), delay));
+    let previous = recording.events[0]?.at ?? 0;
+    for (const event of recording.events) {
+      delay += 400 + Math.min((event.at - previous) / REPLAY_SPEED, REPLAY_MAX_GAP_MS);
+      previous = event.at;
+      replayTimers.current.push(setTimeout(() => show(pending.shift()!), delay));
+    }
+  }
+
   function openPast(id: string) {
     clearTimeout(warmupTimer.current);
+    stopReplay();
     setWatching(false);
     setCountdownTo(null);
     setTruth(null);
@@ -213,6 +273,7 @@ export default function Home() {
   }
 
   async function simulate(scenario: string, dryRun: boolean) {
+    stopReplay();
     dispatch({ type: "breaking" });
     setReadOnly(false);
     setTruth(null);
@@ -269,19 +330,29 @@ export default function Home() {
   async function end() {
     clearTimeout(warmupTimer.current);
     setCountdownTo(null);
-    if (!readOnly) await fetch("/api/incidents/active/recover", { method: "POST" });
+    // A past investigation or a recording leaves the real shop as it is.
+    if (!readOnly && replay === null) await fetch("/api/incidents/active/recover", { method: "POST" });
+    stopReplay();
     setReadOnly(false);
     setLeftover(null);
     resetView();
     void refreshDemo();
   }
 
-  const status = watching ? { text: "Watching live", tone: "text-accent" } : STATUS[investigation.phase];
+  const status = replay
+    ? { text: "Recording", tone: "text-accent" }
+    : watching
+      ? { text: "Watching live", tone: "text-accent" }
+      : STATUS[investigation.phase];
   const focus = readOnly ? null : FOCUS[investigation.phase];
   const hint =
-    watching && investigation.phase === "awaiting_approval"
-      ? "Another visitor decides: read the evidence meanwhile"
-      : focus?.hint;
+    investigation.phase !== "awaiting_approval"
+      ? focus?.hint
+      : replay
+        ? "Read the evidence: in the recording, the visitor approves next"
+        : watching
+          ? "Another visitor decides: read the evidence meanwhile"
+          : focus?.hint;
   const othersTurn = demo?.turn && !demo.turn.mine ? demo.turn : null;
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
@@ -312,7 +383,28 @@ export default function Home() {
         <div className="shrink-0 space-y-2">
           <Steps phase={investigation.phase} hint={hint} />
           {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
-          {othersTurn && !readOnly && (
+          {replay && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs"
+            >
+              <p className="text-foreground">
+                Recording: {replay}. A real investigation, played {REPLAY_SPEED}× faster. The ‘Shop health’ charts show
+                the live shop, not the recording.
+              </p>
+              <span className="flex gap-2">
+                {investigation.phase !== "done" && (
+                  <Button size="sm" variant="outline" onClick={() => replayRest.current()}>
+                    Skip to the end
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={end}>
+                  Exit
+                </Button>
+              </span>
+            </div>
+          )}
+          {othersTurn && !readOnly && !replay && (
             <p role="status" className="border-2 border-accent p-3 text-xs text-foreground">
               Another visitor is running a simulation{othersTurn.dryRun ? " (dry run)" : ""}: you’re watching it live.
               There’s one shop, so you can simulate yours when it ends, by{" "}
@@ -349,25 +441,32 @@ export default function Home() {
           {/* Same height as the other columns: each panel scrolls inside. */}
           <div className="flex min-h-0 flex-col gap-3">
             <SimulatePanel
-              busy={busy || watching}
+              busy={(busy && replay === null) || watching}
               runsLeft={demo?.runsLeft ?? null}
               onSimulate={simulate}
-              onCancel={watching ? undefined : end}
+              onCancel={watching || replay !== null ? undefined : end}
             />
             <ShopHealth />
           </div>
           <Terminal events={investigation.events} phase={investigation.phase} />
-          <DiagnosisPanel investigation={investigation} readOnly={readOnly || watching} onDecide={decide} />
+          <DiagnosisPanel
+            investigation={investigation}
+            readOnly={readOnly || watching || replay !== null}
+            onDecide={decide}
+          />
           <div className="flex min-h-0 flex-col gap-3">
             <ResultPanel
               key={investigationId ?? "none"}
               investigation={investigation}
               truth={truth}
-              readOnly={readOnly}
-              watching={watching}
+              mode={readOnly ? "past" : replay !== null ? "replay" : watching ? "watching" : "live"}
               onEnd={end}
             />
-            <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />
+            <History
+              refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""}
+              onOpen={openPast}
+              onReplay={playReplay}
+            />
           </div>
         </div>
       </main>
