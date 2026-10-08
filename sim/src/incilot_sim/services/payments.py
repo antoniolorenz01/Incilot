@@ -1,4 +1,4 @@
-"""Servicio de pagos: simula un proveedor externo con latencia y rechazos."""
+"""Payments service: simulates an external provider with latency and declines."""
 
 import asyncio
 import os

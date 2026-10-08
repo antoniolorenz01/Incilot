@@ -1,4 +1,4 @@
-"""Escenarios de fallo definidos en incilot-data/scenarios/*.toml."""
+"""Fault scenarios defined in incilot-data/scenarios/*.toml."""
 
 import random
 import tomllib
@@ -17,16 +17,16 @@ class Variant:
     faults: dict[str, dict]
     infra: dict
     ground_truth: dict
-    split: str  # dev: para desarrollar el agente; exam: solo para medirlo
+    split: str  # dev: for developing the agent; exam: only for measuring it
 
 
 def authors(data: Path) -> dict[str, str]:
-    """Autores ficticios de la empresa (history.toml), por clave."""
+    """The company's fictional authors (history.toml), by key."""
     return tomllib.loads((data / "history.toml").read_text())["authors"]
 
 
 def load(data: Path) -> dict[str, list[Variant]]:
-    """Escenarios por id. Los autores de los commits culpables se resuelven con history.toml."""
+    """Scenarios by id. Culprit commit authors are resolved via history.toml."""
     authors_by_key = authors(data)
     scenarios = {}
     for path in sorted((data / "scenarios").glob("*.toml")):
@@ -55,13 +55,13 @@ def load(data: Path) -> dict[str, list[Variant]]:
 
 
 def pick(scenarios: dict[str, list[Variant]], scenario: str, variant: str | None = None) -> Variant:
-    """Una variante concreta, o una al azar si no se indica."""
+    """A specific variant, or a random one if none is given."""
     if scenario not in scenarios:
-        raise KeyError(f"escenario desconocido: {scenario}")
+        raise KeyError(f"unknown scenario: {scenario}")
     variants = scenarios[scenario]
     if variant is None:
         return random.choice(variants)
     for v in variants:
         if v.id == variant:
             return v
-    raise KeyError(f"variante desconocida: {scenario}/{variant}")
+    raise KeyError(f"unknown variant: {scenario}/{variant}")

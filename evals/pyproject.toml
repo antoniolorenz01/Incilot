@@ -1,7 +1,7 @@
 [project]
 name = "incilot-evals"
 version = "0.1.0"
-description = "Evals de IncidentPilot: cuánto acierta el agente contra el ground truth"
+description = "IncidentPilot evals: how often the agent gets it right against the ground truth"
 requires-python = ">=3.12"
 dependencies = ["incilot-sim", "httpx"]
 

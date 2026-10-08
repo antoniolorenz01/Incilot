@@ -1,9 +1,9 @@
-"""Examen del RAG: recall@1, recall@3 y MRR por configuración.
+"""RAG exam: recall@1, recall@3 and MRR per configuration.
 
-    python -m incilot_agent.rag.evaluate   # make rag-eval (en el contenedor del agente)
+    python -m incilot_agent.rag.evaluate   # make rag-eval (in the agent container)
 
-Compara BM25 solo, vectores solos, la fusión (RRF) y la fusión con reranker sobre
-questions.toml. Cuesta solo los embeddings de las consultas (unos centavos).
+Compares BM25 alone, vectors alone, fusion (RRF) and fusion with a reranker on
+questions.toml. It only costs the query embeddings (a few cents).
 """
 
 import asyncio
@@ -16,11 +16,11 @@ from incilot_agent.tools.knowledge import _ready_index
 
 CONFIGS = {
     "bm25": {"mode": "bm25", "rerank": False},
-    "vectores": {"mode": "vector", "rerank": False},
-    "híbrido (RRF)": {"mode": "hybrid", "rerank": False},
-    "híbrido + reranker": {"mode": "hybrid", "rerank": True},
+    "vectors": {"mode": "vector", "rerank": False},
+    "hybrid (RRF)": {"mode": "hybrid", "rerank": False},
+    "hybrid + reranker": {"mode": "hybrid", "rerank": True},
 }
-DEPTH = 10  # para el MRR: hasta qué posición se busca la respuesta
+DEPTH = 10  # for MRR: how far down the answer is searched for
 
 
 def questions() -> list[dict]:
@@ -28,7 +28,7 @@ def questions() -> list[dict]:
 
 
 def rank(results, expected: set[str]) -> int | None:
-    """Posición (1-based) del primer fragmento correcto, o None."""
+    """Position (1-based) of the first correct fragment, or None."""
     for position, doc in enumerate(results, start=1):
         if doc.metadata["source"] in expected:
             return position
@@ -39,9 +39,9 @@ async def evaluate() -> dict:
     state = await _ready_index()
     known = {d.metadata["source"] for d in state["docs"]}
     qs = questions()
-    for q in qs:  # una pregunta con una respuesta que no existe no mide nada
+    for q in qs:  # a question whose answer does not exist measures nothing
         missing = set(q["expected"]) - known
-        assert not missing, f"fragmentos esperados inexistentes: {missing}"
+        assert not missing, f"expected fragments do not exist: {missing}"
 
     report = {}
     for name, options in CONFIGS.items():
@@ -61,15 +61,15 @@ async def evaluate() -> dict:
 
 def main() -> None:
     report = asyncio.run(evaluate())
-    print(f"{len(questions())} preguntas, {len(corpus.load())} fragmentos\n")
-    print(f"{'configuración':22} {'recall@1':>9} {'recall@3':>9} {'MRR':>6} {'ms/consulta':>12}")
+    print(f"{len(questions())} questions, {len(corpus.load())} fragments\n")
+    print(f"{'configuration':22} {'recall@1':>9} {'recall@3':>9} {'MRR':>6} {'ms/query':>12}")
     for name, m in report.items():
         recall = f"{m['recall@1']:>9.0%} {m['recall@3']:>9.0%}"
         print(f"{name:22} {recall} {m['mrr']:>6.2f} {m['ms']:>12.0f}")
     best = max(report, key=lambda n: (report[n]["recall@3"], report[n]["mrr"]))
-    print(f"\nmejor: {best}")
+    print(f"\nbest: {best}")
     for miss in report[best]["misses"]:
-        print(f"  no está en el top 3: {miss}")
+        print(f"  not in the top 3: {miss}")
 
 
 if __name__ == "__main__":

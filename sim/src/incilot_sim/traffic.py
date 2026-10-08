@@ -1,4 +1,4 @@
-"""Generador de tráfico: usuarios virtuales que navegan y compran en la tienda sin parar."""
+"""Traffic generator: virtual users who browse and buy in the shop non-stop."""
 
 import asyncio
 import os
@@ -13,10 +13,10 @@ SHOP_URL = os.getenv("SHOP_URL", "http://shop:8000")
 SHOPPERS = int(os.getenv("TRAFFIC_SHOPPERS", "5"))
 BUY_PROBABILITY = 0.6
 THINK_TIME_SECONDS = (0.2, 1.5)
-# Hay 500 usuarios: los IDs 501-520 no existen y generan algún 404 realista.
+# There are 500 users: IDs 501-520 do not exist and produce the odd realistic 404.
 USER_IDS = (1, 520)
 REPORT_INTERVAL_SECONDS = 30
-# Ruido de fondo: cada 3-8 min el tráfico se duplica durante 30-60 s.
+# Background noise: every 3-8 min traffic doubles for 30-60 s.
 BURSTS = os.getenv("BACKGROUND_NOISE", "on") != "off"
 BURST_EVERY_SECONDS = (180, 480)
 BURST_DURATION_SECONDS = (30, 60)

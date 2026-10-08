@@ -1,8 +1,8 @@
-"""Worker: toma investigaciones de la cola, corre el grafo y publica cada paso.
+"""Worker: takes investigations off the queue, runs the graph and publishes each step.
 
     python -m incilot_agent.worker
 
-Varios workers pueden correr en paralelo: cada trabajo lo toma uno solo (BLPOP).
+Several workers can run in parallel: each job is taken by only one of them (BLPOP).
 """
 
 import asyncio
@@ -52,7 +52,7 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
             elif event["type"] == "done":
                 status = "done"
     except Exception as exc:
-        log.exception("investigación %s falló", investigation_id)
+        log.exception("investigation %s failed", investigation_id)
         status = "error"
         await redis.hset(meta, "error", f"{type(exc).__name__}: {exc}"[:500])
         await jobs.publish(redis, investigation_id, {"type": "error", "error": str(exc)[:500]})
@@ -61,25 +61,25 @@ async def handle(job: dict, checkpointer, redis: Redis) -> None:
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    # El timeout de lectura tiene que superar la espera de BLPOP: si no, el cliente corta
-    # antes de que Redis conteste "cola vacía".
+    # The read timeout must exceed the BLPOP wait: otherwise the client gives up before
+    # Redis answers "queue empty".
     redis = Redis.from_url(
         config.AGENT_REDIS_URL, decode_responses=True, socket_timeout=BLPOP_SECONDS + 10
     )
     async with AsyncPostgresSaver.from_conn_string(config.AGENT_STATE_URL) as checkpointer:
         await checkpointer.setup()
-        log.info("esperando investigaciones en %s", jobs.QUEUE)
+        log.info("waiting for investigations on %s", jobs.QUEUE)
         while True:
             try:
                 item = await redis.blpop([jobs.QUEUE], timeout=BLPOP_SECONDS)
-            except RedisError as exc:  # Redis reiniciándose: esperar y seguir
-                log.warning("redis no disponible (%s); reintento en 2 s", exc)
+            except RedisError as exc:  # Redis restarting: wait and carry on
+                log.warning("redis unavailable (%s); retrying in 2 s", exc)
                 await asyncio.sleep(2)
                 continue
             if item is None:
                 continue
             job = json.loads(item[1])
-            log.info("trabajo %s (%s)", job["id"], job["kind"])
+            log.info("job %s (%s)", job["id"], job["kind"])
             await handle(job, checkpointer, redis)
 
 

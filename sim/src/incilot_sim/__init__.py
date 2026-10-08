@@ -1,1 +1,1 @@
-"""Mini-empresa simulada: microservicios, tráfico, logs y métricas."""
+"""Simulated mini-company: microservices, traffic, logs and metrics."""

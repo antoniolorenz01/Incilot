@@ -1,12 +1,12 @@
-"""API del agente: lanzar investigaciones, seguirlas en vivo (SSE) y aprobarlas.
+"""The agent's API: start investigations, follow them live (SSE) and approve them.
 
     POST /investigations                {alert?, dry_run?}  → 202 {id}
-    GET  /investigations/{id}           estado y diagnóstico
-    GET  /investigations/{id}/events    eventos en vivo (Server-Sent Events)
-    GET  /incidents                     incidentes ya decididos (historial)
+    GET  /investigations/{id}           status and diagnosis
+    GET  /investigations/{id}/events    live events (Server-Sent Events)
+    GET  /incidents                     incidents already decided (history)
     POST /investigations/{id}/approval  {approved, note?}
 
-No corre el agente: encola trabajos que procesan los workers.
+It does not run the agent: it queues jobs that the workers process.
 """
 
 import json
@@ -24,7 +24,7 @@ from incilot_agent import config, jobs
 from incilot_agent.actions import ActionOverride
 from incilot_agent.events import TERMINAL
 
-DEFAULT_ALERT = "Se reportó una degradación en la tienda: hay quejas de clientes."
+DEFAULT_ALERT = "A degradation in the shop has been reported: customers are complaining."
 SSE_KEEPALIVE_MS = 15000
 
 redis: Redis
@@ -32,20 +32,20 @@ redis: Redis
 
 class InvestigationRequest(BaseModel):
     alert: str = DEFAULT_ALERT
-    dry_run: bool = False  # LLM simulado: cero tokens
+    dry_run: bool = False  # fake LLM: zero tokens
 
 
 class ApprovalRequest(BaseModel):
     approved: bool
     note: str = ""
-    action: ActionOverride | None = None  # corregir la acción propuesta
+    action: ActionOverride | None = None  # correct the proposed action
 
 
 @asynccontextmanager
 async def lifespan(_):
     global redis
-    # El timeout de lectura (5 s por defecto) tiene que superar la espera del XREAD del
-    # streaming: si no, se corta en cuanto el LLM tarda más de 5 s entre pasos.
+    # The read timeout (5 s by default) must exceed the streaming XREAD wait: otherwise
+    # the stream drops as soon as the LLM takes more than 5 s between steps.
     redis = Redis.from_url(
         config.AGENT_REDIS_URL,
         decode_responses=True,
@@ -61,7 +61,7 @@ app = FastAPI(title="IncidentPilot", lifespan=lifespan)
 async def _meta(investigation_id: str) -> dict:
     meta = await redis.hgetall(jobs.meta_key(investigation_id))
     if not meta:
-        raise HTTPException(404, "investigación desconocida")
+        raise HTTPException(404, "unknown investigation")
     return meta
 
 
@@ -95,8 +95,8 @@ async def events(investigation_id: str, last_event_id: str | None = Header(defau
     stream = jobs.events_key(investigation_id)
 
     async def sse():
-        # Desde el principio (quien se conecta tarde ve la historia) o, si el navegador se
-        # reconecta, desde el último evento que ya recibió (estándar SSE: Last-Event-ID).
+        # From the beginning (whoever connects late sees the history) or, if the browser
+        # reconnects, from the last event it already received (SSE standard: Last-Event-ID).
         last_id = last_event_id or "0"
         while True:
             result = await redis.xread({stream: last_id}, block=SSE_KEEPALIVE_MS, count=100)
@@ -115,7 +115,7 @@ async def events(investigation_id: str, last_event_id: str | None = Header(defau
 
 @app.get("/incidents")
 async def incidents(limit: int = 20):
-    """Historial: incidentes ya decididos (aprobados o rechazados), del más nuevo al más viejo."""
+    """History: incidents already decided (approved or rejected), newest first."""
     conn = await asyncpg.connect(config.AGENT_STATE_URL)
     try:
         exists = await conn.fetchval("SELECT to_regclass('incidents') IS NOT NULL")
@@ -156,7 +156,9 @@ async def incidents(limit: int = 20):
 async def approve(investigation_id: str, request: ApprovalRequest):
     meta = await _meta(investigation_id)
     if meta.get("status") != "awaiting_approval":
-        raise HTTPException(409, f"la investigación no espera aprobación ({meta.get('status')})")
+        raise HTTPException(
+            409, f"the investigation is not awaiting approval ({meta.get('status')})"
+        )
     decision = {
         "approved": request.approved,
         "by": "api",

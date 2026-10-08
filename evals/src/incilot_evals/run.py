@@ -1,14 +1,14 @@
-"""Corre el catálogo de fallos y corrige al agente contra el ground truth.
+"""Runs the fault catalogue and grades the agent against the ground truth.
 
     python -m incilot_evals.run [--scenario ID ...] [--split dev|exam|all] [--limit N]
     make eval ARGS="--split dev --limit 5"
 
-Por cada variante: inyecta → espera los síntomas → lanza una investigación por la API
-del agente (el camino real: API → cola → worker) → espera el diagnóstico → lo corrige
-contra el ground truth → recupera → espera a que la tienda se normalice.
+For each variant: inject → wait for symptoms → start an investigation through the
+agent's API (the real path: API → queue → worker) → wait for the diagnosis → grade it
+against the ground truth → recover → wait for the shop to return to normal.
 
-El evaluador corre fuera del agente: lee el ground truth del injector solo después de que
-el agente diagnosticó. Cuesta una investigación real (tokens) por variante.
+The evaluator runs outside the agent: it reads the ground truth from the injector only
+after the agent has given its diagnosis. Each variant costs one real investigation (tokens).
 """
 
 import argparse
@@ -24,25 +24,25 @@ from incilot_evals.scoring import score
 
 INJECTOR = os.getenv("INJECTOR_URL", "http://localhost:8100")
 AGENT = os.getenv("AGENT_API_URL", "http://localhost:8200")
-# Como una alerta real: dice desde cuándo. Sin la hora, el agente mezclaba restos del
-# escenario anterior (sus logs siguen en la ventana de búsqueda) con el incidente actual.
-ALERT = "[eval] Degradación en la tienda desde las {since} UTC: hay quejas de clientes."
+# Like a real alert, it says since when. Without the time, the agent mixed leftovers from
+# the previous scenario (its logs are still in the search window) with the current incident.
+ALERT = "[eval] Shop degraded since {since} UTC: customers are complaining."
 INVESTIGATION_TIMEOUT = 600
-# Dificultad por tipo de incidente (ver TONI-82).
+# Difficulty per incident type (see TONI-82).
 DIFFICULTY = {
-    "infra-service-down": "fácil",
-    "infra-redis-down": "fácil",
-    "config-broken-upstream-url": "fácil",
-    "deploy-latency-regression": "media",
-    "deploy-intermittent-errors": "media",
-    "config-rate-limit": "media",
-    "config-payment-declines": "media",
-    "external-provider-slow": "media",
-    "deploy-stuck-migration": "media",
-    "deploy-reservation-leak": "difícil",
-    "config-cache-ttl-zero": "difícil",
-    "deploy-memory-leak": "difícil",
-    "deploy-db-connection-leak": "difícil",
+    "infra-service-down": "easy",
+    "infra-redis-down": "easy",
+    "config-broken-upstream-url": "easy",
+    "deploy-latency-regression": "medium",
+    "deploy-intermittent-errors": "medium",
+    "config-rate-limit": "medium",
+    "config-payment-declines": "medium",
+    "external-provider-slow": "medium",
+    "deploy-stuck-migration": "medium",
+    "deploy-reservation-leak": "hard",
+    "config-cache-ttl-zero": "hard",
+    "deploy-memory-leak": "hard",
+    "deploy-db-connection-leak": "hard",
 }
 
 
@@ -58,9 +58,9 @@ def variants(scenario_ids: list[str] | None, split: str) -> list[dict]:
 
 
 def investigate(client: httpx.Client, since: str) -> dict:
-    """Lanza una investigación y sigue sus eventos hasta el diagnóstico.
+    """Starts an investigation and follows its events until the diagnosis.
 
-    Si el streaming se corta, se reconecta: la API reenvía la historia desde el principio.
+    If the stream drops, it reconnects: the API replays the history from the start.
     """
     alert = ALERT.format(since=since)
     investigation_id = client.post("/investigations", json={"alert": alert}).json()["id"]
@@ -84,9 +84,9 @@ def investigate(client: httpx.Client, since: str) -> dict:
                     elif event["type"] == "awaiting_approval":
                         return result
         except httpx.TransportError as exc:
-            print(f"      (streaming cortado: {type(exc).__name__}; reconectando)", flush=True)
+            print(f"      (stream dropped: {type(exc).__name__}; reconnecting)", flush=True)
             time.sleep(2)
-    return result | {"error": "timeout esperando el diagnóstico"}
+    return result | {"error": "timed out waiting for the diagnosis"}
 
 
 def run_one(item: dict, warmup: int, cooldown: int) -> dict:
@@ -100,11 +100,11 @@ def run_one(item: dict, warmup: int, cooldown: int) -> dict:
         investigated = time.monotonic()
         outcome = investigate(agent, since)
         elapsed = time.monotonic() - investigated
-        truth = injector.get("/injections/active").json()  # recién ahora: después del diagnóstico
-        if outcome["id"]:  # cerrar la investigación sin ejecutar nada
+        truth = injector.get("/injections/active").json()  # only now: after the diagnosis
+        if outcome["id"]:  # close the investigation without executing anything
             agent.post(
                 f"/investigations/{outcome['id']}/approval",
-                json={"approved": False, "note": "eval: no se ejecuta"},
+                json={"approved": False, "note": "eval: not executed"},
             )
     finally:
         injector.post("/injections/active/recover")
@@ -143,8 +143,8 @@ def pct(results: list[dict], key: str) -> str:
 
 
 def print_report(results: list[dict]) -> None:
-    print(f"\n{'escenario/variante':52} {'acción':>6} {'servicio':>8} {'commit':>15} "
-          f"{'rondas':>6} {'tokens':>7}")  # fmt: skip
+    print(f"\n{'scenario/variant':52} {'action':>6} {'service':>8} {'commit':>15} "
+          f"{'rounds':>6} {'tokens':>7}")  # fmt: skip
     for r in results:
         name = f"{r['scenario']}/{r['variant']}"
         action, service = mark(r["action_ok"]), mark(r["service_ok"])
@@ -152,8 +152,8 @@ def print_report(results: list[dict]) -> None:
             f"{name[:52]:52} {action:>5} {service:>7}"
             f" {r['commit']:>15} {r['rounds']:>6} {r['tokens']:>7}"
         )
-    header = f"{'grupo':12} {'n':>3} {'acción ✓':>9} {'servicio':>9} {'commit':>7}"
-    print(f"\n{header} {'tokens prom.':>13}")
+    header = f"{'group':12} {'n':>3} {'action ✓':>9} {'service':>9} {'commit':>7}"
+    print(f"\n{header} {'avg tokens':>13}")
     groups = {"total": results}
     for key in ("split", "difficulty"):
         for value in sorted({r[key] for r in results}):
@@ -164,41 +164,39 @@ def print_report(results: list[dict]) -> None:
               f"{pct(rs, 'commit_ok'):>7} {tokens:>13}")  # fmt: skip
     total_tokens = sum(r["tokens"] for r in results)
     decoys = sum(r["commit"] in ("decoy", "blamed_innocent") for r in results)
-    print(f"\nculpó a un commit inocente: {decoys} · tokens totales: {total_tokens}")
+    print(f"\nblamed an innocent commit: {decoys} · total tokens: {total_tokens}")
     if price := os.getenv("EVAL_USD_PER_MTOKENS"):
-        print(f"costo estimado: US$ {total_tokens / 1e6 * float(price):.2f}")
+        print(f"estimated cost: US$ {total_tokens / 1e6 * float(price):.2f}")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evals de IncidentPilot")
-    parser.add_argument("--scenario", action="append", help="limitar a estos escenarios")
+    parser = argparse.ArgumentParser(description="IncidentPilot evals")
+    parser.add_argument("--scenario", action="append", help="only these scenarios")
     parser.add_argument("--split", default="all", choices=["dev", "exam", "all"])
-    parser.add_argument("--limit", type=int, help="como mucho N variantes")
-    parser.add_argument(
-        "--warmup", type=int, default=60, help="segundos para que aparezcan síntomas"
-    )
-    parser.add_argument("--cooldown", type=int, default=30, help="segundos para que se normalice")
+    parser.add_argument("--limit", type=int, help="at most N variants")
+    parser.add_argument("--warmup", type=int, default=60, help="seconds for symptoms to appear")
+    parser.add_argument("--cooldown", type=int, default=30, help="seconds to return to normal")
     args = parser.parse_args()
 
     if httpx.get(f"{INJECTOR}/injections/active", timeout=10).status_code != 404:
-        raise SystemExit("hay una inyección activa: recuperala antes (make injector ARGS=recover)")
+        raise SystemExit("an injection is active: recover it first (make injector ARGS=recover)")
     items = variants(args.scenario, args.split)[: args.limit]
     minutes = len(items) * (args.warmup + args.cooldown + 120) / 60
-    print(f"{len(items)} variantes · ~{minutes:.0f} min · una investigación real por variante")
+    print(f"{len(items)} variants · ~{minutes:.0f} min · one real investigation per variant")
 
     results = []
     for index, item in enumerate(items, start=1):
         print(f"[{index}/{len(items)}] {item['scenario']}/{item['variant']} …", flush=True)
         results.append(run_one(item, args.warmup, args.cooldown))
         r = results[-1]
-        grades = f"acción {mark(r['action_ok'])} · servicio {mark(r['service_ok'])}"
+        grades = f"action {mark(r['action_ok'])} · service {mark(r['service_ok'])}"
         print(f"      {grades} · commit {r['commit']} · {r['tokens']} tokens · {r['seconds']} s")
 
     print_report(results)
     out = Path("build/evals") / f"{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, indent=2, ensure_ascii=False, default=str))
-    print(f"reporte completo: {out}")
+    print(f"full report: {out}")
 
 
 if __name__ == "__main__":

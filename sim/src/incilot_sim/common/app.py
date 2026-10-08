@@ -1,4 +1,4 @@
-"""Fábrica de apps FastAPI con logs de acceso, métricas, /health y /metrics."""
+"""FastAPI app factory with access logs, metrics, /health and /metrics."""
 
 import logging
 import os
@@ -23,8 +23,8 @@ def create_app(service: str, lifespan=None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan_with_faults(app: FastAPI):
-        # Los fallos se detienen antes que el servicio: así sueltan las conexiones
-        # retenidas antes de que se cierre el pool.
+        # Faults stop before the service does, so they release the connections they
+        # hold before the pool is closed.
         if lifespan is None:
             async with faults.control(service):
                 yield
@@ -47,7 +47,7 @@ def create_app(service: str, lifespan=None) -> FastAPI:
             try:
                 response = await call_next(request)
             except faults.InjectedError as exc:
-                # Mismo log que un error real, con el traceback que define el escenario.
+                # Same log as a real error, with the traceback the scenario defines.
                 log.error(
                     "unhandled error",
                     method=request.method,

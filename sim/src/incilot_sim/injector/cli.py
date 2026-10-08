@@ -1,12 +1,12 @@
-"""CLI del injector.
+"""Injector CLI.
 
     python -m incilot_sim.injector.cli list
     python -m incilot_sim.injector.cli inject deploy-latency-regression [--variant ID]
     python -m incilot_sim.injector.cli status
     python -m incilot_sim.injector.cli recover
 
-Configuración por variables de entorno: INJECTOR_DATA (incilot-data),
-COMPANY_REPO (repo Git de la empresa), GROUNDTRUTH_DATABASE_URL y FAULTS_REDIS_URL.
+Configured via environment variables: INJECTOR_DATA (incilot-data),
+COMPANY_REPO (the company's Git repo), GROUNDTRUTH_DATABASE_URL and FAULTS_REDIS_URL.
 """
 
 import argparse
@@ -39,14 +39,14 @@ async def connect():
 
 def show(injection: dict) -> None:
     print(f"{injection['id']}  {injection['scenario']}/{injection['variant']}")
-    print(f"  servicio     {injection['service']} ({injection['category']})")
-    print(f"  causa raíz   {injection['root_cause']}")
-    print(f"  acción       {injection['action']}")
+    print(f"  service      {injection['service']} ({injection['category']})")
+    print(f"  root cause   {injection['root_cause']}")
+    print(f"  action       {injection['action']}")
     print(f"  commit       {injection['culprit_sha'] or '—'}")
-    print(f"  señuelos     {', '.join(s[:7] for s in injection['decoy_shas']) or '—'}")
-    print(f"  inyectado    {injection['injected_at']:%Y-%m-%d %H:%M:%S}")
+    print(f"  decoys       {', '.join(s[:7] for s in injection['decoy_shas']) or '—'}")
+    print(f"  injected     {injection['injected_at']:%Y-%m-%d %H:%M:%S}")
     if injection["recovered_at"]:
-        print(f"  recuperado   {injection['recovered_at']:%Y-%m-%d %H:%M:%S}")
+        print(f"  recovered    {injection['recovered_at']:%Y-%m-%d %H:%M:%S}")
 
 
 def cmd_list(_args) -> None:
@@ -68,7 +68,7 @@ async def cmd_status(_args) -> None:
     if active:
         show(active)
     else:
-        print("no hay ninguna inyección activa")
+        print("there is no active injection")
 
 
 async def cmd_recover(_args) -> None:
@@ -77,15 +77,15 @@ async def cmd_recover(_args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Injector de fallos de la mini-empresa")
+    parser = argparse.ArgumentParser(description="Fault injector for the mini-company")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("list", help="escenarios disponibles").set_defaults(run=cmd_list)
-    inject = commands.add_parser("inject", help="provoca un fallo")
+    commands.add_parser("list", help="available scenarios").set_defaults(run=cmd_list)
+    inject = commands.add_parser("inject", help="causes a fault")
     inject.add_argument("scenario")
-    inject.add_argument("--variant", help="por defecto, una al azar")
+    inject.add_argument("--variant", help="defaults to a random one")
     inject.set_defaults(run=cmd_inject)
-    commands.add_parser("status", help="inyección activa").set_defaults(run=cmd_status)
-    commands.add_parser("recover", help="recupera la inyección activa").set_defaults(
+    commands.add_parser("status", help="active injection").set_defaults(run=cmd_status)
+    commands.add_parser("recover", help="recovers the active injection").set_defaults(
         run=cmd_recover
     )
 

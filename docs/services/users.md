@@ -1,43 +1,43 @@
 # users
 
-Perfiles de usuario. Lo consulta `shop` para validar que el cliente existe.
+User profiles. `shop` queries it to check that the customer exists.
 
-Código: `sim/src/incilot_sim/services/users.py`
+Code: `sim/src/incilot_sim/services/users.py`
 
 ## Endpoints
 
-| Método y ruta | Respuesta |
+| Method and path | Response |
 |---|---|
-| `GET /users/{user_id}` | `id`, `email`, `name`, `tier`. 404 `user_not_found` si no existe |
+| `GET /users/{user_id}` | `id`, `email`, `name`, `tier`. 404 `user_not_found` if it does not exist |
 
-## Datos
+## Data
 
-**Postgres**, base `users`, tabla `users`: `id`, `email` (único), `name`, `tier`
-(`standard` o `premium`), `created_at`.
+**Postgres**, database `users`, table `users`: `id`, `email` (unique), `name`, `tier`
+(`standard` or `premium`), `created_at`.
 
-Al arrancar con la tabla vacía se cargan 500 usuarios (IDs 1–500,
-`user{i}@example.com`). Uno de cada diez es `premium`.
+On startup with an empty table, 500 users are loaded (IDs 1–500,
+`user{i}@example.com`). One in ten is `premium`.
 
-**Redis**, db 0: clave `user:{id}` con el perfil, TTL 300 s. Solo se cachean
-usuarios que existen.
+**Redis**, db 0: key `user:{id}` holding the profile, TTL 300 s. Only users that
+exist are cached.
 
-## Configuración
+## Configuration
 
-| Variable | Valor en compose |
+| Variable | Value in compose |
 |---|---|
 | `DATABASE_URL` | `postgresql://incilot:incilot@postgres:5432/users` |
 | `REDIS_URL` | `redis://redis:6379/0` |
-| `DB_POOL_SIZE` | 10 (por defecto) |
-| `LOG_LEVEL` | `INFO` (por defecto) |
+| `DB_POOL_SIZE` | 10 (default) |
+| `LOG_LEVEL` | `INFO` (default) |
 
-## Logs propios
+## Service-specific logs
 
-| `msg` | Nivel | Campos |
+| `msg` | Level | Fields |
 |---|---|---|
 | `seeded users` | info | `count` |
 
-## Comportamiento ante fallos
+## Failure behaviour
 
-- **Redis caído**: todas las consultas responden 500; la caché se lee antes que Postgres.
-- **Postgres caído**: responden 500 los usuarios que no están en caché.
-- En ambos casos `shop` lo ve como `users_error` (502).
+- **Redis down**: every lookup returns 500; the cache is read before Postgres.
+- **Postgres down**: users that are not cached return 500.
+- In both cases `shop` sees it as `users_error` (502).

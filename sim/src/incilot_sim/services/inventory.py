@@ -1,4 +1,4 @@
-"""Servicio de inventario: catálogo, stock y reservas, con reposición periódica."""
+"""Inventory service: catalogue, stock and reservations, with periodic restocking."""
 
 import asyncio
 from contextlib import asynccontextmanager, suppress
@@ -29,16 +29,16 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 """
 CATALOG = [
-    ("KB-001", "Teclado mecánico", 8900),
-    ("MS-001", "Ratón inalámbrico", 2900),
+    ("KB-001", "Mechanical keyboard", 8900),
+    ("MS-001", "Wireless mouse", 2900),
     ("MN-001", "Monitor 27''", 24900),
-    ("HP-001", "Auriculares", 5900),
+    ("HP-001", "Headphones", 5900),
     ("CM-001", "Webcam HD", 4500),
     ("DK-001", "Dock USB-C", 7900),
-    ("CH-001", "Silla ergonómica", 19900),
-    ("LP-001", "Soporte portátil", 3500),
+    ("CH-001", "Ergonomic chair", 19900),
+    ("LP-001", "Laptop stand", 3500),
     ("SS-001", "SSD 1TB", 8500),
-    ("CB-001", "Cable HDMI", 900),
+    ("CB-001", "HDMI cable", 900),
 ]
 INITIAL_STOCK = 500
 RESTOCK_INTERVAL_SECONDS = 30

@@ -1,13 +1,13 @@
-"""Corrección de un diagnóstico contra el ground truth.
+"""Grading of a diagnosis against the ground truth.
 
-Nota principal (`action_ok`): ¿la acción propuesta resolvería el incidente? Es la misma
-regla que usa el ejecutor de acciones (incilot_sim.injector.core.resolves).
+Main grade (`action_ok`): would the proposed action resolve the incident? It is the same
+rule the action executor uses (incilot_sim.injector.core.resolves).
 
-Notas secundarias, para entender en qué falló:
-    service_ok   ¿nombró el servicio donde está la causa?
-    commit       correct · decoy (culpó a un señuelo) · wrong · missing (no dio ninguno)
-                 · correct_none (no había culpable y no culpó a nadie)
-                 · blamed_innocent (no había culpable y culpó a un commit)
+Secondary grades, to understand where it went wrong:
+    service_ok   did it name the service where the cause lies?
+    commit       correct · decoy (blamed a decoy) · wrong · missing (gave none)
+                 · correct_none (there was no culprit and it blamed nobody)
+                 · blamed_innocent (there was no culprit and it blamed a commit)
 """
 
 import re

@@ -1,7 +1,7 @@
-"""API del injector (para el botón de la demo y las evals).
+"""Injector API (for the demo button and the evals).
 
-No usa `create_app` de los servicios a propósito: sus logs y métricas no deben
-llegar a Loki ni a Prometheus, porque el agente podría leer ahí la respuesta.
+It deliberately does not use the services' `create_app`: its logs and metrics must
+not reach Loki or Prometheus, because the agent could read the answer there.
 """
 
 import os
@@ -20,7 +20,7 @@ from incilot_sim.injector.core import InjectionError, Injector, connect_groundtr
 
 DATA = Path(os.getenv("INJECTOR_DATA", "../incilot-data"))
 COMPANY_REPO = Path(os.getenv("COMPANY_REPO", "build/company-repo"))
-# Token del ejecutor de acciones aprobadas (lo tiene solo el worker del agente).
+# Token for the approved-actions executor (only the agent's worker has it).
 OPS_TOKEN = os.getenv("OPS_TOKEN")
 
 injector: Injector
@@ -54,9 +54,9 @@ class ActionRequest(BaseModel):
 
 @app.post("/ops/execute")
 async def execute(request: ActionRequest, x_ops_token: str | None = Header(default=None)):
-    """Ejecuta una acción aprobada por un humano. Solo con el token de operaciones."""
+    """Executes an action approved by a human. Only with the operations token."""
     if not OPS_TOKEN or x_ops_token != OPS_TOKEN:
-        raise HTTPException(403, "token de operaciones inválido")
+        raise HTTPException(403, "invalid operations token")
     return await injector.execute_action(request.kind, request.target)
 
 
@@ -83,7 +83,7 @@ async def list_injections(limit: int = 20):
 async def active_injection():
     if active := await injector.active():
         return active
-    raise HTTPException(404, "no hay ninguna inyección activa")
+    raise HTTPException(404, "there is no active injection")
 
 
 @app.post("/injections", status_code=201)

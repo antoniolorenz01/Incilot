@@ -1,7 +1,7 @@
 [project]
 name = "incilot-sim"
 version = "0.1.0"
-description = "Mini-empresa simulada que IncidentPilot investiga"
+description = "Simulated mini-company that IncidentPilot investigates"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",

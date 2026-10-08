@@ -20,7 +20,7 @@ up:
 down:
 	docker compose down
 
-# Como down, pero borra también los datos (Postgres, repo de la empresa).
+# Like down, but also deletes the data (Postgres, company repo).
 clean:
 	docker compose down -v --remove-orphans
 
@@ -31,44 +31,44 @@ logs:
 injector:
 	docker compose exec injector python -m incilot_sim.injector.cli $(ARGS)
 
-# make smoke [ARGS="escenario ..."]: inyecta cada escenario, mide el síntoma y recupera.
+# make smoke [ARGS="scenario ..."]: injects each scenario, measures the symptom and recovers.
 smoke:
 	uv run python scripts/smoke_scenarios.py $(ARGS)
 
-# Verifica que el agente no llegue a la respuesta (groundtruth, faults:*).
+# Checks that the agent cannot reach the answer (groundtruth, faults:*).
 agent-access:
 	docker compose exec -T injector python -m incilot_sim.agent_access
 
-# make investigate [ARGS="descripción de la alerta"]: el agente investiga lo que esté pasando.
+# make investigate [ARGS="alert description"]: the agent investigates whatever is going on.
 investigate:
 	docker compose build -q agent-api
 	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.investigate $(ARGS)
 
-# Corre cada herramienta del agente una vez desde su contenedor (incluida la base).
+# Runs each agent tool once from its container (including the database).
 agent-tools:
 	docker compose build -q agent-api
 	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.investigate --check-tools
 
-# Lanza una investigación dry_run por la API, la sigue por SSE y la aprueba (sin tokens).
+# Starts a dry_run investigation through the API, follows it over SSE and approves it (no tokens).
 agent-api-check:
 	uv run python -m incilot_agent.apicheck
 
-# Examen del RAG: recall@k y MRR por configuración (BM25, vectores, híbrido, + reranker).
+# RAG exam: recall@k and MRR per configuration (BM25, vectors, hybrid, + reranker).
 rag-eval:
 	docker compose build -q agent-api
 	docker compose up -d --quiet-pull
 	docker compose run --rm agent python -m incilot_agent.rag.evaluate
 
-# Evals: corre el catálogo y corrige al agente contra el ground truth (gasta tokens).
+# Evals: runs the catalogue and grades the agent against the ground truth (spends tokens).
 # make eval ARGS="--split dev --limit 5"
 eval:
 	docker compose build -q agent-api
 	docker compose up -d --quiet-pull
 	uv run python -m incilot_evals.run $(ARGS)
 
-# Interfaz web (Next.js) en http://localhost:3001, contra el entorno de `make up`.
+# Web UI (Next.js) at http://localhost:3001, against the `make up` environment.
 web:
 	cd web && npm run dev
 

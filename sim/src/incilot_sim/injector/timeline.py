@@ -1,12 +1,12 @@
-"""Línea de tiempo de una inyección en el repo de la empresa: culpable y señuelos.
+"""Timeline of an injection in the company repo: culprit and decoys.
 
-El commit culpable es "el deploy" que dispara el fallo: se fecha unos minutos antes
-del inicio de los síntomas. Alrededor van commits señuelo (incilot-data/decoys.toml),
-inocentes pero creíbles, para que el último commit no sea la respuesta:
+The culprit commit is "the deploy" that triggers the fault: it is dated a few minutes
+before the symptoms start. Around it go decoy commits (incilot-data/decoys.toml),
+innocent but believable, so that the latest commit is not the answer:
 
-    señuelos "antes"  →  culpable (hace 1,5–4 min)  →  señuelos "después"  →  ahora
+    "before" decoys  →  culprit (1.5–4 min ago)  →  "after" decoys  →  now
 
-En fallos sin culpable (infraestructura, externos) solo hay señuelos recientes.
+For faults with no culprit (infrastructure, external) there are only recent decoys.
 """
 
 import random
@@ -38,7 +38,7 @@ def plan(
 ) -> list[Step]:
     candidates = decoys[:]
     rng.shuffle(candidates)
-    files: dict[str, str | None] = {}  # estado simulado del repo tras los commits elegidos
+    files: dict[str, str | None] = {}  # simulated repo state after the chosen commits
     culprit_edits = culprit["edits"] if culprit else []
     culprit_files = {e["file"] for e in culprit_edits}
     n_before, n_after = (
@@ -51,12 +51,12 @@ def plan(
         trial = dict(files)
         if not _simulate(repo, decoy["edits"], trial):
             continue
-        # Antes del culpable: vale si el culpable se sigue pudiendo aplicar encima.
+        # Before the culprit: fine if the culprit can still be applied on top.
         if len(before) < n_before and _simulate(repo, culprit_edits, dict(trial)):
             before.append(decoy)
             files = trial
-        # Después: no puede tocar los archivos del culpable (el rollback tiene que
-        # revertir limpio).
+        # After: must not touch the culprit's files (the rollback has to
+        # revert cleanly).
         elif len(after) < n_after and not decoy_files & culprit_files:
             after.append(decoy)
             files = trial
@@ -76,10 +76,10 @@ def plan(
 
 
 def apply(repo: Path, step: Step) -> str:
-    """Aplica el cambio en el repo y lo commitea con su autor y fecha. Devuelve el sha."""
+    """Applies the change to the repo and commits it with its author and date. Returns the sha."""
     for edit in step.change["edits"]:
         path = repo / edit["file"]
-        if "content" in edit:  # archivo nuevo
+        if "content" in edit:  # new file
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(edit["content"])
         else:
@@ -88,8 +88,8 @@ def apply(repo: Path, step: Step) -> str:
 
 
 def _simulate(repo: Path, edits: list[dict], files: dict[str, str | None]) -> bool:
-    """Aplica los cambios sobre `files` (en memoria). False si alguno no se puede aplicar
-    o ya está aplicado."""
+    """Applies the changes to `files` (in memory). False if any cannot be applied
+    or is already applied."""
     for edit in edits:
         name = edit["file"]
         if name not in files:
@@ -103,7 +103,7 @@ def _simulate(repo: Path, edits: list[dict], files: dict[str, str | None]) -> bo
         else:
             if text is None or text.count(edit["old"]) != 1:
                 return False
-            # Un cambio que agrega texto deja el original: está aplicado si ya está lo nuevo.
+            # A change that adds text keeps the original: it is applied if the new text is there.
             if edit["old"] in edit["new"] and edit["new"] in text:
                 return False
             files[name] = text.replace(edit["old"], edit["new"])

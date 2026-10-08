@@ -1,8 +1,8 @@
-// Recoge los logs de los contenedores con la etiqueta incilot.logs=true y los manda a Loki.
+// Collects logs from containers labelled incilot.logs=true and ships them to Loki.
 
 discovery.docker "containers" {
   host             = "unix:///var/run/docker.sock"
-  refresh_interval = "5s" // por defecto 1m: perdería el arranque de los servicios
+  refresh_interval = "5s" // default is 1m: it would miss the services starting up
 
   filter {
     name   = "label"
@@ -26,7 +26,7 @@ loki.source.docker "containers" {
   forward_to    = [loki.process.json.receiver]
 }
 
-// El nivel pasa a ser etiqueta para filtrar rápido ({service="shop", level="error"}).
+// The level becomes a label for fast filtering ({service="shop", level="error"}).
 loki.process "json" {
   stage.json {
     expressions = { level = "" }

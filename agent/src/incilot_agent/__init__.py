@@ -1,1 +1,1 @@
-"""IncidentPilot: agente que investiga y resuelve incidentes."""
+"""IncidentPilot: an agent that investigates and resolves incidents."""

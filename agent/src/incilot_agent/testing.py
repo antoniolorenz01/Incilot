@@ -1,4 +1,4 @@
-"""Piezas para probar el grafo sin un LLM real (tests y --selftest)."""
+"""Pieces for testing the graph without a real LLM (tests and --selftest)."""
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
@@ -7,23 +7,23 @@ from langchain_core.runnables import RunnableLambda
 
 DIAGNOSIS = {
     "service": "inventory",
-    "root_cause": "consulta lenta tras el deploy",
+    "root_cause": "slow query after the deploy",
     "culprit_commit": "abc1234",
-    "evidence": ["p95 de inventory a 950 ms"],
+    "evidence": ["inventory p95 at 950 ms"],
     "confidence": "high",
-    "plan": ["revertir el commit", "verificar que el p95 de inventory vuelve a la normalidad"],
+    "plan": ["revert the commit", "verify that the inventory p95 returns to normal"],
     "action": {
         "kind": "rollback",
         "target": "abc1234",
-        "reason": "revertir la consulta",
-        "evidence": ["el commit agrega un subselect por producto"],
+        "reason": "revert the query",
+        "evidence": ["the commit adds a subselect per product"],
     },
 }
 
 
 class FakeLLM(BaseChatModel):
-    """Devuelve respuestas fijas en orden. Una excepción en la lista se lanza (simula un
-    corte). with_structured_output devuelve DIAGNOSIS con service="forzado"."""
+    """Returns fixed replies in order. An exception in the list is raised (simulates an
+    outage). with_structured_output returns DIAGNOSIS with service="forced"."""
 
     replies: list
 
@@ -41,7 +41,7 @@ class FakeLLM(BaseChatModel):
         return self
 
     def with_structured_output(self, schema, **kwargs):
-        return RunnableLambda(lambda _: schema(**(DIAGNOSIS | {"service": "forzado"})))
+        return RunnableLambda(lambda _: schema(**(DIAGNOSIS | {"service": "forced"})))
 
 
 def call(name: str, args: dict, id_: str) -> AIMessage:

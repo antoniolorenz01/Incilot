@@ -1,4 +1,4 @@
-"""Tienda: punto de entrada de los clientes. Orquesta usuarios, inventario y pagos."""
+"""Shop: the customers' entry point. Orchestrates users, inventory and payments."""
 
 import json
 import os
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS orders (
 """
 CATALOG_CACHE_TTL_SECONDS = 30
 
-ORDERS = Counter("orders_total", "Pedidos procesados por resultado", ["status", "reason"])
+ORDERS = Counter("orders_total", "Orders processed, by outcome", ["status", "reason"])
 
 log = get_logger(__name__)
 db: asyncpg.Pool
@@ -64,7 +64,7 @@ app = create_app("shop", lifespan)
 
 
 async def call(upstream: Upstream, method: str, path: str, **kwargs) -> httpx.Response:
-    """Llama a otro servicio; si no responde, falla con 5xx o limita (429), devuelve 502."""
+    """Calls another service; returns 502 if it does not respond, fails (5xx) or limits (429)."""
     try:
         response = await upstream.request(method, path, **kwargs)
     except httpx.HTTPError as exc:
@@ -162,7 +162,7 @@ async def create_order(order: OrderIn):
 
 
 async def release_reservation(order_id: UUID) -> None:
-    """Devuelve el stock reservado. Si falla, se loguea y el pedido sigue su curso."""
+    """Returns the reserved stock. If that fails, it is logged and the order carries on."""
     if faults.flag("skip_reservation_release"):
         return
     try:

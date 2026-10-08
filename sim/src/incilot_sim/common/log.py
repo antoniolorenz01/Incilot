@@ -1,4 +1,4 @@
-"""Logs estructurados en JSON a stdout, con el request_id propagado entre servicios."""
+"""Structured JSON logs to stdout, with the request_id propagated across services."""
 
 import json
 import logging
@@ -33,7 +33,7 @@ class JsonFormatter(logging.Formatter):
 
 
 class FieldsLogger(logging.LoggerAdapter):
-    """Permite `log.info("order confirmed", order_id=..., amount_cents=...)`."""
+    """Allows `log.info("order confirmed", order_id=..., amount_cents=...)`."""
 
     def process(self, msg, kwargs):
         fields = {k: kwargs.pop(k) for k in list(kwargs) if k not in _LOGGING_KWARGS}
@@ -51,11 +51,11 @@ def configure_logging(service: str, level: str = "INFO") -> None:
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(level)
-    # uvicorn instala sus propios handlers en texto plano: los mandamos al root.
+    # uvicorn installs its own plain-text handlers: we send them to the root.
     for name in ("uvicorn", "uvicorn.error"):
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers = []
         uvicorn_logger.propagate = True
-    # Ruido: el middleware ya loguea cada request y las métricas cubren las llamadas salientes.
+    # Noise: the middleware already logs each request and metrics cover outgoing calls.
     logging.getLogger("uvicorn.access").disabled = True
     logging.getLogger("httpx").setLevel(logging.WARNING)

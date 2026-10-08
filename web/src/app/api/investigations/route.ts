@@ -7,8 +7,7 @@ export async function POST(request: Request) {
     method: "POST",
     headers: json,
     body: JSON.stringify({
-      // The alert stays in Spanish, the agent's prompt language, until the agent is translated.
-      alert: `Degradación en la tienda desde las ${since} UTC: hay quejas de clientes.`,
+      alert: `Shop degraded since ${since} UTC: customers are complaining.`,
       dry_run: Boolean(dryRun),
     }),
   });

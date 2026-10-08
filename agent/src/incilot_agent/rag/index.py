@@ -1,12 +1,12 @@
-"""Índice y búsqueda híbrida.
+"""Index and hybrid search.
 
-    indexar:  corpus ──► BM25 (en memoria)
-                     └──► embeddings (OpenAI) ──► pgvector (tabla `knowledge` en agent_state)
-    buscar:   BM25 + vectores ──► EnsembleRetriever (Reciprocal Rank Fusion)
-                              ──► FlashRank (reranker) ──► top N
+    index:   corpus ──► BM25 (in memory)
+                    └──► embeddings (OpenAI) ──► pgvector (`knowledge` table in agent_state)
+    search:  BM25 + vectors ──► EnsembleRetriever (Reciprocal Rank Fusion)
+                            ──► FlashRank (reranker) ──► top N
 
-Los embeddings se cachean por contenido: al sincronizar solo se calculan los fragmentos
-nuevos (el código de la empresa cambia con cada inyección) y se borran los que ya no están.
+Embeddings are cached by content: syncing only embeds new fragments (the company's code
+changes with every injection) and deletes the ones that no longer exist.
 """
 
 import functools
@@ -22,7 +22,7 @@ from langchain_core.vectorstores import VectorStore
 
 from incilot_agent import config
 
-CANDIDATES = 10  # cuántos trae cada método antes de fusionar y rerankear
+CANDIDATES = 10  # how many each method fetches before fusing and reranking
 TABLE = "knowledge"
 WORDS = re.compile(r"\w+")
 
@@ -35,7 +35,7 @@ def build_retriever(
     rerank: bool = True,
     mode: str = "hybrid",
 ) -> BaseRetriever:
-    """mode: hybrid (BM25 + vectores), bm25 o vector. rerank: FlashRank sobre el resultado."""
+    """mode: hybrid (BM25 + vectors), bm25 or vector. rerank: FlashRank over the result."""
     bm25 = BM25Retriever.from_documents(docs, k=CANDIDATES, preprocess_func=tokenize)
     vector = vector_store.as_retriever(search_kwargs={"k": CANDIDATES})
     base = {
@@ -55,22 +55,22 @@ def reranker(top_n: int) -> FlashrankRerank:
 @functools.cache
 def _ranker():
     import onnxruntime
-    from flashrank import Ranker  # carga el modelo una sola vez por proceso
+    from flashrank import Ranker  # loads the model only once per process
 
-    onnxruntime.set_default_logger_severity(3)  # solo errores
+    onnxruntime.set_default_logger_severity(3)  # errors only
 
     return Ranker(model_name=config.RERANK_MODEL, cache_dir=config.RERANK_CACHE_DIR)
 
 
 def tokenize(text: str) -> list[str]:
-    """Para BM25: minúsculas, sin acentos y separado por palabras (no por espacios), así
-    "Latencia," y "latencia" cuentan como el mismo término."""
+    """For BM25: lowercase, accents stripped and split on words (not on spaces), so
+    "Latency," and "latency" count as the same term."""
     plain = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
     return WORDS.findall(plain)
 
 
 class _TopN(BaseRetriever):
-    """Recorta el resultado de otro retriever (para comparar sin reranker)."""
+    """Truncates another retriever's result (to compare without a reranker)."""
 
     base: BaseRetriever
     top_n: int
@@ -83,7 +83,7 @@ class _TopN(BaseRetriever):
 
 
 async def pg_vector_store():
-    """La tabla `knowledge` en agent_state (pgvector), creándola si hace falta."""
+    """The `knowledge` table in agent_state (pgvector), created if needed."""
     from langchain_openai import OpenAIEmbeddings
     from langchain_postgres import PGEngine, PGVectorStore
 
@@ -93,7 +93,7 @@ async def pg_vector_store():
         await engine.ainit_vectorstore_table(
             table_name=TABLE, vector_size=config.EMBEDDING_DIMENSIONS
         )
-    except Exception as exc:  # ya existe
+    except Exception as exc:  # already exists
         if "already exists" not in str(exc):
             raise
     embeddings = OpenAIEmbeddings(model=config.EMBEDDING_MODEL)
@@ -101,7 +101,7 @@ async def pg_vector_store():
 
 
 async def sync(store, docs: list[Document], indexed_ids: set[str]) -> tuple[int, int]:
-    """Agrega los fragmentos nuevos y borra los que ya no existen. Devuelve (nuevos, borrados)."""
+    """Adds new fragments and deletes those that no longer exist. Returns (added, deleted)."""
     current = {d.id: d for d in docs}
     new = [d for doc_id, d in current.items() if doc_id not in indexed_ids]
     stale = list(indexed_ids - current.keys())

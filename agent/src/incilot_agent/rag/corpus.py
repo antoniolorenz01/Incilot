@@ -1,17 +1,17 @@
-"""El corpus del RAG, cortado en fragmentos útiles con metadatos.
+"""The RAG corpus, split into useful fragments with metadata.
 
-    runbooks/*.md              un fragmento por runbook               kind=runbook
-    docs/**/*.md               un fragmento por sección (## …)        kind=doc
-    repo: services/*/*.py      un fragmento por función               kind=code
-    repo: config/*.env         un fragmento por archivo               kind=config
-    repo: el resto (texto)     un fragmento por archivo               kind=file
+    runbooks/*.md              one fragment per runbook               kind=runbook
+    docs/**/*.md               one fragment per section (## …)        kind=doc
+    repo: services/*/*.py      one fragment per function              kind=code
+    repo: config/*.env         one fragment per file                  kind=config
+    repo: the rest (text)      one fragment per file                  kind=file
 
-A cada fragmento de código y config se le antepone una línea que dice qué es
-(contextual retrieval): un `.env` suelto es casi invisible para la búsqueda por
-significado, "Configuración del servicio shop: …" no.
+Each code and config fragment is prefixed with a line saying what it is (contextual
+retrieval): a bare `.env` is almost invisible to search by meaning, "Configuration of
+the shop service: …" is not.
 
-El id de cada fragmento es un hash de su origen y su contenido, en formato UUID (el que
-usa pgvector): si el contenido no cambia, su embedding se reutiliza.
+Each fragment's id is a hash of its source and content, in UUID format (the one
+pgvector uses): if the content does not change, its embedding is reused.
 """
 
 import ast
@@ -73,7 +73,7 @@ def docs(root: Path) -> list[Document]:
 
 
 def python_functions(path: Path, source: str) -> list[Document]:
-    """Una función por fragmento, con el docstring del módulo como contexto."""
+    """One function per fragment, with the module docstring as context."""
     text = path.read_text()
     tree = ast.parse(text)
     header = ast.get_docstring(tree) or ""
@@ -84,7 +84,7 @@ def python_functions(path: Path, source: str) -> list[Document]:
             chunks.append(
                 _doc(
                     f"{source}::{node.name}",
-                    f"Código del servicio {_service(path)}: función {node.name} en {source}. "
+                    f"Code of the {_service(path)} service: function {node.name} in {source}. "
                     f"{header}\n{body}",
                     "code",
                     service=_service(path),
@@ -106,7 +106,7 @@ def company_repo(root: Path) -> list[Document]:
         elif path.suffix == ".env":
             service = _service(relative)
             content = (
-                f"Configuración del servicio {service}: variables de entorno ({source}).\n"
+                f"Configuration of the {service} service: environment variables ({source}).\n"
                 f"{path.read_text()}"
             )
             chunks.append(_doc(source, content, "config", service=service))

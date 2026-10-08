@@ -1,8 +1,8 @@
-"""Herramientas de investigación del agente. Todas son de solo lectura.
+"""The agent's investigation tools. All of them are read-only.
 
-Cada una es una función async con argumentos tipados y docstring, independiente del
-framework: el grafo del agente (TONI-77) las envuelve. Todas tienen timeout, límite de
-tamaño de respuesta y devuelven los errores como texto ("error: ...").
+Each one is an async function with typed arguments and a docstring, independent of the
+framework: the agent's graph (TONI-77) wraps them. All have a timeout and a response size
+limit, and return errors as text ("error: ...").
 """
 
 from incilot_agent.tools.database import query_database

@@ -1,18 +1,18 @@
-"""Inyección y recuperación de fallos, con el ground truth guardado en Postgres.
+"""Fault injection and recovery, with the ground truth stored in Postgres.
 
-Una inyección:
-  0. regenera desde cero el repo de la empresa (historial limpio, fechas relativas a ahora);
-  1. commitea el cambio culpable en el repo de la empresa (si el escenario lo tiene),
-     mezclado con commits señuelo (ver timeline.py);
-  2. activa los interruptores de los servicios afectados en Redis (`faults:{service}`)
-     y, en fallos de infraestructura, para contenedores o deja una sesión de
-     Postgres trabada con un lock;
-  3. guarda la respuesta correcta en la base `groundtruth`.
+An injection:
+  0. regenerates the company repo from scratch (clean history, dates relative to now);
+  1. commits the culprit change to the company repo (if the scenario has one),
+     mixed in with decoy commits (see timeline.py);
+  2. turns on the switches of the affected services in Redis (`faults:{service}`)
+     and, for infrastructure faults, stops containers or leaves a Postgres session
+     stuck holding a lock;
+  3. stores the correct answer in the `groundtruth` database.
 
-La recuperación hace lo inverso: apaga los interruptores, vuelve a arrancar los
-contenedores, termina la sesión trabada y revierte el commit.
-Hay como mucho una inyección activa a la vez, para que cada incidente tenga una
-única causa raíz.
+Recovery does the reverse: turns the switches off, starts the containers again,
+terminates the stuck session and reverts the commit.
+There is at most one active injection at a time, so that each incident has a
+single root cause.
 """
 
 import asyncio
@@ -52,8 +52,8 @@ ALTER TABLE injections ADD COLUMN IF NOT EXISTS infra JSONB NOT NULL DEFAULT '{}
 ALTER TABLE injections ADD COLUMN IF NOT EXISTS decoy_shas TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE injections ADD COLUMN IF NOT EXISTS resolved_by TEXT;
 """
-# Quien hace el rollback en el repo de la empresa: la guardia de turno.
-ON_CALL = "Guardia SRE <sre@tienda.example>"
+# Who performs the rollback in the company repo: the on-call engineer.
+ON_CALL = "SRE On-call <sre@shop.example>"
 
 
 class InjectionError(Exception):
@@ -65,7 +65,7 @@ def with_database(url: str, database: str) -> str:
 
 
 async def connect_groundtruth(url: str) -> asyncpg.Pool:
-    """Abre la base de ground truth, creándola si todavía no existe."""
+    """Opens the ground-truth database, creating it if it does not exist yet."""
     try:
         pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
     except asyncpg.InvalidCatalogNameError:
@@ -92,19 +92,19 @@ async def clear_faults(redis: Redis, services: list[str]) -> None:
 
 
 async def start_stuck_session(postgres_url: str, session: dict) -> None:
-    """Deja en Postgres una sesión que toma un lock y no termina (una migración trabada).
+    """Leaves a Postgres session that takes a lock and never finishes (a stuck migration).
 
-    Se suelta la conexión sin cancelar la consulta: Postgres no se entera de que el
-    cliente se fue mientras la consulta corre, así que la sesión sigue con el lock.
+    The connection is dropped without cancelling the query: Postgres does not notice
+    the client has gone while the query runs, so the session keeps holding the lock.
     """
     conn = await asyncpg.connect(
         with_database(postgres_url, session["database"]),
         server_settings={"application_name": session["application_name"]},
     )
     query = asyncio.ensure_future(conn.execute(session["sql"]))
-    await asyncio.sleep(1)  # que llegue a tomar el lock
+    await asyncio.sleep(1)  # give it time to take the lock
     if query.done():
-        query.result()  # el SQL falló: que se vea
+        query.result()  # the SQL failed: surface it
     query.add_done_callback(lambda q: q.cancelled() or q.exception())
     conn.terminate()
 
@@ -121,7 +121,7 @@ async def end_stuck_session(postgres_url: str, session: dict) -> None:
 
 
 def compose_containers(client: docker.DockerClient, services: list[str]) -> list:
-    """Contenedores de esos servicios en el mismo proyecto de compose que el injector."""
+    """Containers of those services in the same compose project as the injector."""
     project = client.containers.get(socket.gethostname()).labels["com.docker.compose.project"]
     return [
         container
@@ -144,12 +144,12 @@ class Injector:
         self.data = data  # incilot-data
         self.redis = redis
         self.repo = repo
-        self.postgres_url = postgres_url  # cualquier base del servidor de la empresa
+        self.postgres_url = postgres_url  # any database on the company's server
         self._docker: docker.DockerClient | None = None
 
     @property
     def docker(self) -> docker.DockerClient:
-        # Solo se conecta si un escenario toca contenedores.
+        # Only connects if a scenario touches containers.
         if self._docker is None:
             self._docker = docker.from_env()
         return self._docker
@@ -172,7 +172,7 @@ class Injector:
 
     async def inject(self, variant: Variant) -> dict:
         if current := await self.active():
-            raise InjectionError(f"ya hay una inyección activa: {current['id']}")
+            raise InjectionError(f"there is already an active injection: {current['id']}")
         now = datetime.now(UTC)
         build(self.data, self.repo, now)
         decoys = timeline.load_decoys(self.data, scenarios.authors(self.data))
@@ -211,14 +211,14 @@ class Injector:
     async def recover(self, resolved_by: str = "manual") -> dict:
         current = await self.active()
         if current is None:
-            raise InjectionError("no hay ninguna inyección activa")
+            raise InjectionError("there is no active injection")
         if stopped := current["infra"].get("stop"):
             for container in compose_containers(self.docker, stopped):
                 container.start()
         if session := current["infra"].get("stuck_session"):
             await end_stuck_session(self.postgres_url, session)
-        # Un rollback real redeploya el servicio: p. ej. la memoria de un leak solo
-        # vuelve al sistema operativo reiniciando el proceso.
+        # A real rollback redeploys the service: e.g. leaked memory is only returned
+        # to the operating system by restarting the process.
         if restart := current["infra"].get("restart_on_recover"):
             for container in compose_containers(self.docker, restart):
                 container.restart()
@@ -234,11 +234,12 @@ class Injector:
         return _decode(row)
 
     async def execute_action(self, kind: str, target: str) -> dict:
-        """Ejecuta una acción aprobada sobre la mini-empresa (el conector de simulación).
+        """Executes an approved action on the mini-company (the simulation connector).
 
-        Si es la acción correcta para el incidente activo, lo resuelve. Si no, aplica el
-        efecto literal (revertir *ese* commit, reiniciar *ese* servicio) y el incidente
-        sigue. La respuesta es la misma en los dos casos: no le dice al agente si acertó.
+        If it is the correct action for the active incident, it resolves it. If not, it
+        applies the literal effect (revert *that* commit, restart *that* service) and the
+        incident continues. The response is the same either way: it does not tell the
+        agent whether it got it right.
         """
         current = await self.active()
         if current and resolves(current, kind, target):
@@ -253,12 +254,12 @@ class Injector:
     async def _literal_effect(self, kind: str, target: str) -> None:
         if kind in ("rollback", "revert_config"):
             if not SHA.match(target):
-                raise ValueError(f"commit inválido: {target}")
+                raise ValueError(f"invalid commit: {target}")
             revert(self.repo, target, ON_CALL, datetime.now(UTC))
         elif kind == "restart":
             containers = compose_containers(self.docker, [target])
             if not containers:
-                raise ValueError(f"servicio desconocido: {target}")
+                raise ValueError(f"unknown service: {target}")
             for container in containers:
                 container.restart()
         elif kind == "terminate_session":
@@ -274,22 +275,22 @@ class Injector:
             finally:
                 await conn.close()
         elif kind != "escalate":
-            raise ValueError(f"acción desconocida: {kind}")
+            raise ValueError(f"unknown action: {kind}")
 
 
 SHA = re.compile(r"^[0-9a-f]{7,40}$")
 EXECUTED = {
-    "rollback": "revert de {target} commiteado y desplegado",
-    "revert_config": "revert de la config de {target} commiteado y desplegado",
-    "restart": "{target} reiniciado",
-    "terminate_session": "sesión {target} terminada",
-    "escalate": "escalado al responsable externo ({target}); sin acción técnica",
+    "rollback": "revert of {target} committed and deployed",
+    "revert_config": "revert of the {target} config committed and deployed",
+    "restart": "{target} restarted",
+    "terminate_session": "session {target} terminated",
+    "escalate": "escalated to the external owner ({target}); no technical action",
 }
 REVERTS = {"rollback", "revert_config"}
 
 
 def resolves(injection: dict, kind: str, target: str) -> bool:
-    """¿La acción resuelve el incidente activo? (rollback y revert_config son equivalentes)."""
+    """Does the action resolve the active incident? (rollback and revert_config are equivalent)."""
     expected = injection["action"]
     if kind != expected and not (kind in REVERTS and expected in REVERTS):
         return False
@@ -299,7 +300,7 @@ def resolves(injection: dict, kind: str, target: str) -> bool:
         return len(target) >= 7 and culprit.startswith(target)
     if kind == "restart":
         return injection["service"] in target
-    return True  # terminate_session y escalate: con el tipo correcto alcanza
+    return True  # terminate_session and escalate: the right kind is enough
 
 
 def _decode(row: asyncpg.Record | None) -> dict | None:

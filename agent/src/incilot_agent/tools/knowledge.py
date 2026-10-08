@@ -1,7 +1,7 @@
-"""Búsqueda en la base de conocimiento: runbooks, docs y el código y la config de la empresa.
+"""Knowledge base search: runbooks, docs, and the company's code and config.
 
-Antes de buscar comprueba si el corpus cambió (el repo de la empresa cambia con cada
-deploy) y, si cambió, sincroniza el índice: solo se calculan embeddings de lo nuevo.
+Before searching it checks whether the corpus has changed (the company repo changes with
+every deploy) and, if so, syncs the index: embeddings are computed only for what is new.
 """
 
 import os
@@ -13,7 +13,7 @@ from incilot_agent.rag import corpus, index
 from incilot_agent.tools._guard import ToolError, guarded
 
 MAX_FRAGMENT = 1500
-SEARCH_MODE = os.getenv("KNOWLEDGE_SEARCH_MODE", "vector")  # vector, hybrid o bm25
+SEARCH_MODE = os.getenv("KNOWLEDGE_SEARCH_MODE", "vector")  # vector, hybrid or bm25
 _state: dict = {"signature": None, "docs": [], "store": None}
 
 
@@ -36,24 +36,23 @@ async def _ready_index() -> dict:
     return _state
 
 
-@guarded(timeout=90)  # la primera vez calcula los embeddings de todo el corpus
+@guarded(timeout=90)  # the first time it embeds the whole corpus
 async def search_knowledge(query: str, limit: int = 3) -> str:
-    """Busca en runbooks, docs de los servicios y el código y la config de la empresa
-    por significado. Devuelve los fragmentos más relevantes con su origen:
-    p. ej. un runbook, una sección de doc o una función como
-    services/inventory/handlers.py::list_products."""
+    """Search runbooks, service docs, and the company's code and config by meaning.
+    Returns the most relevant fragments with their source: e.g. a runbook, a doc
+    section or a function such as services/inventory/handlers.py::list_products."""
     if not 1 <= limit <= 8:
-        raise ToolError("limit tiene que estar entre 1 y 8")
+        raise ToolError("limit must be between 1 and 8")
     state = await _ready_index()
-    # Configuración elegida con `make rag-eval` (TONI-100): vectores solos daban el mejor
-    # recall@3 (91 %, lo que ve el agente) frente a híbrido (77 %) y BM25 (64 %); el
-    # reranker empeoraba recall y MRR y era ~10x más lento.
+    # Configuration chosen with `make rag-eval` (TONI-100): vectors alone gave the best
+    # recall@3 (91%, what the agent sees) versus hybrid (77%) and BM25 (64%); the
+    # reranker worsened recall and MRR and was ~10x slower.
     retriever = index.build_retriever(
         state["docs"], state["store"], top_n=limit, rerank=False, mode=SEARCH_MODE
     )
     results = await retriever.ainvoke(query)
     if not results:
-        return f"nada relevante para {query!r}"
+        return f"nothing relevant for {query!r}"
     return "\n\n---\n\n".join(
         f"[{d.metadata['source']}] ({d.metadata['kind']})\n{d.page_content[:MAX_FRAGMENT]}"
         for d in results

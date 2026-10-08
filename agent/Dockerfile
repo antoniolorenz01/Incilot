@@ -1,7 +1,7 @@
-# Imagen del agente: solo el paquete agent (sin el código de la simulación ni el
-# injector). Corre como usuario sin privilegios. Se construye desde la raíz del repo.
+# The agent image: only the agent package (without the simulation code or the
+# injector). Runs as an unprivileged user. Built from the repo root.
 FROM python:3.12-slim
-# git: las herramientas leen el historial del repo de la empresa.
+# git: the tools read the company repo's history.
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /bin/uv
@@ -17,7 +17,7 @@ RUN uv sync --frozen --no-dev --package incilot-agent --no-install-workspace
 COPY agent/src agent/src
 RUN uv sync --frozen --no-dev --package incilot-agent
 
-# Modelo del reranker (FlashRank, multilingüe), descargado al construir la imagen.
+# Reranker model (FlashRank, multilingual), downloaded when building the image.
 ENV RERANK_CACHE_DIR=/opt/flashrank
 RUN python -c "from flashrank import Ranker; Ranker(model_name='ms-marco-MultiBERT-L-12', cache_dir='/opt/flashrank')"
 

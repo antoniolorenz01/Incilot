@@ -1,16 +1,16 @@
-# Mini-empresa simulada + stack de observabilidad. `docker compose up --build`.
+# Simulated mini-company + observability stack. `docker compose up --build`.
 #
-#   Tienda      http://localhost:8000/docs
+#   Shop        http://localhost:8000/docs
 #   Prometheus  http://localhost:9090
 #   Loki        http://localhost:3100
 #   Grafana     http://localhost:3000
 #   Injector    http://localhost:8100/docs
-#   Agente      http://localhost:8200/docs
+#   Agent       http://localhost:8200/docs
 #
-# Ruido de fondo (errores transitorios, picos de latencia y de tráfico) encendido
-# por defecto; `BACKGROUND_NOISE=off make up` para depurar el agente en limpio.
+# Background noise (transient errors, latency and traffic spikes) is on by
+# default; `BACKGROUND_NOISE=off make up` to debug the agent on a clean signal.
 
-# Todos los servicios usan la misma imagen; solo `shop` la construye.
+# All services share the same image; only `shop` builds it.
 x-service: &service
   image: incilot-sim
   pull_policy: never
@@ -38,7 +38,7 @@ x-agent: &agent
     DOCS_DIR: /docs
     POSTGRES_HOST: postgres
     AGENT_REDIS_URL: redis://agent:agent@redis:6379/3
-    # Ejecutor de acciones aprobadas: lo usa el nodo `execute` del grafo, nunca el LLM.
+    # Executor for approved actions: used by the graph's `execute` node, never by the LLM.
     OPS_URL: http://injector:8000/ops/execute
     OPS_TOKEN: ${OPS_TOKEN:-incilot-ops-dev}
   volumes:
@@ -58,7 +58,7 @@ x-db-and-cache: &db-and-cache
     condition: service_healthy
 
 services:
-  # --- Mini-empresa -----------------------------------------------------------
+  # --- Mini-company -----------------------------------------------------------
 
   shop:
     <<: *service
@@ -126,10 +126,10 @@ services:
         condition: service_healthy
 
   postgres:
-    # Postgres 16 con pgvector: los embeddings del RAG del agente (base agent_state).
+    # Postgres 16 with pgvector: embeddings for the agent's RAG (agent_state database).
     image: pgvector/pgvector:0.8.7-pg16
     restart: unless-stopped
-    # Loguea las esperas por locks de más de 1 s (deadlock_timeout).
+    # Logs lock waits longer than 1 s (deadlock_timeout).
     command: postgres -c log_lock_waits=on
     environment:
       POSTGRES_USER: incilot
@@ -148,8 +148,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    # Usuario del agente: solo lee las cachés (user:*, catalog), lee y escribe su cola y
-    # sus eventos (investigation:*); no ve faults:*, no lista claves ni borra bases.
+    # Agent user: read-only on the caches (user:*, catalog), read/write on its own queue
+    # and events (investigation:*); cannot see faults:*, list keys or flush databases.
     command:
       - redis-server
       - --user
@@ -178,8 +178,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # --- Injector de fallos -----------------------------------------------------
-  # Sin la etiqueta incilot.logs ni métricas: el agente no debe ver el ground truth.
+  # --- Fault injector ---------------------------------------------------------
+  # No incilot.logs label and no metrics: the agent must not see the ground truth.
 
   injector:
     image: incilot-sim
@@ -195,19 +195,19 @@ services:
     volumes:
       - ${INCILOT_DATA:-../incilot-data}:/data:ro
       - company-repo:/company-repo
-      # Para los fallos de infraestructura (parar y arrancar contenedores).
+      # For infrastructure faults (stopping and starting containers).
       - /var/run/docker.sock:/var/run/docker.sock
     ports: ["8100:8000"]
     depends_on: *db-and-cache
 
-  # --- Agente ------------------------------------------------------------------
-  # Sandbox: imagen sin el código de la simulación, usuario sin privilegios, solo las
-  # credenciales `agent` y el repo de la empresa y los runbooks en solo lectura. Sin
-  # socket de Docker ni incilot-data/scenarios.
+  # --- Agent -------------------------------------------------------------------
+  # Sandbox: an image without the simulation code, an unprivileged user, only the
+  # `agent` credentials, and the company repo and runbooks mounted read-only. No
+  # Docker socket and no incilot-data/scenarios.
   #
-  #   agent-api     API: lanzar, seguir (SSE) y aprobar investigaciones — :8200
-  #   agent-worker  corre las investigaciones que encola la API
-  #   agent         la consola (`make investigate`); no arranca con `make up`
+  #   agent-api     API: start, follow (SSE) and approve investigations — :8200
+  #   agent-worker  runs the investigations the API queues
+  #   agent         the console (`make investigate`); not started by `make up`
 
   agent-api:
     <<: *agent
@@ -226,7 +226,7 @@ services:
     profiles: ["agent"]
     command: python -m incilot_agent.investigate
 
-  # --- Observabilidad ---------------------------------------------------------
+  # --- Observability ----------------------------------------------------------
 
   prometheus:
     image: prom/prometheus:v3.2.1

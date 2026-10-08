@@ -1,4 +1,4 @@
-"""Conexiones a Postgres, Redis y a otros servicios, configuradas por variables de entorno."""
+"""Connections to Postgres, Redis and other services, configured via environment variables."""
 
 import os
 import time
@@ -15,7 +15,7 @@ from incilot_sim.common.metrics import UPSTREAM_LATENCY, UPSTREAM_REQUESTS
 
 
 async def connect_db(schema: str) -> asyncpg.Pool:
-    """Abre el pool de `DATABASE_URL` y aplica el esquema (idempotente)."""
+    """Opens the `DATABASE_URL` pool and applies the schema (idempotent)."""
     pool = await asyncpg.create_pool(
         os.environ["DATABASE_URL"], min_size=1, max_size=int(os.getenv("DB_POOL_SIZE", "10"))
     )
@@ -29,7 +29,7 @@ def connect_cache() -> Redis:
 
 
 class Upstream:
-    """Cliente HTTP hacia otro servicio: propaga el request_id y mide latencia y errores."""
+    """HTTP client for another service: propagates request_id, measures latency and errors."""
 
     def __init__(self, name: str, base_url: str, timeout: float = 2.0):
         self.name = name
@@ -40,7 +40,7 @@ class Upstream:
         status = "error"
         start = time.perf_counter()
         try:
-            # Un fallo puede simular una URL mal configurada (p. ej. `inventory_url`).
+            # A fault can simulate a misconfigured URL (e.g. `inventory_url`).
             url = faults.override(f"{self.name}_url", "") + path
             response = await self._client.request(method, url, headers=headers, **kwargs)
             status = str(response.status_code)

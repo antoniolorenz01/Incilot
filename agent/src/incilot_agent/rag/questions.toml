@@ -1,99 +1,99 @@
-# Examen del RAG: preguntas como las que hace el agente en un incidente, con los
-# fragmentos correctos conocidos. Una pregunta acierta si recupera cualquiera de sus
-# `expected`. Los ids de fragmento son los `source` de corpus.py.
+# RAG exam: questions like the ones the agent asks during an incident, with the known
+# correct chunks. A question is a hit if it retrieves any of its `expected` chunks.
+# Chunk ids are the `source` values from corpus.py.
 #
-# `expected` incluye toda sección que de verdad responde la pregunta (verificado a mano),
-# no solo la que uno tenía en mente. Las preguntas de "dónde está en el código" son
-# estrictas: miden si el RAG encuentra código.
+# `expected` includes every section that genuinely answers the question (checked by
+# hand), not just the one we had in mind. The "where is it in the code" questions are
+# strict: they measure whether the RAG finds code.
 
 [[questions]]
-query = "las consultas a products quedan esperando un lock y postgres loguea still waiting"
-expected = ["runbooks/locks-en-postgres.md"]
+query = "queries on products are waiting for a lock and postgres logs still waiting"
+expected = ["runbooks/postgres-locks.md"]
 
 [[questions]]
-query = "timeouts en todas las rutas de inventory sin errores de postgres, conexiones idle"
-expected = ["runbooks/pool-de-conexiones-agotado.md"]
+query = "timeouts on every inventory route with no postgres errors, idle connections"
+expected = ["runbooks/connection-pool-exhausted.md"]
 
 [[questions]]
-query = "la memoria de shop sube sin parar aunque el tráfico es estable"
-expected = ["runbooks/memoria-creciente.md"]
+query = "shop's memory keeps rising even though traffic is stable"
+expected = ["runbooks/growing-memory.md"]
 
 [[questions]]
-query = "muchos pedidos fallan con payment_declined"
-expected = ["runbooks/rechazos-de-pago-y-429.md"]
+query = "lots of orders are failing with payment_declined"
+expected = ["runbooks/payment-declines-and-429.md"]
 
 [[questions]]
-query = "payments responde 429 y los pedidos fallan con payments_unavailable"
-expected = ["runbooks/rechazos-de-pago-y-429.md", "config/payments.env"]
+query = "payments responds 429 and orders fail with payments_unavailable"
+expected = ["runbooks/payment-declines-and-429.md", "config/payments.env"]
 
 [[questions]]
-query = "los cobros tardan y dan timeout pero no hubo cambios propios en payments"
-expected = ["runbooks/proveedor-externo-degradado.md"]
+query = "charges are slow and time out but there were no internal changes in payments"
+expected = ["runbooks/external-provider-degraded.md"]
 
 [[questions]]
-query = "aumentan los out_of_stock aunque las ventas no crecieron"
-expected = ["runbooks/stock-que-no-se-recupera.md"]
+query = "out_of_stock is increasing even though sales have not grown"
+expected = ["runbooks/stock-not-recovering.md"]
 
 [[questions]]
-query = "el p95 de inventory subió a 900 ms"
-expected = ["runbooks/latencia-alta.md"]
+query = "inventory's p95 went up to 900 ms"
+expected = ["runbooks/high-latency.md"]
 
 [[questions]]
-query = "tasa de errores 500 con un traceback KeyError en users"
-expected = ["runbooks/tasa-de-errores.md"]
+query = "500 error rate with a KeyError traceback in users"
+expected = ["runbooks/error-rate.md"]
 
 [[questions]]
-query = "redis no responde, connection refused desde users y shop"
+query = "redis is not responding, connection refused from users and shop"
 expected = [
-    "runbooks/dependencia-caida.md",
-    "docs/services/shop.md#Comportamiento ante fallos",
-    "docs/services/users.md#Comportamiento ante fallos",
+    "runbooks/dependency-down.md",
+    "docs/services/shop.md#Failure behaviour",
+    "docs/services/users.md#Failure behaviour",
 ]
 
 [[questions]]
-query = "dónde se libera la reserva de stock cuando se rechaza un cobro"
+query = "where is the stock reservation released when a charge is declined"
 expected = ["services/shop/handlers.py::create_order"]
 
 [[questions]]
-query = "código que descuenta el stock al reservar un producto"
+query = "code that deducts stock when a product is reserved"
 expected = ["services/inventory/handlers.py::reserve"]
 
 [[questions]]
-query = "cómo se repone el stock automáticamente"
-expected = ["services/inventory/handlers.py::restock", "docs/services/inventory.md#Reposición de stock"]
+query = "how is stock replenished automatically"
+expected = ["services/inventory/handlers.py::restock", "docs/services/inventory.md#Restocking"]
 
 [[questions]]
-query = "consulta SQL que devuelve el catálogo de productos"
+query = "SQL query that returns the product catalogue"
 expected = ["services/inventory/handlers.py::list_products"]
 
 [[questions]]
-query = "caché de perfiles de usuario en redis y su TTL"
-expected = ["services/users/handlers.py::get_user", "config/users.env", "docs/services/users.md#Datos"]
+query = "user profile cache in redis and its TTL"
+expected = ["services/users/handlers.py::get_user", "config/users.env", "docs/services/users.md#Data"]
 
 [[questions]]
-query = "qué hace shop cuando una dependencia responde 429 o un error 5xx"
+query = "what shop does when a dependency responds 429 or a 5xx error"
 expected = ["services/shop/handlers.py::call", "docs/services/shop.md#Endpoints"]
 
 [[questions]]
-query = "timeout de shop hacia los servicios internos UPSTREAM_TIMEOUT_SECONDS"
-expected = ["config/shop.env", "docs/services/shop.md#Dependencias"]
+query = "shop's timeout towards internal services UPSTREAM_TIMEOUT_SECONDS"
+expected = ["config/shop.env", "docs/services/shop.md#Dependencies"]
 
 [[questions]]
-query = "tamaño del pool de conexiones a la base de inventory"
+query = "size of the connection pool to the inventory database"
 expected = ["config/inventory.env"]
 
 [[questions]]
-query = "URL del proveedor de pagos y límite de requests por segundo"
+query = "payment provider URL and requests per second limit"
 expected = ["config/payments.env"]
 
 [[questions]]
-query = "qué pasa si se cobra dos veces el mismo pedido"
-expected = ["services/payments/handlers.py::charge", "docs/services/payments.md#Datos"]
+query = "what happens if the same order is charged twice"
+expected = ["services/payments/handlers.py::charge", "docs/services/payments.md#Data"]
 
 [[questions]]
-query = "qué métricas exponen los servicios y cómo calcular la latencia p95"
-expected = ["docs/observability.md#Métricas"]
+query = "what metrics the services expose and how to calculate p95 latency"
+expected = ["docs/observability.md#Metrics"]
 
 [[questions]]
-query = "flujo de un pedido paso a paso entre los servicios"
-expected = ["docs/architecture.md#Flujo de un pedido"]
+query = "step-by-step flow of an order between the services"
+expected = ["docs/architecture.md#Order flow"]

@@ -1,4 +1,4 @@
-"""Servicio de usuarios: perfiles en Postgres con caché en Redis."""
+"""Users service: profiles in Postgres with a Redis cache."""
 
 import json
 from contextlib import asynccontextmanager

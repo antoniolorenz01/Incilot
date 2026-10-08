@@ -1,7 +1,7 @@
-"""Búsqueda híbrida (RAG) sobre runbooks, docs y el código de la empresa."""
+"""Hybrid search (RAG) over the company's runbooks, docs and code."""
 
 import logging
 
-# Las llamadas HTTP de los SDK (embeddings) se loguean en INFO: ruido en consola.
+# The SDKs' HTTP calls (embeddings) are logged at INFO: console noise.
 for _name in ("httpx", "httpx2"):
     logging.getLogger(_name).setLevel(logging.WARNING)

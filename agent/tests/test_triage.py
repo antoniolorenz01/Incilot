@@ -11,12 +11,12 @@ from incilot_agent.tools import _http
 @pytest.mark.parametrize(
     ("recent", "baseline", "min_delta", "expected"),
     [
-        (0.95, 0.01, 0.05, True),  # la latencia se multiplicó: el incidente
-        (0.004, 0.003, 0.02, False),  # ruido: sube, pero muy poco en absoluto
-        (0.03, 0.01, 0.05, False),  # ×3 pero menos que el mínimo absoluto
-        (0.5, 0.4, 0.05, False),  # se movió, pero menos del doble
-        (0.0, 0.3, 0.1, True),  # bajó a cero
-        (0.2, None, 0.1, True),  # no existía antes y ahora es relevante
+        (0.95, 0.01, 0.05, True),  # latency multiplied: the incident
+        (0.004, 0.003, 0.02, False),  # noise: it rises, but very little in absolute terms
+        (0.03, 0.01, 0.05, False),  # ×3 but less than the absolute minimum
+        (0.5, 0.4, 0.05, False),  # it moved, but by less than double
+        (0.0, 0.3, 0.1, True),  # dropped to zero
+        (0.2, None, 0.1, True),  # did not exist before and is relevant now
         (0.01, None, 0.1, False),
     ],
 )
@@ -56,5 +56,5 @@ def test_log_patterns_are_classified_against_the_previous_hour(monkeypatch):
         ),
     )
     lines = asyncio.run(triage.log_changes())
-    assert lines[0].startswith("NUEVO") and "KeyError" in lines[0]
-    assert lines[1].startswith("estable") and "ConnectionResetError" in lines[1]
+    assert lines[0].startswith("NEW") and "KeyError" in lines[0]
+    assert lines[1].startswith("stable") and "ConnectionResetError" in lines[1]

@@ -1,57 +1,57 @@
 # inventory
 
-Catálogo de productos, stock y reservas de stock para pedidos.
+Product catalogue, stock and stock reservations for orders.
 
-Código: `sim/src/incilot_sim/services/inventory.py`
+Code: `sim/src/incilot_sim/services/inventory.py`
 
 ## Endpoints
 
-| Método y ruta | Respuesta |
+| Method and path | Response |
 |---|---|
-| `GET /products` | Todos los productos: `id`, `sku`, `name`, `price_cents`, `stock` |
-| `GET /products/{product_id}` | Un producto. 404 `product_not_found` |
-| `POST /reservations` | Reserva stock. Body: `order_id`, `product_id`, `quantity`. 201 con `remaining_stock`; 409 `out_of_stock`; 404 `product_not_found` |
-| `POST /reservations/{order_id}/release` | Devuelve el stock de una reserva. 404 `reservation_not_found` si no existe o ya se liberó |
+| `GET /products` | All products: `id`, `sku`, `name`, `price_cents`, `stock` |
+| `GET /products/{product_id}` | One product. 404 `product_not_found` |
+| `POST /reservations` | Reserves stock. Body: `order_id`, `product_id`, `quantity`. 201 with `remaining_stock`; 409 `out_of_stock`; 404 `product_not_found` |
+| `POST /reservations/{order_id}/release` | Returns a reservation's stock. 404 `reservation_not_found` if it does not exist or was already released |
 
-Reservar descuenta el stock y registra la reserva en una sola transacción: o pasan
-las dos cosas o ninguna.
+Reserving decrements the stock and records the reservation in a single
+transaction: either both happen or neither does.
 
-## Datos
+## Data
 
-**Postgres**, base `inventory`:
+**Postgres**, database `inventory`:
 
-- `products`: `id`, `sku` (único), `name`, `price_cents`, `stock` (nunca negativo).
-- `reservations`: `order_id` (clave primaria), `product_id`, `quantity`,
+- `products`: `id`, `sku` (unique), `name`, `price_cents`, `stock` (never negative).
+- `reservations`: `order_id` (primary key), `product_id`, `quantity`,
   `released`, `created_at`.
 
-Al arrancar se cargan 10 productos (de `CB-001` a 9 € hasta `MN-001` a 249 €)
-con 500 unidades cada uno. Si ya existen, no se tocan.
+On startup 10 products are loaded (from `CB-001` at €9 to `MN-001` at €249)
+with 500 units each. Existing products are left untouched.
 
-## Reposición de stock
+## Restocking
 
-Cada 30 s, los productos con menos de 100 unidades vuelven a 500. Se loguea
-`restocked` con los SKUs repuestos.
+Every 30 s, products with fewer than 100 units are topped back up to 500.
+`restocked` is logged with the restocked SKUs.
 
-## Configuración
+## Configuration
 
-| Variable | Valor en compose |
+| Variable | Value in compose |
 |---|---|
 | `DATABASE_URL` | `postgresql://incilot:incilot@postgres:5432/inventory` |
-| `DB_POOL_SIZE` | 10 (por defecto) |
-| `LOG_LEVEL` | `INFO` (por defecto) |
+| `DB_POOL_SIZE` | 10 (default) |
+| `LOG_LEVEL` | `INFO` (default) |
 
-No usa Redis.
+Does not use Redis.
 
-## Logs propios
+## Service-specific logs
 
-| `msg` | Nivel | Campos |
+| `msg` | Level | Fields |
 |---|---|---|
 | `restocked` | info | `skus` |
 | `restock failed` | error | `exc` |
 | `reservation released` | info | `order_id` |
 
-## Comportamiento ante fallos
+## Failure behaviour
 
-- **Postgres caído**: todos los endpoints responden 500 y la reposición loguea
-  `restock failed` cada 30 s. `shop` lo ve como `inventory_error` (502).
-- **Reserva duplicada** (mismo `order_id`): responde 500. `shop` nunca reutiliza un `order_id`.
+- **Postgres down**: every endpoint returns 500 and restocking logs
+  `restock failed` every 30 s. `shop` sees it as `inventory_error` (502).
+- **Duplicate reservation** (same `order_id`): returns 500. `shop` never reuses an `order_id`.

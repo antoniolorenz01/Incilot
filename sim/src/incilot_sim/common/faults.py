@@ -1,13 +1,13 @@
-"""Interruptores de fallos que el injector activa en caliente.
+"""Fault switches that the injector flips at runtime.
 
-Cada servicio lee el hash de Redis `faults:{service}` cada pocos segundos. Si Redis
-no responde, conserva el último estado: así un fallo sobrevive a una caída de Redis
-provocada por otro fallo.
+Each service reads the Redis hash `faults:{service}` every few seconds. If Redis
+does not respond, it keeps the last state, so a fault survives a Redis outage
+caused by another fault.
 
-Los fallos no se delatan: no escriben logs propios y sus síntomas tienen la misma
-forma que un problema real. /health y /metrics nunca se ven afectados.
+Faults do not give themselves away: they write no logs of their own and their
+symptoms look just like a real problem. /health and /metrics are never affected.
 
-Campos del hash (cada valor es JSON):
+Hash fields (each value is JSON):
 
     latency             {"ms": 800, "jitter_ms": 200, "paths": ["/reservations"]}
     errors              {"rate": 0.2, "traceback": "Traceback ...", "paths": [...]}
@@ -17,7 +17,7 @@ Campos del hash (cada valor es JSON):
     flags               ["skip_reservation_release"]
     overrides           {"decline_rate": 0.5}
 
-`paths` es opcional: prefijos de ruta a los que se limita el fallo.
+`paths` is optional: path prefixes the fault is limited to.
 """
 
 import asyncio
@@ -38,7 +38,7 @@ UNAFFECTED_PATHS = {"/health", "/metrics"}
 
 
 class InjectedError(Exception):
-    """Error 500 simulado. El middleware loguea `traceback` como si fuera real."""
+    """Simulated 500 error. The middleware logs `traceback` as if it were real."""
 
     def __init__(self, traceback: str):
         super().__init__(traceback)
@@ -65,7 +65,7 @@ class Faults:
 
 
 class Switchboard:
-    """Estado de los fallos activos en este proceso y sus efectos."""
+    """State of the faults active in this process, and their effects."""
 
     def __init__(self):
         self.faults = Faults()
@@ -83,7 +83,7 @@ class Switchboard:
         self._pool = pool
 
     async def disrupt(self, request: Request) -> None:
-        """Dependencia global de FastAPI: corre en cada request, después del ruteo."""
+        """Global FastAPI dependency: runs on every request, after routing."""
         path = request.url.path
         if path in UNAFFECTED_PATHS:
             return
@@ -122,7 +122,7 @@ class Switchboard:
             try:
                 self._held_connections.append(await self._pool.acquire(timeout=1))
             except TimeoutError:
-                return  # pool agotado por el tráfico: se reintenta en el próximo ciclo
+                return  # pool exhausted by traffic: retried on the next cycle
 
     async def release_all(self) -> None:
         self.apply(Faults())
@@ -133,12 +133,12 @@ switchboard = Switchboard()
 
 
 def flag(name: str) -> bool:
-    """Hook en el código de un servicio: `if faults.flag("skip_reservation_release")`."""
+    """Hook in a service's code: `if faults.flag("skip_reservation_release")`."""
     return name in switchboard.faults.flags
 
 
 def override(key: str, default):
-    """Config que un fallo puede pisar: `faults.override("decline_rate", DECLINE_RATE)`."""
+    """Config that a fault can override: `faults.override("decline_rate", DECLINE_RATE)`."""
     return switchboard.faults.overrides.get(key, default)
 
 
@@ -149,7 +149,7 @@ def _applies(fault: dict, path: str) -> bool:
 
 async def _poll(redis: Redis, key: str) -> None:
     while True:
-        # Redis caído o datos inválidos: se mantiene el último estado conocido.
+        # Redis down or invalid data: the last known state is kept.
         with suppress(Exception):
             switchboard.apply(Faults.parse(await redis.hgetall(key)))
         with suppress(Exception):
@@ -159,7 +159,7 @@ async def _poll(redis: Redis, key: str) -> None:
 
 @asynccontextmanager
 async def control(service: str):
-    """Mantiene `switchboard` sincronizado con Redis mientras corre el servicio."""
+    """Keeps `switchboard` in sync with Redis while the service runs."""
     url = os.getenv("FAULTS_REDIS_URL")
     if not url:
         yield

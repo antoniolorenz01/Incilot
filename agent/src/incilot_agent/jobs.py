@@ -1,10 +1,10 @@
-"""Cola de investigaciones y eventos en Redis. Todas las claves bajo `investigation:`.
+"""Investigation queue and events in Redis. All keys live under `investigation:`.
 
-    investigation:queue            lista de trabajos (start o decision)
+    investigation:queue            list of jobs (start or decision)
     investigation:{id}             hash: alert, dry_run, status, diagnosis, error
-    investigation:{id}:events      stream con los eventos de la investigación
+    investigation:{id}:events      stream with the investigation's events
 
-status: queued → running → awaiting_approval → queued → running → done (o error)
+status: queued → running → awaiting_approval → queued → running → done (or error)
 """
 
 import json

@@ -1,4 +1,4 @@
 import os
 
-# Sin ruido de fondo en los tests: sus errores aleatorios los volverían inestables.
+# No background noise in tests: its random errors would make them flaky.
 os.environ["BACKGROUND_NOISE"] = "off"

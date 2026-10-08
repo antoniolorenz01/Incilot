@@ -1,9 +1,9 @@
-"""Genera el repo Git de la mini-empresa a partir de incilot-data.
+"""Generates the mini-company's Git repo from incilot-data.
 
     python -m incilot_sim.company_repo --data ../incilot-data --out build/company-repo
 
-El repo se regenera desde cero en cada ejecución. Las fechas de los commits son
-relativas a `now`, así el historial siempre termina "hace unos días".
+The repo is regenerated from scratch on every run. Commit dates are relative
+to `now`, so the history always ends "a few days ago".
 """
 
 import argparse
@@ -20,7 +20,7 @@ def build(data: Path, out: Path, now: datetime) -> None:
     files = data / "files"
     unused = {p.relative_to(files) for p in files.rglob("*") if p.is_file()}
 
-    # Se vacía el contenido, no el directorio: puede ser el punto de montaje de un volumen.
+    # Empty the contents, not the directory: it may be a volume mount point.
     out.mkdir(parents=True, exist_ok=True)
     for child in out.iterdir():
         shutil.rmtree(child) if child.is_dir() else child.unlink()
@@ -38,25 +38,25 @@ def build(data: Path, out: Path, now: datetime) -> None:
         commit(out, history["authors"][entry["author"]], entry["message"], when)
 
     if unused:
-        raise ValueError(f"archivos de files/ que ningún commit agrega: {sorted(map(str, unused))}")
+        raise ValueError(f"files in files/ that no commit adds: {sorted(map(str, unused))}")
 
 
 def apply_edit(path: Path, old: str, new: str) -> None:
     text = path.read_text()
     if text.count(old) != 1:
-        raise ValueError(f"{path}: el texto a reemplazar aparece {text.count(old)} veces:\n{old}")
+        raise ValueError(f"{path}: the text to replace appears {text.count(old)} times:\n{old}")
     path.write_text(text.replace(old, new))
 
 
 def commit(repo: Path, author: str, message: str, when: datetime) -> str:
-    """Commitea todo lo pendiente con el autor y la fecha dados. Devuelve el sha."""
+    """Commits everything pending with the given author and date. Returns the sha."""
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", message, env=_identity(author, when))
     return git(repo, "rev-parse", "HEAD").strip()
 
 
 def revert(repo: Path, sha: str, author: str, when: datetime) -> str:
-    """Revierte un commit (el rollback de un deploy). Devuelve el sha del revert."""
+    """Reverts a commit (a deploy rollback). Returns the revert's sha."""
     git(repo, "revert", "--no-edit", sha, env=_identity(author, when))
     return git(repo, "rev-parse", "HEAD").strip()
 
@@ -74,7 +74,7 @@ def _identity(author: str, when: datetime) -> dict:
 
 
 def git(repo: Path, *args: str, env: dict | None = None) -> str:
-    # Aislado de la config global del usuario (firmas, hooks, plantillas).
+    # Isolated from the user's global config (signing, hooks, templates).
     base_env = {
         "PATH": os.environ["PATH"],
         "GIT_CONFIG_GLOBAL": os.devnull,
@@ -97,7 +97,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("build/company-repo"))
     args = parser.parse_args()
     build(args.data, args.out, datetime.now(UTC))
-    print(f"repo de la empresa generado en {args.out}")
+    print(f"company repo generated in {args.out}")
 
 
 if __name__ == "__main__":

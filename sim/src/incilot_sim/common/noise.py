@@ -1,9 +1,9 @@
-# ruff: noqa: E501  (los tracebacks son texto literal)
-"""Ruido de fondo: lo que pasa en cualquier sistema real aunque no haya un incidente.
+# ruff: noqa: E501  (the tracebacks are literal text)
+"""Background noise: what happens in any real system even when there is no incident.
 
-Errores transitorios sueltos y picos de latencia ocasionales, con la misma forma que
-los síntomas reales, para que una anomalía no salte a la vista solo por romper una
-línea base perfecta. Se apaga con BACKGROUND_NOISE=off.
+Sporadic transient errors and occasional latency spikes, shaped like real symptoms,
+so that an anomaly does not stand out merely by breaking a perfect baseline.
+Turned off with BACKGROUND_NOISE=off.
 """
 
 import asyncio
@@ -39,7 +39,7 @@ ConnectionResetError: [Errno 104] Connection reset by peer
 
 
 async def disturb(request: Request) -> None:
-    """Dependencia global de FastAPI, como los interruptores de fallos."""
+    """Global FastAPI dependency, like the fault switches."""
     if request.url.path in UNAFFECTED_PATHS:
         return
     if random.random() < LATENCY_SPIKE_RATE:

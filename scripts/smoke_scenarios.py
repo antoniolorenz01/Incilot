@@ -1,10 +1,10 @@
-"""Smoke test del catálogo de fallos: inyecta cada escenario, mide su síntoma y recupera.
+"""Smoke test for the fault catalogue: injects each scenario, measures its symptom and recovers.
 
-    make smoke                      # todos (~1 min por escenario)
+    make smoke                      # all of them (~1 min per scenario)
     make smoke ARGS="config-rate-limit infra-service-down"
 
-Necesita el entorno levantado (`make up`) y ninguna inyección activa. Usa solo la
-API del injector (localhost:8100), Prometheus (9090) y Loki (3100).
+Needs the environment running (`make up`) and no active injection. Uses only the
+injector API (localhost:8100), Prometheus (9090) and Loki (3100).
 """
 
 import json
@@ -48,7 +48,7 @@ def p95(selector: str) -> str:
     return f"histogram_quantile(0.95, sum by (le) (rate({selector}[20s])))"
 
 
-# escenario: (variante, qué se mide, cómo medirlo, ¿hay síntoma?, ¿se recuperó?)
+# scenario: (variant, what is measured, how to measure it, symptom present?, recovered?)
 CHECKS = {
     "deploy-latency-regression": (
         "inventory-stock-recount",
@@ -61,21 +61,21 @@ CHECKS = {
     ),
     "deploy-intermittent-errors": (
         "users-tier-labels",
-        "500/s en users",
+        "500/s on users",
         lambda: prom(rate('http_requests_total{service="users",status="500"}')),
         lambda before, during: during > 0.1,
         lambda before, after: after < 0.05,
     ),
     "deploy-reservation-leak": (
         "shop-declined-refactor",
-        "'reservation released' en 30 s",
+        "'reservation released' in 30 s",
         lambda: loki('sum(count_over_time({service="inventory"} |= "reservation released" [30s]))'),
         lambda before, during: during == 0,
-        None,  # depende de que haya rechazos de pago en la ventana: no se exige
+        None,  # depends on payment declines happening in the window: not required
     ),
     "deploy-memory-leak": (
         "shop-recent-orders",
-        "memoria de shop (MB)",
+        "shop memory (MB)",
         lambda: prom('process_resident_memory_bytes{service="shop"}') / 1e6,
         lambda before, during: during > before + 50,
         lambda before, after: after < before + 30,
@@ -100,14 +100,14 @@ CHECKS = {
     ),
     "config-payment-declines": (
         "strict-fraud-check",
-        "pedidos rechazados/s",
+        "declined orders/s",
         lambda: prom(rate('orders_total{reason="payment_declined"}')),
         lambda before, during: during > 0.5,
         lambda before, after: after < 0.3,
     ),
     "config-rate-limit": (
         "payments-per-replica",
-        "429/s en payments",
+        "429/s on payments",
         lambda: prom(rate('http_requests_total{service="payments",status="429"}')),
         lambda before, during: during > 0.2,
         lambda before, after: after < 0.05,
@@ -121,7 +121,7 @@ CHECKS = {
     ),
     "config-broken-upstream-url": (
         "inventory-url-typo",
-        "errores/s shop→inventory",
+        "errors/s shop→inventory",
         lambda: prom(
             rate('upstream_requests_total{service="shop",target="inventory",status="error"}')
         ),
@@ -139,14 +139,14 @@ CHECKS = {
     ),
     "infra-redis-down": (
         "redis-stopped",
-        "500/s en shop",
+        "500/s on shop",
         lambda: prom(rate('http_requests_total{service="shop",status="500"}')),
         lambda before, during: during > 1,
         lambda before, after: after < 0.1,
     ),
     "infra-service-down": (
         "payments-down",
-        "pedidos payments_unavailable/s",
+        "payments_unavailable orders/s",
         lambda: prom(rate('orders_total{reason="payments_unavailable"}')),
         lambda before, during: during > 0.2,
         lambda before, after: after < 0.05,
@@ -168,8 +168,8 @@ def run(scenario: str) -> bool:
 
     ok = has_symptom(before, during) and (recovered is None or recovered(before, after))
     print(
-        f"{'OK   ' if ok else 'FALLA'} {scenario:28} {label:32} "
-        f"antes {before:8.2f} → con fallo {during:8.2f} → después {after:8.2f}",
+        f"{'OK  ' if ok else 'FAIL'} {scenario:28} {label:32} "
+        f"before {before:8.2f} → faulty {during:8.2f} → after {after:8.2f}",
         flush=True,
     )
     return ok
@@ -179,12 +179,12 @@ def main() -> None:
     scenarios = sys.argv[1:] or list(CHECKS)
     try:
         http("GET", f"{INJECTOR}/injections/active")
-        sys.exit("hay una inyección activa: recuperala antes (make injector ARGS=recover)")
+        sys.exit("an injection is active: recover it first (make injector ARGS=recover)")
     except urllib.error.HTTPError as exc:
         if exc.code != 404:
             raise
     results = [run(s) for s in scenarios]
-    print(f"\n{sum(results)}/{len(results)} escenarios OK")
+    print(f"\n{sum(results)}/{len(results)} scenarios OK")
     sys.exit(0 if all(results) else 1)
 
 

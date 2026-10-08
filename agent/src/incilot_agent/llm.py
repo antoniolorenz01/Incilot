@@ -1,11 +1,11 @@
-"""Modelos de lenguaje del agente: retries, timeouts y fallback.
+"""The agent's language models: retries, timeouts and fallback.
 
-- Retries con backoff exponencial y timeout por llamada: los hace el SDK de OpenAI
-  (rate limit, 5xx, cortes de conexión). Se configuran con LLM_MAX_RETRIES y
+- Retries with exponential backoff and a per-call timeout: handled by the OpenAI SDK
+  (rate limits, 5xx, dropped connections). Configured with LLM_MAX_RETRIES and
   LLM_TIMEOUT_SECONDS.
-- Fallback: si un modelo sigue fallando tras sus retries, se usa el siguiente de la
-  lista (OPENAI_MODEL y después OPENAI_FALLBACK_MODEL). Cada caída queda registrada.
-  Si fallan todos, la llamada falla: la investigación se puede retomar con --resume.
+- Fallback: if a model keeps failing after its retries, the next one in the list is
+  used (OPENAI_MODEL, then OPENAI_FALLBACK_MODEL). Every fallback is recorded.
+  If all of them fail, the call fails: the investigation can be resumed with --resume.
 """
 
 import os
@@ -31,11 +31,11 @@ def openai_models() -> list[BaseChatModel]:
 
 
 def dry_run_models() -> list[BaseChatModel]:
-    """LLM simulado para `dry_run`: usa una herramienta real y entrega un diagnóstico de
-    prueba. Cero tokens: para probar la API y el dashboard."""
+    """Fake LLM for `dry_run`: uses one real tool and submits a test diagnosis.
+    Zero tokens: for testing the API and the dashboard."""
     from incilot_agent.testing import DIAGNOSIS, FakeLLM, call
 
-    diagnosis = DIAGNOSIS | {"service": "dry-run", "root_cause": "investigación simulada"}
+    diagnosis = DIAGNOSIS | {"service": "dry-run", "root_cause": "simulated investigation"}
     query = "sum by (service) (rate(http_requests_total[1m]))"
     return [
         FakeLLM(
@@ -52,7 +52,7 @@ def model_name(llm: BaseChatModel) -> str:
 
 
 async def invoke_with_fallback(candidates: list[tuple[str, Runnable]], messages: list):
-    """Prueba cada modelo en orden. Devuelve (resultado, eventos de fallos registrados)."""
+    """Tries each model in order. Returns (result, recorded failure events)."""
     events = []
     for index, (name, runnable) in enumerate(candidates):
         try:
@@ -70,4 +70,4 @@ async def invoke_with_fallback(candidates: list[tuple[str, Runnable]], messages:
             )
             if index + 1 == len(candidates):
                 raise
-    raise RuntimeError("no hay modelos configurados")
+    raise RuntimeError("no models configured")

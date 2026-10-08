@@ -1,7 +1,7 @@
-"""Consultas SQL de solo lectura a las bases de los servicios.
+"""Read-only SQL queries against the services' databases.
 
-Tres capas de defensa: esta deny-list, una transacción de solo lectura con timeout,
-y el usuario `agent` de Postgres, que de por sí solo puede leer.
+Three layers of defence: this deny-list, a read-only transaction with a timeout, and
+the Postgres user `agent`, which can only read in the first place.
 """
 
 import re
@@ -16,8 +16,8 @@ Database = Literal["users", "inventory", "payments", "shop"]
 MAX_ROWS = 50
 MAX_CELL = 200
 ALLOWED_START = re.compile(r"^\s*(select|with|explain)\b", re.IGNORECASE)
-# Lo que podría colarse dentro de un SELECT/WITH: CTEs que modifican datos, EXPLAIN
-# ANALYZE (ejecuta la consulta) y funciones con efectos.
+# What could sneak in inside a SELECT/WITH: data-modifying CTEs, EXPLAIN ANALYZE
+# (which runs the query) and functions with side effects.
 FORBIDDEN = re.compile(
     r"\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|copy|analyze|"
     r"pg_terminate_backend|pg_cancel_backend|pg_sleep\w*|pg_read_file|pg_read_binary_file|"
@@ -27,27 +27,27 @@ FORBIDDEN = re.compile(
 
 
 def validate_sql(sql: str) -> str:
-    """Devuelve la consulta limpia, o lanza ToolError si no es una lectura simple."""
+    """Returns the cleaned query, or raises ToolError if it is not a plain read."""
     cleaned = re.sub(r"--[^\n]*|/\*.*?\*/", " ", sql, flags=re.DOTALL).strip().rstrip(";")
     if ";" in cleaned:
-        raise ToolError("una sola sentencia por consulta")
+        raise ToolError("only one statement per query")
     if not ALLOWED_START.match(cleaned):
-        raise ToolError("solo se permiten consultas SELECT, WITH o EXPLAIN")
+        raise ToolError("only SELECT, WITH or EXPLAIN queries are allowed")
     if match := FORBIDDEN.search(cleaned):
-        raise ToolError(f"operación no permitida: {match.group(0)}")
+        raise ToolError(f"operation not allowed: {match.group(0)}")
     return cleaned
 
 
 @guarded(timeout=10)
 async def query_database(database: Database, sql: str) -> str:
-    """SQL de solo lectura sobre la base de un servicio (users, inventory, payments, shop).
+    """Read-only SQL against a service's database (users, inventory, payments, shop).
 
-    Además de las tablas del servicio se pueden consultar las vistas de diagnóstico de
-    Postgres: pg_stat_activity (sesiones y qué esperan), pg_locks, pg_stat_user_tables.
-    Devuelve como mucho 50 filas.
+    Besides the service's tables you can query Postgres's diagnostic views:
+    pg_stat_activity (sessions and what they are waiting on), pg_locks,
+    pg_stat_user_tables. Returns at most 50 rows.
     """
     if database not in ("users", "inventory", "payments", "shop"):
-        raise ToolError("database tiene que ser users, inventory, payments o shop")
+        raise ToolError("database must be users, inventory, payments or shop")
     sql = validate_sql(sql)
     conn = await asyncpg.connect(
         host=config.POSTGRES_HOST,
@@ -71,11 +71,11 @@ async def query_database(database: Database, sql: str) -> str:
         await conn.close()
 
     if not rows:
-        return "0 filas"
+        return "0 rows"
     columns = list(rows[0].keys())
     lines = [" | ".join(columns)]
     for row in rows[:MAX_ROWS]:
         lines.append(" | ".join(str(v)[:MAX_CELL] for v in row.values()))
     if len(rows) > MAX_ROWS:
-        lines.append(f"… más de {MAX_ROWS} filas: agregá filtros o un LIMIT")
+        lines.append(f"… more than {MAX_ROWS} rows: add filters or a LIMIT")
     return "\n".join(lines)

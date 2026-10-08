@@ -16,12 +16,12 @@ def fake_sources(monkeypatch):
     TOOL_CALLS.clear()
 
     async def overview():
-        return "todo tranquilo"
+        return "all quiet"
 
     async def query_metrics(promql: str) -> str:
-        """Métricas falsas."""
+        """Fake metrics."""
         TOOL_CALLS.append(promql)
-        return f"resultado de {promql}"
+        return f"result of {promql}"
 
     monkeypatch.setattr(graph, "overview", overview)
     monkeypatch.setattr(
@@ -36,7 +36,7 @@ NEW = {"alert": "test"}
 
 
 def investigate(*replies, checkpointer=None, graph_input=NEW):
-    """graph_input=None retoma la investigación del thread desde su último checkpoint."""
+    """graph_input=None resumes the thread's investigation from its last checkpoint."""
     app = graph.build(FakeLLM(replies=list(replies)), checkpointer or InMemorySaver())
     return asyncio.run(app.ainvoke(graph_input, THREAD))
 
@@ -49,17 +49,17 @@ def test_tools_then_submitted_diagnosis():
     assert state["stop_reason"] == "submitted"
     assert state["diagnosis"]["service"] == "inventory"
     assert state["steps"] == 1
-    assert state["messages"][3].content == "resultado de up"
+    assert state["messages"][3].content == "result of up"
 
 
 def test_step_limit_forces_a_diagnosis(monkeypatch):
     monkeypatch.setattr(graph, "MAX_STEPS", 1)
     state = investigate(
         call("query_metrics", {"promql": "up"}, "1"),
-        call("query_metrics", {"promql": "otra"}, "2"),
+        call("query_metrics", {"promql": "other"}, "2"),
     )
     assert state["stop_reason"] == "limit"
-    assert state["diagnosis"]["service"] == "forzado"
+    assert state["diagnosis"]["service"] == "forced"
 
 
 def test_invalid_arguments_are_reported_to_the_agent():
@@ -67,12 +67,12 @@ def test_invalid_arguments_are_reported_to_the_agent():
         call("query_metrics", {"wrong": 1}, "1"),
         call("submit_diagnosis", DIAGNOSIS, "2"),
     )
-    assert state["messages"][3].content.startswith("error: argumentos inválidos")
+    assert state["messages"][3].content.startswith("error: invalid arguments")
 
 
 def test_malformed_submission_falls_back_to_forced_diagnosis():
     state = investigate(call("submit_diagnosis", {"service": "x"}, "1"))
-    assert state["diagnosis"]["service"] == "forzado"
+    assert state["diagnosis"]["service"] == "forced"
 
 
 def test_diagnosis_pauses_for_approval_and_records_the_decision():
@@ -99,7 +99,7 @@ def test_interrupted_investigation_resumes_without_repeating_steps():
     with pytest.raises(RuntimeError):
         investigate(
             call("query_metrics", {"promql": "up"}, "1"),
-            RuntimeError("se cortó el proceso"),
+            RuntimeError("the process died"),
             checkpointer=checkpointer,
         )
     assert TOOL_CALLS == ["up"]
@@ -107,13 +107,13 @@ def test_interrupted_investigation_resumes_without_repeating_steps():
     resumed = investigate(
         call("submit_diagnosis", DIAGNOSIS, "2"), checkpointer=checkpointer, graph_input=None
     )
-    assert TOOL_CALLS == ["up"]  # la herramienta no se volvió a ejecutar
+    assert TOOL_CALLS == ["up"]  # the tool was not run again
     assert resumed["steps"] == 1
     assert resumed["diagnosis"]["service"] == "inventory"
 
 
 def test_falls_back_to_the_next_model_and_records_it():
-    primary = FakeLLM(replies=[ConnectionError("503 del proveedor")])
+    primary = FakeLLM(replies=[ConnectionError("503 from the provider")])
     backup = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
     app = graph.build([primary, backup], InMemorySaver())
     state = asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
@@ -126,7 +126,7 @@ def test_falls_back_to_the_next_model_and_records_it():
 
 def test_when_every_model_fails_the_investigation_stops_and_can_resume():
     checkpointer = InMemorySaver()
-    failing = [FakeLLM(replies=[ConnectionError("caído")]) for _ in range(2)]
+    failing = [FakeLLM(replies=[ConnectionError("down")]) for _ in range(2)]
     with pytest.raises(ConnectionError):
         asyncio.run(graph.build(failing, checkpointer).ainvoke({"alert": "test"}, THREAD))
 
@@ -166,13 +166,13 @@ def test_human_can_correct_the_action_when_approving():
     decision = {
         "approved": True,
         "by": "toni",
-        "note": "era otro commit",
+        "note": "it was another commit",
         "action": {"target": "def5678"},
     }
     done = investigate(checkpointer=checkpointer, graph_input=Command(resume=decision))
     action = done["approved_action"]
     assert action["kind"] == "rollback" and action["target"] == "def5678"
-    assert "corregida por un humano: era otro commit" in action["reason"]
+    assert "corrected by a human: it was another commit" in action["reason"]
 
 
 def test_rejected_investigation_has_no_action_to_execute():
@@ -204,7 +204,7 @@ def test_approved_action_is_executed_and_rejected_is_not():
         llm = FakeLLM(replies=[call("submit_diagnosis", DIAGNOSIS, "1")])
         app = g.build(llm, checkpointer, executor=executor)
         asyncio.run(app.ainvoke({"alert": "test"}, THREAD))
-        assert executor.actions == []  # nada se ejecuta antes de la aprobación
+        assert executor.actions == []  # nothing runs before approval
 
         decision = {"approved": approved, "by": "toni", "note": "", "action": {"target": "def5678"}}
         done = asyncio.run(app.ainvoke(Command(resume=decision), THREAD))

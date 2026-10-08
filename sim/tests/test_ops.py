@@ -14,13 +14,13 @@ INFRA = {"action": "restart", "culprit_sha": None, "service": "redis"}
     ("injection", "kind", "target", "expected"),
     [
         (DEPLOY, "rollback", "1049b48", True),
-        (DEPLOY, "revert_config", "1049b486889d", True),  # equivalentes: revierten un commit
-        (DEPLOY, "rollback", "9441aff", False),  # un señuelo
-        (DEPLOY, "rollback", "1049", False),  # SHA demasiado corto
-        (DEPLOY, "restart", "inventory", False),  # alivia, pero no corrige el bug
+        (DEPLOY, "revert_config", "1049b486889d", True),  # equivalent: both revert a commit
+        (DEPLOY, "rollback", "9441aff", False),  # a decoy
+        (DEPLOY, "rollback", "1049", False),  # SHA too short
+        (DEPLOY, "restart", "inventory", False),  # relieves it, but does not fix the bug
         (INFRA, "restart", "redis", True),
         (INFRA, "restart", "users", False),
-        (INFRA, "escalate", "proveedor", False),
+        (INFRA, "escalate", "provider", False),
     ],
 )
 def test_resolves(injection, kind, target, expected):

@@ -1,14 +1,14 @@
-"""Accesos del agente a Postgres y Redis: solo lectura y sin llegar a la respuesta.
+"""The agent's access to Postgres and Redis: read-only and unable to reach the answer.
 
-El agente se conecta como `agent`:
-  - Postgres: lectura sobre las bases de los servicios y las vistas de actividad
-    (pg_stat_activity, pg_locks); sin acceso a `groundtruth`. Es dueño de su propia
-    base, `agent_state`, donde guarda los checkpoints de sus investigaciones.
-  - Redis: lectura de las cachés (`user:*`, `catalog`) y lectura y escritura de su
-    cola y sus eventos (`investigation:*`, db 3); sin acceso a `faults:*` (los
-    interruptores), sin listar claves ni borrar bases. El usuario se define en compose.yaml.
+The agent connects as `agent`:
+  - Postgres: read access to the services' databases and the activity views
+    (pg_stat_activity, pg_locks); no access to `groundtruth`. It owns its own
+    database, `agent_state`, where it stores the checkpoints of its investigations.
+  - Redis: read access to the caches (`user:*`, `catalog`) and read/write access to its
+    queue and events (`investigation:*`, db 3); no access to `faults:*` (the
+    switches), no listing keys or flushing databases. The user is defined in compose.yaml.
 
-    python -m incilot_sim.agent_access    # verifica los accesos (make agent-access)
+    python -m incilot_sim.agent_access    # checks the access rules (make agent-access)
 """
 
 import asyncio
@@ -35,7 +35,7 @@ def _url(admin_url: str, database: str, user: str | None = None) -> str:
 
 
 async def ensure_postgres_access(admin_url: str) -> None:
-    """Crea o actualiza el rol `agent` (idempotente). Lo llama el injector al arrancar."""
+    """Creates or updates the `agent` role (idempotent). Called by the injector on startup."""
     conn = await asyncpg.connect(_url(admin_url, "postgres"))
     try:
         if not await conn.fetchval("SELECT 1 FROM pg_roles WHERE rolname = $1", AGENT_USER):
@@ -45,7 +45,7 @@ async def ensure_postgres_access(admin_url: str) -> None:
             await conn.execute(f"CREATE DATABASE {STATE_DATABASE} OWNER {AGENT_USER}")
     finally:
         await conn.close()
-    # pgvector para el RAG del agente: crear la extensión requiere ser administrador.
+    # pgvector for the agent's RAG: creating the extension requires admin rights.
     conn = await asyncpg.connect(_url(admin_url, STATE_DATABASE))
     try:
         await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
@@ -73,8 +73,8 @@ async def _expect(label: str, allowed: bool, check) -> bool:
     except (asyncpg.PostgresError, NoPermissionError, OSError):
         got = False
     ok = got == allowed
-    expected = "permitido" if allowed else "denegado"
-    print(f"{'OK   ' if ok else 'FALLA'} {label:52} {expected}", flush=True)
+    expected = "allowed" if allowed else "denied"
+    print(f"{'OK   ' if ok else 'FAIL '} {label:52} {expected}", flush=True)
     return ok
 
 
@@ -97,41 +97,41 @@ async def check(admin_url: str, redis_host: str) -> bool:
             await client.aclose()
 
     checks = [
-        ("Postgres: leer tablas de un servicio", True, lambda: pg("users", "SELECT 1 FROM users")),
+        ("Postgres: read a service's tables", True, lambda: pg("users", "SELECT 1 FROM users")),
         (
-            "Postgres: ver la actividad de otras sesiones",
+            "Postgres: see other sessions' activity",
             True,
             lambda: pg("inventory", "SELECT query FROM pg_stat_activity"),
         ),
         (
-            "Postgres: escribir en un servicio",
+            "Postgres: write to a service",
             False,
             lambda: pg("users", "UPDATE users SET name = name WHERE id = 0"),
         ),
-        ("Postgres: conectarse a groundtruth", False, lambda: pg("groundtruth", "SELECT 1")),
+        ("Postgres: connect to groundtruth", False, lambda: pg("groundtruth", "SELECT 1")),
         (
-            "Postgres: escribir en su base (agent_state)",
+            "Postgres: write to its own database (agent_state)",
             True,
             lambda: pg("agent_state", "CREATE TABLE IF NOT EXISTS access_probe (x int)"),
         ),
-        ("Redis: leer la caché de users (db 0)", True, lambda: redis_call(0, "GET", "user:1")),
-        ("Redis: leer la caché de shop (db 1)", True, lambda: redis_call(1, "GET", "catalog")),
+        ("Redis: read the users cache (db 0)", True, lambda: redis_call(0, "GET", "user:1")),
+        ("Redis: read the shop cache (db 1)", True, lambda: redis_call(1, "GET", "catalog")),
         (
-            "Redis: leer interruptores (db 2, faults:*)",
+            "Redis: read switches (db 2, faults:*)",
             False,
             lambda: redis_call(2, "HGETALL", "faults:shop"),
         ),
-        ("Redis: listar claves", False, lambda: redis_call(0, "SCAN", "0")),
-        ("Redis: escribir en la caché", False, lambda: redis_call(0, "SET", "user:1", "x")),
+        ("Redis: list keys", False, lambda: redis_call(0, "SCAN", "0")),
+        ("Redis: write to the cache", False, lambda: redis_call(0, "SET", "user:1", "x")),
         (
-            "Redis: escribir en su cola (investigation:*)",
+            "Redis: write to its queue (investigation:*)",
             True,
             lambda: redis_call(3, "SET", "investigation:access-probe", "x", "EX", "60"),
         ),
-        ("Redis: borrar una base (FLUSHDB)", False, lambda: redis_call(3, "FLUSHDB")),
+        ("Redis: flush a database (FLUSHDB)", False, lambda: redis_call(3, "FLUSHDB")),
     ]
     results = [await _expect(label, allowed, fn) for label, allowed, fn in checks]
-    print(f"\n{sum(results)}/{len(results)} accesos como se espera")
+    print(f"\n{sum(results)}/{len(results)} access checks as expected")
     return all(results)
 
 

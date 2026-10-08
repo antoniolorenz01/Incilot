@@ -25,10 +25,10 @@ def test_correct_diagnosis():
 
 
 def test_todays_run_found_the_commit_but_proposed_the_wrong_action():
-    """La corrida de TONI-79: encontró el commit pero escaló a infraestructura."""
+    """The TONI-79 run: it found the commit but escalated to infrastructure."""
     result = score(
         DEPLOY,
-        diagnosis("infraestructura compartida (Redis y Postgres)", None, "escalate", "plataforma"),
+        diagnosis("shared infrastructure (Redis and Postgres)", None, "escalate", "platform"),
     )
     assert result["action_ok"] is False
     assert result["service_ok"] is False
@@ -41,7 +41,7 @@ def test_todays_run_found_the_commit_but_proposed_the_wrong_action():
         (DEPLOY, "f02a404", "decoy"),
         (DEPLOY, "1234567", "wrong"),
         (DEPLOY, None, "missing"),
-        (DEPLOY, "8258", "wrong"),  # SHA demasiado corto
+        (DEPLOY, "8258", "wrong"),  # SHA too short
         (INFRA, None, "correct_none"),
         (INFRA, "9441aff", "blamed_innocent"),
     ],
@@ -55,7 +55,7 @@ def test_service_must_be_named_as_a_word():
         return score(DEPLOY, diagnosis(text, None, "x", "y"))["service_ok"]
 
     assert named("inventory")
-    assert named("Inventory (catálogo)")
+    assert named("Inventory (catalogue)")
     assert named("inventory-api")
     assert not named("inventoryservice")
     assert not named("shop")

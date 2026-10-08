@@ -1,7 +1,7 @@
 [project]
 name = "incilot-agent"
 version = "0.1.0"
-description = "IncidentPilot: el agente que investiga incidentes en la mini-empresa"
+description = "IncidentPilot: the agent that investigates incidents in the mini-company"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",

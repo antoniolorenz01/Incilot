@@ -1,19 +1,19 @@
-"""El grafo de investigación.
+"""The investigation graph.
 
     triage ──► agent ⇄ tools ──► finish ───────────┐
-                 └──────────────► force_diagnosis ─┴──► approval (pausa)
-                                  (límite de pasos o de tokens)
+                 └──────────────► force_diagnosis ─┴──► approval (pause)
+                                  (step or token limit)
 
-- triage: resumen del sistema sin LLM (triage.py).
-- agent: el LLM decide qué herramienta usar o, cuando tiene la causa raíz con
-  evidencia, llama a `submit_diagnosis`.
-- tools: ejecuta las herramientas de solo lectura y devuelve los resultados.
-- finish / force_diagnosis: dejan el diagnóstico estructurado en el estado.
-- approval: pausa el grafo (interrupt) hasta que un humano apruebe o rechace la
-  acción propuesta. El estado queda en el checkpointer: se retoma desde otro proceso.
+- triage: system overview without an LLM (triage.py).
+- agent: the LLM decides which tool to use or, once it has the root cause with
+  evidence, calls `submit_diagnosis`.
+- tools: runs the read-only tools and returns the results.
+- finish / force_diagnosis: put the structured diagnosis into the state.
+- approval: pauses the graph (interrupt) until a human approves or rejects the
+  proposed action. The state lives in the checkpointer: it resumes from another process.
 
-Con un checkpointer (Postgres en producción) cada paso queda guardado: una
-investigación cortada a mitad se retoma desde el último paso completo.
+With a checkpointer (Postgres in production) every step is saved: an investigation
+cut off halfway resumes from the last completed step.
 """
 
 import asyncio
@@ -42,36 +42,37 @@ from incilot_agent.verification import NullRecorder, NullVerifier
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "12"))
 MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", "150000"))
-# Tope de lo que devuelven las herramientas en una ronda (~4 caracteres por token).
+# Cap on what the tools return in one round (~4 characters per token).
 ROUND_BUDGET_CHARS = int(os.getenv("AGENT_ROUND_BUDGET_CHARS", "16000"))
 SUBMIT = "submit_diagnosis"
 
 SYSTEM_PROMPT = """\
-Sos el ingeniero de guardia (SRE) de una tienda online. Hay un incidente en curso y
-tenés que encontrar la causa raíz con evidencia y proponer una acción para resolverlo.
+You are the on-call engineer (SRE) for an online shop. There is an incident in progress
+and you have to find the root cause with evidence and propose an action to resolve it.
 
-La tienda tiene 4 servicios: shop (la entrada: orquesta los pedidos llamando a users,
-inventory y payments), users, inventory y payments; usan Postgres y Redis. Cada merge
-a main del repo de la empresa se despliega automáticamente.
+The shop has 4 services: shop (the entry point: it orchestrates orders by calling users,
+inventory and payments), users, inventory and payments; they use Postgres and Redis. Every
+merge to main in the company repo is deployed automatically.
 
-Cómo investigar:
-1. Ubicá el origen, no solo el síntoma: si una dependencia falla, el que se queja es
-   shop (timeouts, 502). Seguí la cadena hasta el servicio o componente que falla.
-2. Formulá hipótesis y verificalas con evidencia: métricas, logs, commits, config y la
-   base de datos (pg_stat_activity y pg_locks para sesiones y bloqueos). Con
-   search_knowledge encontrás runbooks, docs y el código relevante por tema.
-3. Revisá los cambios recientes, pero no asumas que el último commit es el culpable:
-   relacioná el contenido del cambio con el síntoma y con el momento en que empezó.
-4. Hay ruido de fondo: errores transitorios sueltos y picos aislados pasan siempre y no
-   son el incidente. Buscá lo que cambió de forma sostenida. El triage inicial ya compara
-   cada métrica con su línea base y marca los errores de los logs como NUEVO, CRECIÓ o
-   estable: los estables existían antes del incidente y no lo explican. Si la alerta dice desde
-   cuándo, concentrate en lo que empezó o cambió a partir de ese momento: lo anterior
-   puede ser de otro incidente ya resuelto.
-5. La causa puede ser externa (un proveedor) o de infraestructura, sin commit culpable.
+How to investigate:
+1. Locate the origin, not just the symptom: if a dependency fails, the one complaining is
+   shop (timeouts, 502). Follow the chain to the service or component that is failing.
+2. Form hypotheses and test them with evidence: metrics, logs, commits, config and the
+   database (pg_stat_activity and pg_locks for sessions and locks). With
+   search_knowledge you find runbooks, docs and the relevant code by topic.
+3. Review recent changes, but do not assume the latest commit is the culprit: relate
+   the content of the change to the symptom and to the moment it started.
+4. There is background noise: isolated transient errors and one-off spikes happen all the
+   time and are not the incident. Look for what changed in a sustained way. The initial
+   triage already compares each metric with its baseline and marks log errors as NEW,
+   GROWING or stable: stable ones existed before the incident and do not explain it. If
+   the alert says since when, focus on what started or changed from that moment on:
+   anything earlier may belong to another incident that has already been resolved.
+5. The cause may be external (a provider) or infrastructure, with no culprit commit.
 
-Usá solo datos que obtuviste con las herramientas; no inventes. Cuando tengas la causa
-raíz con evidencia, terminá llamando a submit_diagnosis."""
+Use only data you obtained with the tools; do not make anything up. Write every text
+field of the diagnosis in British English. Once you have the root cause with evidence,
+finish by calling submit_diagnosis."""
 
 
 class State(TypedDict):
@@ -82,10 +83,10 @@ class State(TypedDict):
     diagnosis: dict | None
     stop_reason: str | None
     approval: dict | None  # {"approved": bool, "by": str, "note": str, "action": override}
-    approved_action: dict | None  # la acción a ejecutar (con la corrección humana, si hubo)
-    execution: dict | None  # resultado del ejecutor
-    verification: dict | None  # ¿se recuperó la tienda? (recovered, checks)
-    llm_events: Annotated[list, operator.add]  # fallos del LLM y caídas al respaldo
+    approved_action: dict | None  # the action to execute (with the human correction, if any)
+    execution: dict | None  # the executor's result
+    verification: dict | None  # did the shop recover? (recovered, checks)
+    llm_events: Annotated[list, operator.add]  # LLM failures and fallbacks
 
 
 TOOLS = {
@@ -97,13 +98,13 @@ TOOLS = {
 
 
 async def _submit(**_) -> str:
-    return "diagnóstico recibido"
+    return "diagnosis received"
 
 
 SUBMIT_TOOL = StructuredTool.from_function(
     coroutine=_submit,
     name=SUBMIT,
-    description="Entrega el diagnóstico final. Llamala solo cuando tengas evidencia.",
+    description="Submit the final diagnosis. Call it only once you have evidence.",
     args_schema=Diagnosis,
 )
 
@@ -116,9 +117,9 @@ def build(
     verifier=None,
     recorder=None,
 ):
-    """`llms`: un modelo, o varios en orden de preferencia (fallback). `executor`,
-    `verifier` y `recorder`: quién ejecuta la acción aprobada, cómo se verifica y dónde se
-    registra el incidente (por defecto, nada: para tests y dry_run)."""
+    """`llms`: one model, or several in order of preference (fallback). `executor`,
+    `verifier` and `recorder`: who executes the approved action, how it is verified and
+    where the incident is recorded (by default, nothing: for tests and dry_run)."""
     executor = executor or NoopExecutor()
     verifier = verifier or NullVerifier()
     recorder = recorder or NullRecorder()
@@ -132,7 +133,7 @@ def build(
             "messages": [
                 SystemMessage(SYSTEM_PROMPT),
                 HumanMessage(
-                    f"Alerta: {state['alert']}\n\nEstado actual del sistema:\n\n{summary}"
+                    f"Alert: {state['alert']}\n\nCurrent state of the system:\n\n{summary}"
                 ),
             ],
             "steps": 0,
@@ -150,12 +151,12 @@ def build(
         async def run(call):
             tool = TOOLS.get(call["name"])
             if tool is None:
-                result = f"error: no existe la herramienta {call['name']}"
+                result = f"error: no such tool {call['name']}"
             else:
                 try:
                     result = await tool.ainvoke(call["args"])
-                except Exception as exc:  # argumentos inválidos: que el agente corrija
-                    result = f"error: argumentos inválidos para {call['name']}: {exc}"
+                except Exception as exc:  # invalid arguments: let the agent correct them
+                    result = f"error: invalid arguments for {call['name']}: {exc}"
             return ToolMessage(content=result, tool_call_id=call["id"], name=call["name"])
 
         results = await asyncio.gather(*(run(c) for c in calls))
@@ -174,11 +175,11 @@ def build(
     async def force_diagnosis(state: State) -> dict:
         messages = state["messages"]
         if isinstance(messages[-1], AIMessage) and messages[-1].tool_calls:
-            messages = messages[:-1]  # llamadas sin respuesta: OpenAI no las acepta
+            messages = messages[:-1]  # calls without a response: OpenAI rejects them
         reason = "limit" if _over_limits(state) else "no_submit"
         result, events = await invoke_with_fallback(
             diagnosis_llms,
-            [*messages, HumanMessage("Entregá ahora el diagnóstico con la evidencia que tenés.")],
+            [*messages, HumanMessage("Submit the diagnosis now with the evidence you have.")],
         )
         return {"diagnosis": result.model_dump(), "stop_reason": reason, "llm_events": events}
 
@@ -192,7 +193,7 @@ def build(
         return "force_diagnosis"
 
     def approval(state: State) -> dict:
-        # Se pausa acá; al retomar con Command(resume=decisión), interrupt la devuelve.
+        # Pauses here; when resumed with Command(resume=decision), interrupt returns it.
         decision = interrupt({"diagnosis": state["diagnosis"]})
         if not decision["approved"]:
             return {"approval": decision, "approved_action": None}
@@ -202,7 +203,7 @@ def build(
         return {"approval": decision, "approved_action": action.model_dump()}
 
     async def execute(state: State) -> dict:
-        # Solo se llega acá con una acción aprobada por un humano.
+        # Only reached with an action approved by a human.
         result = await executor.execute(ActionProposal(**state["approved_action"]))
         return {"execution": result.model_dump()}
 

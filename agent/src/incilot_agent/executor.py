@@ -1,11 +1,11 @@
-"""Ejecución de acciones aprobadas por un humano, con conectores intercambiables.
+"""Execution of human-approved actions, with interchangeable connectors.
 
-El LLM nunca ejecuta nada: no tiene una herramienta para esto. El nodo `execute` del
-grafo llama al ejecutor solo después de la aprobación humana.
+The LLM never executes anything: it has no tool for it. The graph's `execute` node
+calls the executor only after human approval.
 
-    SimulationExecutor  la mini-empresa simulada (servicio de operaciones, con token)
-    NoopExecutor        no ejecuta nada (dry_run y tests)
-    (GitHubExecutor)    opcional: abrir un PR de revert en un repo real
+    SimulationExecutor  the simulated mini-company (operations service, with a token)
+    NoopExecutor        executes nothing (dry_run and tests)
+    (GitHubExecutor)    optional: open a revert PR in a real repo
 """
 
 from typing import Literal, Protocol
@@ -35,13 +35,13 @@ class NoopExecutor:
     async def execute(self, action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(
             status="skipped",
-            detail=f"no se ejecuta ({action.kind} {action.target})",
+            detail=f"not executed ({action.kind} {action.target})",
             connector=self.name,
         )
 
 
 class SimulationExecutor:
-    """Pide la ejecución al servicio de operaciones de la mini-empresa."""
+    """Asks the mini-company's operations service to execute the action."""
 
     name = "simulation"
 

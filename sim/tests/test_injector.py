@@ -12,7 +12,7 @@ from incilot_sim.injector.scenarios import load, pick
 
 SCENARIO = """
 id = "deploy-latency-regression"
-title = "Deploy con regresión de latencia"
+title = "Deploy with a latency regression"
 category = "deploy"
 
 [[variants]]
@@ -21,7 +21,7 @@ service = "inventory"
 
 [variants.culprit]
 author = "diego"
-message = "inventory: consulta nueva"
+message = "inventory: new query"
 
 [[variants.culprit.edits]]
 file = "app.env"
@@ -32,7 +32,7 @@ new = "TIMEOUT=9"
 latency = { ms = 800 }
 
 [variants.ground_truth]
-root_cause = "consulta lenta"
+root_cause = "slow query"
 action = "rollback"
 """
 
@@ -65,7 +65,7 @@ def repo(tmp_path):
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
     (repo / "app.env").write_text("TIMEOUT=1\n")
-    commit(repo, "Ana R <ana@t.example>", "inicial", datetime(2026, 10, 1, tzinfo=UTC))
+    commit(repo, "Ana R <ana@t.example>", "initial", datetime(2026, 10, 1, tzinfo=UTC))
     return repo
 
 
@@ -98,27 +98,27 @@ def test_culprit_is_never_the_last_commit_and_reverts_cleanly(data, repo):
 
     shas = {s.change["message"]: timeline.apply(repo, s) for s in steps}
     assert (repo / "app.env").read_text() == "TIMEOUT=9\n"
-    revert(repo, shas["inventory: consulta nueva"], "Guardia SRE <sre@t.example>", NOW)
+    revert(repo, shas["inventory: new query"], "SRE On-call <sre@t.example>", NOW)
     assert (repo / "app.env").read_text() == "TIMEOUT=1\n"
 
 
 def test_decoys_never_break_or_touch_the_culprit(data, repo):
     variant = pick(load(data), "deploy-latency-regression")
-    breaks_culprit = decoy("rompe", "app.env", "TIMEOUT=1", "TIMEOUT=5")
+    breaks_culprit = decoy("breaks", "app.env", "TIMEOUT=1", "TIMEOUT=5")
     for seed in range(20):
         steps = timeline.plan(repo, variant.culprit, [breaks_culprit], NOW, random.Random(seed))
         assert [s.culprit for s in steps] == [True]
 
 
 def test_already_applied_decoys_are_skipped(repo):
-    applied = decoy("ya está", "app.env", "TIMEOUT=1\n", "TIMEOUT=1\nDEBUG=0\n")
+    applied = decoy("already there", "app.env", "TIMEOUT=1\n", "TIMEOUT=1\nDEBUG=0\n")
     (repo / "app.env").write_text("TIMEOUT=1\nDEBUG=0\n")
     assert timeline.plan(repo, None, [applied], NOW, random.Random(0)) == []
 
 
 def test_activate_and_clear_faults():
     redis = FakeRedis()
-    redis.data["faults:inventory"] = {"errors": "{}"}  # restos de antes: se reemplazan
+    redis.data["faults:inventory"] = {"errors": "{}"}  # leftovers from before: replaced
     asyncio.run(activate_faults(redis, {"inventory": {"latency": {"ms": 800}}}))
     assert redis.data == {"faults:inventory": {"latency": json.dumps({"ms": 800})}}
     asyncio.run(clear_faults(redis, ["inventory"]))

@@ -1,9 +1,9 @@
-"""Verificación (¿se recuperó la tienda?) y registro de cada incidente.
+"""Verification (did the shop recover?) and a record of each incident.
 
-Después de ejecutar la acción aprobada se espera a que las métricas reflejen el cambio
-y se revisan los indicadores de salud de la tienda. Cada incidente queda registrado en
-agent_state (diagnóstico, decisión humana, acción, ejecución y verificación): alimenta
-las evals y la memoria de incidentes.
+After executing the approved action it waits for the metrics to reflect the change and
+checks the shop's health indicators. Each incident is recorded in agent_state
+(diagnosis, human decision, action, execution and verification): it feeds the evals
+and the incident memory.
 """
 
 import asyncio
@@ -16,22 +16,22 @@ import httpx
 from incilot_agent import config
 
 VERIFY_WAIT_SECONDS = int(os.getenv("AGENT_VERIFY_SECONDS", "60"))
-# (nombre, PromQL, umbral máximo): la tienda está sana si todos quedan por debajo.
+# (name, PromQL, maximum threshold): the shop is healthy if all stay below.
 HEALTH_CHECKS = [
     (
-        "errores 5xx de shop",
+        "shop 5xx errors",
         'sum(rate(http_requests_total{service="shop",status=~"5.."}[1m]))'
         ' / sum(rate(http_requests_total{service="shop"}[1m]))',
         0.05,
     ),
     (
-        "p95 de shop (s)",
+        "shop p95 (s)",
         "histogram_quantile(0.95, sum by (le) "
         '(rate(http_request_duration_seconds_bucket{service="shop"}[1m])))',
         0.5,
     ),
     (
-        "pedidos fallidos",
+        "failed orders",
         'sum(rate(orders_total{status="failed"}[1m])) / sum(rate(orders_total[1m]))',
         0.10,
     ),
@@ -43,14 +43,14 @@ class PrometheusVerifier:
         self.wait_seconds = wait_seconds
 
     async def verify(self) -> dict:
-        await asyncio.sleep(self.wait_seconds)  # que las métricas reflejen la acción
+        await asyncio.sleep(self.wait_seconds)  # let the metrics reflect the action
         checks = []
         async with httpx.AsyncClient(base_url=config.PROMETHEUS_URL, timeout=10) as http:
             for name, query, threshold in HEALTH_CHECKS:
                 result = (await http.get("/api/v1/query", params={"query": query})).json()
                 series = result["data"]["result"]
                 value = float(series[0]["value"][1]) if series else 0.0
-                value = 0.0 if value != value else value  # NaN (sin tráfico) → 0
+                value = 0.0 if value != value else value  # NaN (no traffic) → 0
                 checks.append(
                     {
                         "name": name,

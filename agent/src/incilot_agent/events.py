@@ -1,16 +1,16 @@
-"""Los pasos de una investigación como eventos: la misma fuente para la consola y la API.
+"""An investigation's steps as events: the same source for the console and the API.
 
-Tipos de evento:
-    triage            resumen inicial listo
-    tool_call         el agente pide una herramienta (name, args, round)
-    tool_result       resultado de una herramienta (name, content)
-    llm_fallback      un modelo falló y se pasó al siguiente (model, error, fallback_to)
-    diagnosis         diagnóstico estructurado (diagnosis, stop_reason, tokens)
-    awaiting_approval la investigación se pausó esperando aprobación humana
-    approval          decisión registrada (approved, by, note, action)
-    execution         resultado de ejecutar la acción aprobada (status, detail, connector)
-    verification      ¿se recuperó la tienda? (recovered, checks)
-    done              la investigación terminó
+Event types:
+    triage            initial overview ready
+    tool_call         the agent requests a tool (name, args, round)
+    tool_result       a tool's result (name, content)
+    llm_fallback      a model failed and the next one took over (model, error, fallback_to)
+    diagnosis         structured diagnosis (diagnosis, stop_reason, tokens)
+    awaiting_approval the investigation paused awaiting human approval
+    approval          decision recorded (approved, by, note, action)
+    execution         result of executing the approved action (status, detail, connector)
+    verification      did the shop recover? (recovered, checks)
+    done              the investigation finished
 """
 
 from collections.abc import AsyncIterator
@@ -21,7 +21,7 @@ TERMINAL = {"done", "error"}
 
 
 async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[dict]:
-    """Corre (o retoma) la investigación y va emitiendo sus eventos."""
+    """Runs (or resumes) the investigation and emits its events as it goes."""
     rounds = (await app.aget_state(config)).values.get("steps", 0)
 
     async for update in app.astream(graph_input, config, stream_mode="updates"):
@@ -35,7 +35,7 @@ async def investigation_events(app, graph_input, config: dict) -> AsyncIterator[
             elif node == "agent":
                 for call in change["messages"][-1].tool_calls:
                     if call["name"] == SUBMIT:
-                        continue  # lo cubre el evento `diagnosis`
+                        continue  # covered by the `diagnosis` event
                     yield {
                         "type": "tool_call",
                         "name": call["name"],

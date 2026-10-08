@@ -1,1 +1,1 @@
-"""Injector de fallos: provoca incidentes reales y guarda la respuesta correcta."""
+"""Fault injector: causes real incidents and stores the correct answer."""
