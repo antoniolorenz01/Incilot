@@ -1,0 +1,396 @@
+{
+ "scenario": "external-provider-slow",
+ "variant": "provider-timeouts",
+ "recordedAt": "2026-10-08T12:04:38+00:00",
+ "truth": {
+  "scenario": "external-provider-slow",
+  "variant": "provider-timeouts",
+  "service": "payments",
+  "root_cause": "The payment provider responds in 2.5–3.5 s: charges exceed shop's 2 s timeout. There are no internal changes; the problem is external.",
+  "action": "escalate",
+  "culprit_sha": null,
+  "decoy_shas": [
+   "4b2a4d3ebc40c84950edd0a16c975404d4ec34bb",
+   "54e5e6662f73840d9f0abfcb53dc66f64ffb45d9",
+   "2537bff927537c84d83e25d085b80ddd31dd9049"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791460949411,
+   "type": "triage"
+  },
+  {
+   "at": 1791460963305,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 10,
+    "limit": 15
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460963307,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 180,
+    "limit": 20
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460963308,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "payments",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_stat_activity order by xact_start limit 30"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460963308,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le,service) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460963380,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 16 patterns for {service=\"payments\"}, last 10 min (most frequent first):\n\n549× [payments] between 11:57:06 and 12:02:42\n   example: {\"ts\": \"2026-10-08T12:02:42.285+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"f760b0e460e1401582fd40b322502732\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 2858.6}\n\n217× [payments] between 11:54:16 and 12:02:16\n   example: {\"ts\": \"2026-10-08T12:02:16.011+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"f73a5fbf61984afaa37e12e097230ebe\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 3189.9}\n\n217× [payments] between 11:54:16 and 12:02:16\n   example: {\"ts\": \"2026-10-08T12:02:16.011+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"f73a5fbf61984afaa37e12e097230ebe\", \"order_id\": \"3df5a393-c9cb-420c-9f91-fe535f50c279\", \"reason\": \"card_declined\"}\n\n4× [payments] between 11:55:26 and 11:57:47\n   example: {\"ts\": \"2026-10-08T11:57:47.653+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"be660416164944d88cff96c60f5db8aa\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.0}\n\n2× [payments] between 11:55:57 and 11:56:37\n   example: {\"ts\": \"2026-10-08T11:56:37.329+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"87d3558677fa4c1b951f7c342968a9d6\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi\n\n1× [payments] between 11:59:59 and 11:59:59\n   example: {\"ts\": \"2026-10-08T11:59:59.503+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\"}\n\n1× [payments] between 11:59:59 and 11:59:59\n   example: {\"ts\": \"2026-10-08T11:59:59.503+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Application startup complete.\"}\n\n1× [payments] between 11:59:59 and 11:59:59\n   example: {\"ts\": \"2026-10-08T11:59:59.477+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Waiting for application startup.\"}\n\n1× [payments] between 11:59:59 and 11:59:59\n   example: {\"ts\": \"2026-10-08T11:59:59.477+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Started server process [1]\"}\n\n1× [payments] between 11:57:54 and 11:57:54\n   example: {\"ts\": \"2026-10-08T11:57:54.527+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Finished server process [1]\"}\n\n1× [payments] between 11:57:54 and 11:57:54\n   example: {\"ts\": \"2026-10-08T11:57:54.527+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Application shutdown complete.\"}\n\n1× [payments] between 11:57:54 and 11:57:54\n   example: {\"ts\": \"2026-10-08T11:57:54.521+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Waiting for application shutdown.\"}\n\n1× [payments] between 11:57:54 and 11:57:54\n   example: {\"ts\": \"2026-10-08T11:57:54.419+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Waiting for connections to close. (CTRL+C to force quit)\"}\n\n1× [payments] between 11:57:54 and 11:57:54\n   example: {\"ts\": \"2026-10-08T11:57:54.318+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"uvicorn.error\", \"msg\": \"Shutting down\"}\n\n1× [payments] between 11:57:47 and 11:57:47\n   example: {\"ts\": \"2026-10-08T11:57:47.653+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"be660416164944d88cff96c60f5db8aa\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n… and 1 more patterns (1 lines): filter more"
+  },
+  {
+   "at": 1791460963381,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "2537bff 2026-10-08 11:52:25 +0000 Lucía Fernández: config(payments): no automatic retries towards the provider\n\nconfig/payments.env\n54e5e66 2026-10-08 11:41:16 +0000 Marta Gil: config(users): DB pool to 12 connections\n\nconfig/users.env\n4b2a4d3 2026-10-08 11:37:06 +0000 Marta Gil: users: debug log on cache hits\n\nservices/users/handlers.py"
+  },
+  {
+   "at": 1791460963381,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xact_age | q\n33376 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_s\n32 | None | Activity | LogicalLauncherMain | None | \n32150 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n31504 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n28673 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n33194 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blo\n32648 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32695 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n33123 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n33266 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32221 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32759 | idle | Client | ClientRead | None | ROLLBACK;\n28 | None | Activity | BgWriterMain | None | \n27 | None | Activity | CheckpointerMain | None | \n31 | None | Activity | AutoVacuumMain | None | \n30 | None | Activity | WalWriterMain | None | "
+  },
+  {
+   "at": 1791460963382,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 20 min:\n- service=inventory: current 0.004851 | min 0.004775 | max 0.004855 | avg 0.004807\n- service=payments: current 4.875 | min 0.2369 | max 4.875 | avg 0.5762\n- service=shop: current 2.324 | min 0.03983 | max 2.324 | avg 0.3262\n- service=users: current 0.004821 | min 0.00475 | max 0.004979 | avg 0.004809"
+  },
+  {
+   "at": 1791460973470,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "2537bff"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460973472,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/payments.env"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460973472,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "contains": "payments",
+    "minutes": 10,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460973472,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le,target) (rate(upstream_request_duration_seconds_bucket{service=\"shop\"}[1m])))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460973532,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit 2537bff927537c84d83e25d085b80ddd31dd9049\nAuthor: Lucía Fernández <lucia.fernandez@shop.example>\nDate:   2026-10-08 11:52:25 +0000\n\n    config(payments): no automatic retries towards the provider\n---\n config/payments.env | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/config/payments.env b/config/payments.env\nindex 078ce79..4197e77 100644\n--- a/config/payments.env\n+++ b/config/payments.env\n@@ -2,4 +2,5 @@ DATABASE_URL=postgresql://payments@postgres:5432/payments\n DB_POOL_SIZE=10\n PROVIDER_URL=https://api.payprovider.example/v2\n PROVIDER_TIMEOUT_SECONDS=3\n+PROVIDER_RETRIES=0\n RATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791460973532,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v2\nPROVIDER_TIMEOUT_SECONDS=3\nPROVIDER_RETRIES=0\nRATE_LIMIT_RPS=50\n"
+  },
+  {
+   "at": 1791460973533,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 4 patterns for {service=\"shop\"} |= \"payments\", last 10 min (most frequent first):\n\n500× [shop] between 11:58:22 and 12:02:52\n   example: {\"ts\": \"2026-10-08T12:02:52.356+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"8077a38da59746119ad343d1f17706f8\", \"order_id\": \"26699a09-9dd5-42e2-8008-09a012324cec\", \"reason\": \"payments_unavailable\"}\n\n318× [shop] between 11:58:22 and 11:59:58\n   example: {\"ts\": \"2026-10-08T11:59:58.356+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"76214ea128c04a1ca1b38a7cc7ffba06\", \"target\": \"payments\", \"error\": \"ConnectError('[Errno -3] Temporary failure in name resolution')\"}\n\n180× [shop] between 12:01:32 and 12:02:52\n   example: {\"ts\": \"2026-10-08T12:02:52.346+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"8077a38da59746119ad343d1f17706f8\", \"target\": \"payments\", \"error\": \"ReadTimeout('')\"}\n\n2× [shop] between 11:59:59 and 11:59:59\n   example: {\"ts\": \"2026-10-08T11:59:59.350+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream unavailable\", \"request_id\": \"59f8202b4c4348f0a195fcbc267694c8\", \"target\": \"payments\", \"error\": \"ConnectError('All connection attempts failed')\"}"
+  },
+  {
+   "at": 1791460973533,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 20 min:\n- target=inventory: current 0.009624 | min 0.008306 | max 0.009624 | avg 0.009115\n- target=payments: current 2.425 | min 0.00475 | max 2.425 | avg 0.3786\n- target=users: current 0.009419 | min 0.007516 | max 0.01 | avg 0.008866"
+  },
+  {
+   "at": 1791460991172,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "payments charge provider call timeout retries",
+    "limit": 4
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460991174,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (le,target) (rate(upstream_request_duration_seconds_bucket{service=\"payments\"}[1m])))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460991174,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "contains": "provider",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460991175,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460992186,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[docs/services/payments.md#Simulated provider] (doc)\npayments\n\n## Simulated provider\n\n- Each charge takes between 50 and 200 ms (provider latency).\n- 3 % of charges are declined (`PAYMENTS_DECLINE_RATE`).\n\n---\n\n[runbooks/external-provider-degraded.md] (runbook)\n# External provider degraded\n\n**Symptom**: charges time out or take a long time, but payments has no errors of\nits own and no recent changes.\n\n1. Measure the latency of `POST /charges` in payments and the `shop` timeouts\n   towards payments (`upstream_requests_total{target=\"payments\", status=\"timeout\"}`).\n2. Rule out internal causes: no recent deploys or config changes in payments,\n   Postgres healthy and the connection pool with headroom.\n3. If the latency is in the call to the provider and there are no internal\n   changes, the problem is external: **escalate** to the provider with the evidence\n   (since when, latencies, percentage of timeouts).\n4. In the meantime: do not retry en masse (it makes the saturation worse) and\n   communicate the impact on orders.\n\n\n---\n\n[docs/services/payments.md#Failure behaviour] (doc)\npayments\n\n## Failure behaviour\n\n- **Postgres down**: charges return 500; `shop` marks the order `failed`\n  (`payments_unavailable`) and releases the reservation.\n- **Latency > 2 s**: `shop` times out even if the charge completes later.\n  This can leave a `captured` charge for a `failed` order.\n\n---\n\n[services/payments/handlers.py::charge] (code)\nCode of the payments service: function charge in services/payments/handlers.py. Charges against the payment provider.\nasync def charge(order_id: UUID, user_id: int, amount_cents: int) -> dict:\n    result = await provider.charge(amount_cents, reference=str(order_id))\n    try:\n        payment_id = await db.fetchval(\n            \"INSERT INTO payments (order_id, user_id, amount_cents, status) \"\n            \"VALUES ($1, $2, $3, $4) RETURNING id\",\n            order_id,\n            user_id,\n            amount_cents,\n            result.status,\n        )\n    except db.UniqueViolationError:\n        raise HTTPException(409, \"duplicate_charge\") from None\n    if result.status == \"declined\":\n        raise HTTPException(402, \"card_declined\")\n    return {\"payment_id\": payment_id, \"status\": result.status}"
+  },
+  {
+   "at": 1791460992187,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "no data for that query in the requested window"
+  },
+  {
+   "at": 1791460992187,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "no logs for {service=\"payments\"} |= \"provider\" in the last 15 min"
+  },
+  {
+   "at": 1791460992188,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 20 min:\n- service=payments: current 1.618 | min 0.5165 | max 5.109 | avg 2.975"
+  },
+  {
+   "at": 1791461002974,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"payments\"}[1m])))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 4
+  },
+  {
+   "at": 1791461002974,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "traffic",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791461002975,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "level": "warning",
+    "minutes": 5,
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791461002975,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (target,status) (rate(upstream_requests_total{service=\"shop\"}[1m]))",
+    "minutes": 20,
+    "step_seconds": 30
+   },
+   "round": 4
+  },
+  {
+   "at": 1791461002975,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "redis",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791461003020,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "1 series, last 20 min:\n- (no labels): current 3.75 | min 0.135 | max 3.75 | avg 0.4275"
+  },
+  {
+   "at": 1791461003021,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "30 lines in 1 patterns for {service=\"traffic\"}, last 15 min (most frequent first):\n\n30× [traffic] between 11:48:34 and 12:03:04\n   example: {\"ts\": \"2026-10-08T12:03:04.512+00:00\", \"level\": \"info\", \"service\": \"traffic\", \"logger\": \"traffic\", \"msg\": \"traffic summary\", \"window_seconds\": 30, \"counts\": {\"GET /products 200\": 75, \"POST /orders 502\": 41, \"POST /orders 404\": 2, \"GET /products 500\": 2}}"
+  },
+  {
+   "at": 1791461003021,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "28 lines in 2 patterns for {service=\"payments\", level=\"warning\"}, last 5 min (most frequent first):\n\n14× [payments] between 12:00:00 and 12:03:09\n   example: {\"ts\": \"2026-10-08T12:03:09.447+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"41162e61a1634fc6bcf28aade3caec56\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 2897.2}\n\n14× [payments] between 12:00:00 and 12:03:09\n   example: {\"ts\": \"2026-10-08T12:03:09.447+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"41162e61a1634fc6bcf28aade3caec56\", \"order_id\": \"d7afeabc-99d3-4938-a3de-35764ca6f82d\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791461003021,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "12 series, last 20 min:\n- status=200, target=inventory: current 2.709 | min 2.418 | max 6.654 | avg 3.93\n- status=200, target=users: current 1.309 | min 1.309 | max 5.273 | avg 3.169\n- status=201, target=inventory: current 1.309 | min 1.309 | max 5.236 | avg 3.147\n- status=201, target=payments: current 0 | min 0 | max 4.891 | avg 2.408\n- status=402, target=payments: current 0 | min 0 | max 2.073 | avg 0.2288\n- status=404, target=users: current 0.07273 | min 0.05454 | max 0.2909 | avg 0.1401\n- status=500, target=inventory: current 0 | min 0 | max 0.07273 | avg 0.02528\n- status=500, target=payments: current 0 | min 0 | max 0.03636 | avg 0.009756\n- status=500, target=users: current 0 | min 0 | max 0.6546 | avg 0.07007\n- status=error, target=inventory: current 0 | min 0 | max 0 | avg 0\n- status=error, target=payments: current 0 | min 0 | max 3.309 | avg 0.3353\n- status=timeout, target=payments: current 1.364 | min 0 | max 2.4 | avg 0.1632"
+  },
+  {
+   "at": 1791461003022,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "15 lines in 5 patterns for {service=\"redis\"}, last 15 min (most frequent first):\n\n3× [redis] between 11:52:32 and 12:02:34\n   example: 1:M 08 Oct 2026 12:02:34.159 * Background saving terminated with success\n\n3× [redis] between 11:52:32 and 12:02:34\n   example: 9993:C 08 Oct 2026 12:02:34.070 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB\n\n3× [redis] between 11:52:32 and 12:02:34\n   example: 9993:C 08 Oct 2026 12:02:34.069 * DB saved on disk\n\n3× [redis] between 11:52:32 and 12:02:34\n   example: 1:M 08 Oct 2026 12:02:34.057 * Background saving started by pid 9993\n\n3× [redis] between 11:52:32 and 12:02:34\n   example: 1:M 08 Oct 2026 12:02:34.056 * 100 changes in 300 seconds. Saving..."
+  },
+  {
+   "at": 1791461018316,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "The external payment provider behind payments POST /charges has become slow, with charges taking about 2.8 to 5 s against the normal 50 to 200 ms. Shop's 2 s timeout towards payments is therefore exceeded, so shop returns 502 on POST /orders (payments_unavailable). The fault is external, not internal to payments, and no commit explains it.",
+    "culprit_commit": null,
+    "evidence": [
+     "Shop's 5xx rate is 0.137, against 0.0109 before (x12.6). The new error pattern is 'upstream unavailable' with target=payments and ReadTimeout (149 in the last minute, 0 in the hour before).",
+     "Shop's p95 upstream latency to payments is 2.4 s, while inventory and users stay at about 0.01 s. Users and inventory are healthy.",
+     "Payments p95 latency is 4.9 s and p50 is 3.75 s, against p50 of about 0.135 s earlier. Payments logs show successful POST /charges (201) taking 2858 ms, and declines (402) taking 2.9 to 3.2 s.",
+     "The payments DB is healthy: pg_stat_activity shows only idle sessions, with no locks or long transactions, so the latency is not in Postgres.",
+     "Redis logs show only routine RDB saves. The payments Redis and DB errors at 11:55 to 11:57 were isolated and are not sustained.",
+     "The only recent payments change is 2537bff (PROVIDER_RETRIES=0). It removes retries, so it cannot add latency, and the timeout of 3 s is unchanged. The payments restart at 11:59:59 does not match the slowdown pattern.",
+     "The runbook external-provider-degraded matches: latency sits in the charge call, there are no internal errors, and the DB and pool are healthy."
+    ],
+    "confidence": "medium",
+    "plan": [
+     "Escalate to the payment provider with the evidence: start time of about 12:00 UTC, charge latency of 3 to 5 s against 50 to 200 ms normally, and the shop timeout rate.",
+     "Do not retry en masse, as that would worsen saturation. Leave PROVIDER_RETRIES=0 as it is.",
+     "Communicate the impact on orders. Slow charges can leave a captured charge against an order that shop marked failed, so reconcile those afterwards.",
+     "Verify recovery: payments p95 on /charges should fall below 2 s, shop upstream timeouts to payments should reach 0, and the shop 5xx rate should return to about 0.01.",
+     "If the provider confirms no problem on its side, re-check the payments egress and DNS. Shop logged name-resolution errors at 11:58 to 11:59, which may be a separate transient."
+    ],
+    "action": {
+     "kind": "escalate",
+     "target": "payments provider (api.payprovider.example)",
+     "reason": "The latency is in the external provider call, with no internal fault or culprit commit. The runbook says to escalate to the provider with the evidence.",
+     "evidence": [
+      "Payments p50 charge latency is 3.75 s and p95 is 4.9 s, while the payments DB is idle and healthy.",
+      "Shop to payments timeouts (status=timeout) are sustained, while users and inventory are unaffected.",
+      "Commit 2537bff only sets retries to 0 and cannot cause added latency."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 104982
+  },
+  {
+   "at": 1791461018321,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791461018343,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791461018354,
+   "type": "execution",
+   "status": "executed",
+   "detail": "escalated to the external owner (payments provider (api.payprovider.example)); no technical action",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791461078431,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0112,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2371,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.017,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791461078472,
+   "type": "done"
+  }
+ ]
+}

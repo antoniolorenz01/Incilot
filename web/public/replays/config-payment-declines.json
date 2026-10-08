@@ -1,0 +1,403 @@
+{
+ "scenario": "config-payment-declines",
+ "variant": "strict-fraud-check",
+ "recordedAt": "2026-10-08T11:57:23+00:00",
+ "truth": {
+  "scenario": "config-payment-declines",
+  "variant": "strict-fraud-check",
+  "service": "payments",
+  "root_cause": "FRAUD_CHECK_LEVEL=strict makes the provider decline almost half of legitimate charges.",
+  "action": "revert_config",
+  "culprit_sha": "c7b23411e6fbfafc9431dc6077677cf248d5c5b5",
+  "decoy_shas": [
+   "155e444ae3614048f58a4b6ba2e70a5b69ac27d8"
+  ]
+ },
+ "events": [
+  {
+   "at": 1791460529917,
+   "type": "triage"
+  },
+  {
+   "at": 1791460537695,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "inventory",
+    "level": "error",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460537697,
+   "type": "tool_call",
+   "name": "list_commits",
+   "args": {
+    "since_minutes": 240
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460537697,
+   "type": "tool_call",
+   "name": "query_database",
+   "args": {
+    "database": "inventory",
+    "sql": "select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_stat_activity where datname is not null order by xact_start"
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460537698,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (service) (rate(http_requests_total{status=~\"5..\"}[1m]))",
+    "minutes": 30
+   },
+   "round": 1
+  },
+  {
+   "at": 1791460537757,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "46 lines in 11 patterns for {service=\"inventory\", level=\"error\"}, last 15 min (most frequent first):\n\n11× [inventory] between 11:41:48 and 11:55:26\n   example: {\"ts\": \"2026-10-08T11:55:26.179+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"7328e0d2f8db45ccb2cbcbcd44196c21\", \"method\": \"POST\", \"path\": \"/reservations\", \"status\": 500, \"duration_ms\": 0.9}\n\n9× [inventory] between 11:43:09 and 11:52:07\n   example: {\"ts\": \"2026-10-08T11:52:07.993+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"cf26b3e1430f4f0aa73ac10fe408da61\", \"method\": \"GET\", \"path\": \"/products/3\", \"status\": 500, \"duration_ms\": 0.5}\n\n5× [inventory] between 11:43:07 and 11:55:26\n   example: {\"ts\": \"2026-10-08T11:55:26.179+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"7328e0d2f8db45ccb2cbcbcd44196c21\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while\n\n4× [inventory] between 11:44:16 and 11:47:10\n   example: {\"ts\": \"2026-10-08T11:47:10.712+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"9abaaae5b855418693da7a5947799061\", \"method\": \"GET\", \"path\": \"/products/4\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n4× [inventory] between 11:41:48 and 11:46:19\n   example: {\"ts\": \"2026-10-08T11:46:19.248+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"5af65e1c83d9480685bfcff46a8ac3b9\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n3× [inventory] between 11:52:49 and 11:55:23\n   example: {\"ts\": \"2026-10-08T11:55:23.481+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d96deb18e0a640b3a3a11d0b60130335\", \"method\": \"POST\", \"path\": \"/reservations/2df6c04e-e1d2-4859-8aa2-64697ed5b485/release\", \"status\": 500, \"duration_ms\": 0.6}\n\n3× [inventory] between 11:43:09 and 11:52:07\n   example: {\"ts\": \"2026-10-08T11:52:07.993+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"cf26b3e1430f4f0aa73ac10fe408da61\", \"method\": \"GET\", \"path\": \"/products/3\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n2× [inventory] between 11:52:49 and 11:55:04\n   example: {\"ts\": \"2026-10-08T11:55:04.171+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"f9ad9fe1187448328d397241415a40a2\", \"method\": \"POST\", \"path\": \"/reservations/4ce5ef63-59f3-4ffe-9022-59879f5f0c99/release\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was cl\n\n2× [inventory] between 11:43:32 and 11:51:12\n   example: {\"ts\": \"2026-10-08T11:51:12.397+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"980886fb9aa241ff9bd0b15b5b970eae\", \"method\": \"GET\", \"path\": \"/products/4\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while re\n\n2× [inventory] between 11:42:02 and 11:48:42\n   example: {\"ts\": \"2026-10-08T11:48:42.437+00:00\", \"level\": \"error\", \"service\": \"inventory\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"89f98070502f41d888fe216af6094722\", \"method\": \"POST\", \"path\": \"/reservations\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n… and 1 more patterns (1 lines): filter more"
+  },
+  {
+   "at": 1791460537758,
+   "type": "tool_result",
+   "name": "list_commits",
+   "content": "155e444 2026-10-08 11:54:09 +0000 Lucía Fernández: docs: payment reconciliation process\n\ndocs/payments-reconciliation.md\nc7b2341 2026-10-08 11:52:25 +0000 Lucía Fernández: config(payments): enable the provider's strict anti-fraud check\n\nconfig/payments.env"
+  },
+  {
+   "at": 1791460537758,
+   "type": "tool_result",
+   "name": "query_database",
+   "content": "pid | state | wait_event_type | wait_event | xact_age | q\n32712 | active | None | None | 0:00:00 | SELECT * FROM (select pid, state, wait_event_type, wait_event, now()-xact_start as xact_age, left(query,120) q from pg_s\n31504 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n28673 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n29453 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n25008 | idle | Client | ClientRead | None | \n    INSERT INTO checkpoint_writes (thread_id, checkpoint_ns, checkpoint_id, task_id, task_path, idx, channel, type, blo\n32648 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32150 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32151 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n26856 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n26889 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32221 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;\n32695 | idle | Client | ClientRead | None | SELECT pg_advisory_unlock_all();\nCLOSE ALL;\nUNLISTEN *;\nRESET ALL;"
+  },
+  {
+   "at": 1791460537759,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- service=inventory: current 0.05455 | min 0 | max 0.07273 | avg 0.02206\n- service=payments: current 0.01818 | min 0 | max 0.03636 | avg 0.00775\n- service=shop: current 0.09091 | min 0 | max 0.7818 | avg 0.107\n- service=users: current 0 | min 0 | max 0.7273 | avg 0.05216"
+  },
+  {
+   "at": 1791460546092,
+   "type": "tool_call",
+   "name": "show_commit",
+   "args": {
+    "sha": "c7b2341"
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460546094,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "minutes": 15,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460546094,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "level": "error",
+    "minutes": 10,
+    "limit": 10
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460546094,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[1m])))",
+    "minutes": 30
+   },
+   "round": 2
+  },
+  {
+   "at": 1791460546161,
+   "type": "tool_result",
+   "name": "show_commit",
+   "content": "commit c7b23411e6fbfafc9431dc6077677cf248d5c5b5\nAuthor: Lucía Fernández <lucia.fernandez@shop.example>\nDate:   2026-10-08 11:52:25 +0000\n\n    config(payments): enable the provider's strict anti-fraud check\n---\n config/payments.env | 1 +\n 1 file changed, 1 insertion(+)\n\ndiff --git a/config/payments.env b/config/payments.env\nindex 078ce79..ff8a2f4 100644\n--- a/config/payments.env\n+++ b/config/payments.env\n@@ -3,3 +3,4 @@ DB_POOL_SIZE=10\n PROVIDER_URL=https://api.payprovider.example/v2\n PROVIDER_TIMEOUT_SECONDS=3\n RATE_LIMIT_RPS=50\n+FRAUD_CHECK_LEVEL=strict\n"
+  },
+  {
+   "at": 1791460546162,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 6 patterns for {service=\"payments\"}, last 15 min (most frequent first):\n\n690× [payments] between 11:51:15 and 11:55:44\n   example: {\"ts\": \"2026-10-08T11:55:44.385+00:00\", \"level\": \"info\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"c23f21333811405896549517a9cbd87c\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 201, \"duration_ms\": 180.6}\n\n153× [payments] between 11:51:27 and 11:55:45\n   example: {\"ts\": \"2026-10-08T11:55:45.766+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"4176e56dcb954580ab0449fd0e953039\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 71.9}\n\n153× [payments] between 11:51:27 and 11:55:45\n   example: {\"ts\": \"2026-10-08T11:55:45.765+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"4176e56dcb954580ab0449fd0e953039\", \"order_id\": \"ce7cc388-2741-4c5a-8ab9-4f9e17f266a1\", \"reason\": \"card_declined\"}\n\n2× [payments] between 11:52:07 and 11:55:26\n   example: {\"ts\": \"2026-10-08T11:55:26.383+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"d4b295e86c7844cda15063c02b25d62c\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 500, \"duration_ms\": 1.2}\n\n1× [payments] between 11:55:26 and 11:55:26\n   example: {\"ts\": \"2026-10-08T11:55:26.383+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d4b295e86c7844cda15063c02b25d62c\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n1× [payments] between 11:52:07 and 11:52:07\n   example: {\"ts\": \"2026-10-08T11:52:07.254+00:00\", \"level\": \"error\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"4e57a827d96d4ee39c9f282c85bdfe7a\", \"method\": \"POST\", \"path\": \"/charges\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while readi"
+  },
+  {
+   "at": 1791460546162,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "222 lines in 11 patterns for {service=\"shop\", level=\"error\"}, last 10 min (most frequent first):\n\n101× [shop] between 11:45:47 and 11:55:38\n   example: {\"ts\": \"2026-10-08T11:55:38.070+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"06c2a75a50a44d518cabe4d135f9433b\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 502, \"duration_ms\": 12.6}\n\n77× [shop] between 11:46:33 and 11:52:38\n   example: {\"ts\": \"2026-10-08T11:52:38.000+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"da0fe4dd94364e5699c48e494f6502aa\", \"target\": \"users\", \"status\": 500}\n\n15× [shop] between 11:45:47 and 11:55:38\n   example: {\"ts\": \"2026-10-08T11:55:38.069+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"06c2a75a50a44d518cabe4d135f9433b\", \"target\": \"inventory\", \"status\": 500}\n\n8× [shop] between 11:46:13 and 11:55:26\n   example: {\"ts\": \"2026-10-08T11:55:26.384+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"upstream error\", \"request_id\": \"d4b295e86c7844cda15063c02b25d62c\", \"target\": \"payments\", \"status\": 500}\n\n7× [shop] between 11:46:30 and 11:55:07\n   example: {\"ts\": \"2026-10-08T11:55:07.616+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"78e912a7d46e4ec4ac7c32a0a6fe1a72\", \"method\": \"GET\", \"path\": \"/products\", \"status\": 500, \"duration_ms\": 0.8}\n\n3× [shop] between 11:52:49 and 11:55:23\n   example: {\"ts\": \"2026-10-08T11:55:23.483+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"reservation release failed\", \"request_id\": \"d96deb18e0a640b3a3a11d0b60130335\", \"order_id\": \"2df6c04e-e1d2-4859-8aa2-64697ed5b485\"}\n\n3× [shop] between 11:46:30 and 11:54:27\n   example: {\"ts\": \"2026-10-08T11:54:27.277+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"d09d1fa9e4fd469dbf91ad101a18f035\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading f\n\n3× [shop] between 11:49:42 and 11:51:03\n   example: {\"ts\": \"2026-10-08T11:51:03.266+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"2c6f8ddf19de45ada1f416150a601841\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/redis/asyncio/connection.py\\\", line 569, in read_response\\n    response = await self._parser.read_response(disable_decoding=disable_decoding)\\nredis.exceptions.ConnectionError: Error while reading fr\n\n2× [shop] between 11:48:39 and 11:55:07\n   example: {\"ts\": \"2026-10-08T11:55:07.615+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"78e912a7d46e4ec4ac7c32a0a6fe1a72\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}\n\n2× [shop] between 11:52:20 and 11:54:54\n   example: {\"ts\": \"2026-10-08T11:54:54.962+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"07e565d582144a598e77f8e9141849ed\", \"method\": \"GET\", \"path\": \"/products\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/site-packages/asyncpg/pool.py\\\", line 1061, in __aexit__\\n    await self.pool.release(con)\\nasyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation\\n\"}\n\n… and 1 more patterns (1 lines): filter more"
+  },
+  {
+   "at": 1791460546163,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "4 series, last 30 min:\n- service=inventory: current 0.004782 | min 0.004764 | max 0.004893 | avg 0.004808\n- service=payments: current 0.239 | min 0.2388 | max 0.2459 | avg 0.2417\n- service=shop: current 0.2407 | min 0.2278 | max 0.2438 | avg 0.2371\n- service=users: current 0.004977 | min 0.00475 | max 0.004977 | avg 0.004805"
+  },
+  {
+   "at": 1791460555928,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(http_requests_total{service=\"payments\",path=\"/charges\"}[1m]))",
+    "minutes": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460555930,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(orders_total[1m]))",
+    "minutes": 60
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460555931,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "redis",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460555931,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "postgres",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460555931,
+   "type": "tool_call",
+   "name": "read_file",
+   "args": {
+    "path": "config/payments.env"
+   },
+   "round": 3
+  },
+  {
+   "at": 1791460555975,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "no data for that query in the requested window"
+  },
+  {
+   "at": 1791460555976,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 60 min:\n- status=confirmed: current 2.291 | min 2.2 | max 5.709 | avg 3.17\n- status=failed: current 2.018 | min 0.01818 | max 2.018 | avg 0.1609\n- status=rejected: current 0.1818 | min 0.01818 | max 0.2727 | avg 0.1282"
+  },
+  {
+   "at": 1791460555976,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "30 lines in 5 patterns for {service=\"redis\"}, last 30 min (most frequent first):\n\n6× [redis] between 11:27:27 and 11:52:32\n   example: 1:M 08 Oct 2026 11:52:32.134 * Background saving terminated with success\n\n6× [redis] between 11:27:27 and 11:52:32\n   example: 9270:C 08 Oct 2026 11:52:32.046 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB\n\n6× [redis] between 11:27:27 and 11:52:32\n   example: 9270:C 08 Oct 2026 11:52:32.045 * DB saved on disk\n\n6× [redis] between 11:27:27 and 11:52:32\n   example: 1:M 08 Oct 2026 11:52:32.033 * Background saving started by pid 9270\n\n6× [redis] between 11:27:27 and 11:52:32\n   example: 1:M 08 Oct 2026 11:52:32.032 * 100 changes in 300 seconds. Saving..."
+  },
+  {
+   "at": 1791460555977,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "12 lines in 7 patterns for {service=\"postgres\"}, last 30 min (most frequent first):\n\n6× [postgres] between 11:28:32 and 11:53:32\n   example: 2026-10-08 11:53:32.724 UTC [27] LOG:  checkpoint starting: time\n\n1× [postgres] between 11:51:12 and 11:51:12\n   example: 2026-10-08 11:51:12.624 UTC [27] LOG:  checkpoint complete: wrote 1603 buffers (9.8%); 0 WAL file(s) added, 0 removed, 0 recycled; write=160.498 s, sync=0.003 s, total=160.505 s; sync files=16, longest=0.002 s, average=0.001 s; distance=11158 kB, estimate=12385 kB; lsn=0/3C5BBD68, redo lsn=0/3BCF8620\n\n1× [postgres] between 11:46:33 and 11:46:33\n   example: 2026-10-08 11:46:33.097 UTC [27] LOG:  checkpoint complete: wrote 1804 buffers (11.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=180.172 s, sync=0.003 s, total=180.180 s; sync files=16, longest=0.001 s, average=0.001 s; distance=11945 kB, estimate=12521 kB; lsn=0/3BA79CE8, redo lsn=0/3B212DB0\n\n1× [postgres] between 11:41:31 and 11:41:31\n   example: 2026-10-08 11:41:31.834 UTC [27] LOG:  checkpoint complete: wrote 1791 buffers (10.9%); 0 WAL file(s) added, 0 removed, 1 recycled; write=178.878 s, sync=0.005 s, total=178.886 s; sync files=16, longest=0.002 s, average=0.001 s; distance=12040 kB, estimate=12585 kB; lsn=0/3AE4E920, redo lsn=0/3A6688D8\n\n1× [postgres] between 11:36:35 and 11:36:35\n   example: 2026-10-08 11:36:35.851 UTC [27] LOG:  checkpoint complete: wrote 1833 buffers (11.2%); 0 WAL file(s) added, 0 removed, 1 recycled; write=183.484 s, sync=0.003 s, total=183.490 s; sync files=21, longest=0.001 s, average=0.001 s; distance=11916 kB, estimate=12646 kB; lsn=0/3A3228F8, redo lsn=0/39AA66E0\n\n1× [postgres] between 11:31:24 and 11:31:24\n   example: 2026-10-08 11:31:24.262 UTC [27] LOG:  checkpoint complete: wrote 1716 buffers (10.5%); 0 WAL file(s) added, 0 removed, 0 recycled; write=171.435 s, sync=0.004 s, total=171.443 s; sync files=17, longest=0.002 s, average=0.001 s; distance=11585 kB, estimate=12727 kB; lsn=0/39803FF8, redo lsn=0/38F03310\n\n1× [postgres] between 11:26:32 and 11:26:32\n   example: 2026-10-08 11:26:32.722 UTC [27] LOG:  checkpoint complete: wrote 1801 buffers (11.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=180.060 s, sync=0.005 s, total=180.069 s; sync files=19, longest=0.002 s, average=0.001 s; distance=11057 kB, estimate=12854 kB; lsn=0/38CDDB28, redo lsn=0/383B2B28"
+  },
+  {
+   "at": 1791460555977,
+   "type": "tool_result",
+   "name": "read_file",
+   "content": "DATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v2\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\nFRAUD_CHECK_LEVEL=strict\n"
+  },
+  {
+   "at": 1791460566215,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(http_requests_total{service=\"payments\"}[1m]))",
+    "minutes": 30
+   },
+   "round": 4
+  },
+  {
+   "at": 1791460566217,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "shop",
+    "minutes": 5,
+    "contains": "order",
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791460566217,
+   "type": "tool_call",
+   "name": "search_logs",
+   "args": {
+    "service": "payments",
+    "level": "warning",
+    "minutes": 30,
+    "limit": 10
+   },
+   "round": 4
+  },
+  {
+   "at": 1791460566217,
+   "type": "tool_call",
+   "name": "search_knowledge",
+   "args": {
+    "query": "FRAUD_CHECK_LEVEL strict payments card declined"
+   },
+   "round": 4
+  },
+  {
+   "at": 1791460566218,
+   "type": "tool_call",
+   "name": "query_metrics",
+   "args": {
+    "promql": "sum by (status) (rate(orders_total[1m]))",
+    "minutes": 20,
+    "step_seconds": 60
+   },
+   "round": 4
+  },
+  {
+   "at": 1791460573189,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 30 min:\n- status=201: current 2.055 | min 2.055 | max 5.382 | avg 3.142\n- status=402: current 1.673 | min 0.01818 | max 1.927 | avg 0.1711\n- status=500: current 0.03636 | min 0 | max 0.03636 | avg 0.009538"
+  },
+  {
+   "at": 1791460573191,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "1000 lines in 9 patterns for {service=\"shop\"} |= \"order\", last 5 min (most frequent first):\n\n322× [shop] between 11:53:49 and 11:56:05\n   example: {\"ts\": \"2026-10-08T11:56:05.088+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"0c6f1997fb704a35b058e836aeca325c\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 201, \"duration_ms\": 98.9}\n\n322× [shop] between 11:53:49 and 11:56:05\n   example: {\"ts\": \"2026-10-08T11:56:05.088+00:00\", \"level\": \"info\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order confirmed\", \"request_id\": \"0c6f1997fb704a35b058e836aeca325c\", \"order_id\": \"d9864ae7-1e10-4755-b728-cdb5afdf4e76\", \"amount_cents\": 5900}\n\n184× [shop] between 11:53:51 and 11:56:06\n   example: {\"ts\": \"2026-10-08T11:56:06.096+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"a0c29bdb56fc4629b12f8e98eb395ec1\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 402, \"duration_ms\": 146.1}\n\n160× [shop] between 11:53:51 and 11:56:06\n   example: {\"ts\": \"2026-10-08T11:56:06.096+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"a0c29bdb56fc4629b12f8e98eb395ec1\", \"order_id\": \"1fdc7e90-b39e-4439-9685-051e8e29af94\", \"reason\": \"payment_declined\"}\n\n5× [shop] between 11:54:55 and 11:55:57\n   example: {\"ts\": \"2026-10-08T11:55:57.147+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"9139627a5e464344a31a347270f60a24\", \"method\": \"POST\", \"path\": \"/orders\", \"status\": 502, \"duration_ms\": 18.0}\n\n2× [shop] between 11:55:26 and 11:55:57\n   example: {\"ts\": \"2026-10-08T11:55:57.147+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"9139627a5e464344a31a347270f60a24\", \"order_id\": \"748e8239-b6e0-4e3c-8f0c-05bc715726f6\", \"reason\": \"payments_unavailable\"}\n\n2× [shop] between 11:55:26 and 11:55:38\n   example: {\"ts\": \"2026-10-08T11:55:38.070+00:00\", \"level\": \"warning\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"order failed\", \"request_id\": \"06c2a75a50a44d518cabe4d135f9433b\", \"order_id\": \"b1b2d4b5-415d-4dca-90ab-43125ffe2633\", \"reason\": \"inventory_unavailable\"}\n\n2× [shop] between 11:55:04 and 11:55:23\n   example: {\"ts\": \"2026-10-08T11:55:23.483+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"incilot_sim.services.shop\", \"msg\": \"reservation release failed\", \"request_id\": \"d96deb18e0a640b3a3a11d0b60130335\", \"order_id\": \"2df6c04e-e1d2-4859-8aa2-64697ed5b485\"}\n\n1× [shop] between 11:54:55 and 11:54:55\n   example: {\"ts\": \"2026-10-08T11:54:55.678+00:00\", \"level\": \"error\", \"service\": \"shop\", \"logger\": \"http\", \"msg\": \"unhandled error\", \"request_id\": \"0a511671b33545cda1ed94784c752c4c\", \"method\": \"POST\", \"path\": \"/orders\", \"exc\": \"Traceback (most recent call last):\\n  File \\\"/usr/local/lib/python3.12/asyncio/selector_events.py\\\", line 1003, in _read_ready__data_received\\n    data = self._sock.recv(self.max_size)\\nConnectionResetError: [Errno 104] Connection reset by peer\\n\"}"
+  },
+  {
+   "at": 1791460573191,
+   "type": "tool_result",
+   "name": "search_logs",
+   "content": "672 lines in 2 patterns for {service=\"payments\", level=\"warning\"}, last 30 min (most frequent first):\n\n336× [payments] between 11:26:34 and 11:56:06\n   example: {\"ts\": \"2026-10-08T11:56:06.089+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"http\", \"msg\": \"request\", \"request_id\": \"a0c29bdb56fc4629b12f8e98eb395ec1\", \"method\": \"POST\", \"path\": \"/charges\", \"status\": 402, \"duration_ms\": 120.4}\n\n336× [payments] between 11:26:34 and 11:56:06\n   example: {\"ts\": \"2026-10-08T11:56:06.088+00:00\", \"level\": \"warning\", \"service\": \"payments\", \"logger\": \"incilot_sim.services.payments\", \"msg\": \"payment declined\", \"request_id\": \"a0c29bdb56fc4629b12f8e98eb395ec1\", \"order_id\": \"1fdc7e90-b39e-4439-9685-051e8e29af94\", \"reason\": \"card_declined\"}"
+  },
+  {
+   "at": 1791460573192,
+   "type": "tool_result",
+   "name": "search_knowledge",
+   "content": "[docs/services/payments.md#Service-specific logs] (doc)\npayments\n\n## Service-specific logs\n\n| `msg` | Level | Fields |\n|---|---|---|\n| `payment declined` | warning | `order_id`, `reason` |\n\n---\n\n[config/payments.env] (config)\nConfiguration of the payments service: environment variables (config/payments.env).\nDATABASE_URL=postgresql://payments@postgres:5432/payments\nDB_POOL_SIZE=10\nPROVIDER_URL=https://api.payprovider.example/v2\nPROVIDER_TIMEOUT_SECONDS=3\nRATE_LIMIT_RPS=50\nFRAUD_CHECK_LEVEL=strict\n\n\n---\n\n[runbooks/payment-declines-and-429.md] (runbook)\n# Failed orders rising in payments (declines or 429)\n\n**Symptom**: `orders_total{status=\"failed\"}` with `reason=\"payment_declined\"`\nrises, or `payments` responds 429 and orders fail with `payments_unavailable`.\n\n1. Tell the cases apart with the payments metrics: 402 (declines from the\n   provider) or 429 (our own rate limit).\n2. **402, declines**: compare the rate with the usual one (~3%). If it jumped\n   suddenly, review the recent changes to `config/payments.env` (provider\n   endpoint, anti-fraud checks) and to `services/payments`.\n3. **429, rate limit**: compare `RATE_LIMIT_RPS` with the real charge traffic.\n   A limit meant for several replicas running on a single one cuts traffic off.\n4. Mitigate: **revert the config change** and confirm that the rate returns to\n   normal. If there were no internal changes, follow the external provider runbook.\n"
+  },
+  {
+   "at": 1791460573192,
+   "type": "tool_result",
+   "name": "query_metrics",
+   "content": "3 series, last 20 min:\n- status=confirmed: current 1.927 | min 1.927 | max 5.309 | avg 3.039\n- status=failed: current 1.727 | min 0.03636 | max 1.727 | avg 0.2355\n- status=rejected: current 0.1636 | min 0.05455 | max 0.2546 | avg 0.142"
+  },
+  {
+   "at": 1791460583812,
+   "type": "diagnosis",
+   "diagnosis": {
+    "service": "payments",
+    "root_cause": "Commit c7b2341 added FRAUD_CHECK_LEVEL=strict to config/payments.env. The provider's strict anti-fraud check now declines a large share of legitimate charges (HTTP 402 card_declined), so orders fail with payment_declined.",
+    "culprit_commit": "c7b23411e6fbfafc9431dc6077677cf248d5c5b5",
+    "evidence": [
+     "c7b2341 (11:52:25 UTC, 'enable the provider's strict anti-fraud check') adds FRAUD_CHECK_LEVEL=strict to config/payments.env. It was deployed just before the degradation was flagged at 11:54:29.",
+     "payments /charges 402 rate rose from about 0.018 req/s to about 1.67–1.93 req/s (30-minute average 0.17). 201s fell from a peak of 5.4 to about 2.05 req/s.",
+     "orders_total{status=failed} rose from about 0.02 to about 1.7–2.0/s. Confirmed orders fell from a peak of 5.7 to about 1.9/s.",
+     "Shop logs show 'order failed' with reason payment_declined, and payments logs show 'payment declined' with reason card_declined.",
+     "The payment-declines runbook says that a sudden jump in 402s means checking recent changes to config/payments.env (anti-fraud checks) and reverting the config change.",
+     "The inventory, redis and postgres errors (connection resets) were already present in the hour before the incident and are stable background noise. No new lock or session problem shows in pg_stat_activity, and payments latency and 5xx rates are unchanged."
+    ],
+    "confidence": "high",
+    "plan": [
+     "Revert c7b2341 (remove FRAUD_CHECK_LEVEL=strict from config/payments.env). The deploy is automatic on merge to main.",
+     "Confirm that the payments /charges 402 rate returns to the usual level of about 3% or less.",
+     "Confirm that orders_total{status=failed} falls and confirmed orders recover to about 3–5/s.",
+     "Agree a less aggressive fraud setting with the payments and fraud owners, and test it on limited traffic before re-enabling."
+    ],
+    "action": {
+     "kind": "revert_config",
+     "target": "c7b23411e6fbfafc9431dc6077677cf248d5c5b5",
+     "reason": "The strict anti-fraud setting is the only change in this window. It matches the jump in card declines and failed orders, and the runbook recommends reverting the config change.",
+     "evidence": [
+      "The 402 rate on payments /charges rose from about 0.018 to about 1.7 req/s after the 11:52:25 config commit.",
+      "Failed orders (payment_declined) rose about 100 times, from about 0.02 to about 2/s.",
+      "The change is a single added line, FRAUD_CHECK_LEVEL=strict, so a revert is low-risk."
+     ],
+     "requires_approval": true
+    }
+   },
+   "stop_reason": "submitted",
+   "tokens": 122232
+  },
+  {
+   "at": 1791460583820,
+   "type": "awaiting_approval"
+  },
+  {
+   "at": 1791460583850,
+   "type": "approval",
+   "approved": true,
+   "by": "api",
+   "note": "recorded for the demo",
+   "action": null
+  },
+  {
+   "at": 1791460583872,
+   "type": "execution",
+   "status": "executed",
+   "detail": "revert of the c7b23411e6fbfafc9431dc6077677cf248d5c5b5 config committed and deployed",
+   "connector": "simulation"
+  },
+  {
+   "at": 1791460643950,
+   "type": "verification",
+   "recovered": true,
+   "checks": [
+    {
+     "name": "shop 5xx errors",
+     "value": 0.0066,
+     "max": 0.05,
+     "ok": true
+    },
+    {
+     "name": "shop p95 (s)",
+     "value": 0.2397,
+     "max": 0.5,
+     "ok": true
+    },
+    {
+     "name": "failed orders",
+     "value": 0.0427,
+     "max": 0.1,
+     "ok": true
+    }
+   ]
+  },
+  {
+   "at": 1791460643994,
+   "type": "done"
+  }
+ ]
+}

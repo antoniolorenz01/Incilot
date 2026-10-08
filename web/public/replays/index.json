@@ -4,5 +4,23 @@
   "title": "Deploy with intermittent errors",
   "category": "deploy",
   "recordedAt": "2026-10-08T11:54:07+00:00"
+ },
+ {
+  "file": "config-payment-declines.json",
+  "title": "Rise in payment declines after a config change",
+  "category": "config",
+  "recordedAt": "2026-10-08T11:57:23+00:00"
+ },
+ {
+  "file": "infra-service-down.json",
+  "title": "Service down",
+  "category": "infra",
+  "recordedAt": "2026-10-08T12:00:59+00:00"
+ },
+ {
+  "file": "external-provider-slow.json",
+  "title": "Slow payment provider",
+  "category": "external",
+  "recordedAt": "2026-10-08T12:04:38+00:00"
  }
 ]
