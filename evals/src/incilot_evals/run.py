@@ -189,18 +189,19 @@ def main() -> None:
     minutes = len(items) * (args.warmup + args.cooldown + 120) / 60
     print(f"{len(items)} variants · ~{minutes:.0f} min · one real investigation per variant")
 
+    # Saved after every variant: a run cut short keeps what it already measured.
+    out = Path("build/evals") / f"{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     results = []
     for index, item in enumerate(items, start=1):
         print(f"[{index}/{len(items)}] {item['scenario']}/{item['variant']} …", flush=True)
         results.append(run_one(item, args.warmup, args.cooldown))
+        out.write_text(json.dumps(results, indent=2, ensure_ascii=False, default=str))
         r = results[-1]
         grades = f"action {mark(r['action_ok'])} · service {mark(r['service_ok'])}"
         print(f"      {grades} · commit {r['commit']} · {r['tokens']} tokens · {r['seconds']} s")
 
     print_report(results)
-    out = Path("build/evals") / f"{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(results, indent=2, ensure_ascii=False, default=str))
     print(f"full report: {out}")
 
 
