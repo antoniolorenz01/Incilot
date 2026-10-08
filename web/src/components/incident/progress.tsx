@@ -116,7 +116,7 @@ export function Status({ phase, countdownTo }: { phase: Phase; countdownTo?: num
       </div>
       {waiting && (
         <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {remaining !== null ? `faltan ${remaining} s` : `${elapsed} s`}
+          {remaining !== null ? `${remaining} s left` : `${elapsed} s`}
         </p>
       )}
     </div>
