@@ -10,11 +10,14 @@ export function ResultPanel({
   investigation,
   truth,
   readOnly,
+  watching,
   onEnd,
 }: {
   investigation: Investigation;
   truth: Truth | null;
   readOnly: boolean;
+  /** Another visitor's simulation: they decide and end it, not you. */
+  watching: boolean;
   onEnd: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -40,7 +43,9 @@ export function ResultPanel({
     >
       <h2 className="text-sm text-foreground">Outcome</h2>
       {phase === "awaiting_approval" && !readOnly && (
-        <p className="text-muted-foreground">Waiting for your decision.</p>
+        <p className="text-muted-foreground">
+          {watching ? "Waiting for the other visitor’s decision." : "Waiting for your decision."}
+        </p>
       )}
       {(execution || verification || phase === "executing") && (
         <Section title="The shop" topic="verification">
@@ -102,7 +107,7 @@ export function ResultPanel({
           )}
         </Section>
       )}
-      {finished && (
+      {finished && !watching && (
         <Button variant="ghost" size="sm" className="self-start" onClick={onEnd}>
           {readOnly ? "Back" : "End and simulate another"}
         </Button>

@@ -34,6 +34,26 @@ function deadlineIn(ms: number) {
   return Date.now() + ms;
 }
 
+/** Who has the shop right now (see /api/demo). */
+type Demo = {
+  turn: {
+    mine: boolean;
+    dryRun: boolean;
+    startedAt: string;
+    expiresAt: string;
+    investigationId: string | null;
+  } | null;
+  runsLeft: number | null;
+};
+
+const DEMO_POLL_MS = 4_000;
+
+function fetchDemo(): Promise<Demo | null> {
+  return fetch("/api/demo")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
 const STATUS: Record<Investigation["phase"], { text: string; tone: string }> = {
   idle: { text: "No incidents", tone: "text-muted-foreground" },
   breaking: { text: "Incident in progress", tone: "text-accent" },
@@ -55,14 +75,15 @@ export default function Home() {
   const [leftover, setLeftover] = useState<string | null>(null);
   // Viewing a past investigation (it's replayed; no decision possible).
   const [readOnly, setReadOnly] = useState(false);
+  // Watching another visitor's simulation live (no decision possible either).
+  const [watching, setWatching] = useState(false);
+  const [demo, setDemo] = useState<Demo | null>(null);
   const [tech, setTech] = useState(false);
-
+  // What the page shows, for the poll below (it runs outside React's render).
+  const view = useRef({ investigationId, readOnly, watching, phase: investigation.phase });
   useEffect(() => {
-    fetch("/api/incidents/active")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((active) => active && setLeftover(String(active.injected_at)))
-      .catch(() => {});
-  }, []);
+    view.current = { investigationId, readOnly, watching, phase: investigation.phase };
+  });
 
   const listen = useCallback((id: string) => {
     source.current?.close();
@@ -96,6 +117,71 @@ export default function Home() {
     source.current = events;
   }, []);
 
+  const resetView = useCallback(() => {
+    source.current?.close();
+    setInvestigationId(null);
+    setTruth(null);
+    dispatch({ type: "reset" });
+  }, []);
+
+  /** Follows who has the shop: watch someone else's simulation, pick yours up again
+   *  after a reload, or go back to idle when theirs ends. */
+  const follow = useCallback(
+    (next: Demo) => {
+      const { investigationId: shown, readOnly: past, watching: watched, phase } = view.current;
+      const turn = next.turn;
+      if (turn && !turn.mine) {
+        if (past) return; // reading a past investigation: don't pull them away
+        if (turn.investigationId && turn.investigationId !== shown) {
+          setWatching(true);
+          setTruth(null);
+          setInvestigationId(turn.investigationId);
+          dispatch({ type: "investigating" });
+          listen(turn.investigationId);
+        } else if (!turn.investigationId && phase === "idle") {
+          setWatching(true);
+          dispatch({ type: "breaking" });
+        }
+      } else if (watched) {
+        setWatching(false);
+        resetView();
+        toast("The other visitor’s simulation has ended: you can simulate now.");
+      } else if (turn?.mine && turn.investigationId && !shown && !past) {
+        setInvestigationId(turn.investigationId);
+        dispatch({ type: "investigating" });
+        listen(turn.investigationId);
+      }
+    },
+    [listen, resetView],
+  );
+
+  const apply = useCallback(
+    (next: Demo | null) => {
+      if (next) {
+        setDemo(next);
+        follow(next);
+      }
+      return next;
+    },
+    [follow],
+  );
+
+  const refreshDemo = useCallback(() => fetchDemo().then(apply), [apply]);
+
+  useEffect(() => {
+    // A simulation already active when the page opened, with no investigation to follow
+    // (started in another tab or by the evals): offer to end it, unless it's someone else's.
+    Promise.all([fetchDemo(), fetch("/api/incidents/active").then((r) => (r.ok ? r.json() : null))])
+      .then(([next, active]) => {
+        apply(next);
+        const turn = next?.turn;
+        if (active && (!turn || (turn.mine && !turn.investigationId))) setLeftover(String(active.injected_at));
+      })
+      .catch(() => {});
+    const poll = setInterval(() => fetchDemo().then(apply), DEMO_POLL_MS);
+    return () => clearInterval(poll);
+  }, [apply]);
+
   useEffect(
     () => () => {
       source.current?.close();
@@ -117,6 +203,7 @@ export default function Home() {
 
   function openPast(id: string) {
     clearTimeout(warmupTimer.current);
+    setWatching(false);
     setCountdownTo(null);
     setTruth(null);
     setReadOnly(true);
@@ -132,15 +219,17 @@ export default function Home() {
     const response = await fetch("/api/incidents", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ scenario }),
+      body: JSON.stringify({ scenario, dryRun }),
     });
     const body = await response.json();
     if (!response.ok) {
       dispatch({ type: "reset" });
-      if (response.status === 409) setLeftover(new Date().toISOString());
       toast.error(`Could not simulate: ${body.detail}`);
+      // Busy: either someone else's turn (we'll watch it) or a simulation with no owner.
+      if (response.status === 409 && !(await refreshDemo())?.turn) setLeftover(new Date().toISOString());
       return;
     }
+    void refreshDemo();
     // Like a real alert: the agent starts once the symptoms are visible.
     const since: string = body.injectedAt ?? new Date().toISOString();
     const warmup = dryRun ? DRY_RUN_WARMUP_MS : WARMUP_MS;
@@ -183,14 +272,17 @@ export default function Home() {
     if (!readOnly) await fetch("/api/incidents/active/recover", { method: "POST" });
     setReadOnly(false);
     setLeftover(null);
-    source.current?.close();
-    setInvestigationId(null);
-    setTruth(null);
-    dispatch({ type: "reset" });
+    resetView();
+    void refreshDemo();
   }
 
-  const status = STATUS[investigation.phase];
+  const status = watching ? { text: "Watching live", tone: "text-accent" } : STATUS[investigation.phase];
   const focus = readOnly ? null : FOCUS[investigation.phase];
+  const hint =
+    watching && investigation.phase === "awaiting_approval"
+      ? "Another visitor decides: read the evidence meanwhile"
+      : focus?.hint;
+  const othersTurn = demo?.turn && !demo.turn.mine ? demo.turn : null;
   const busy = investigation.phase !== "idle" && investigation.phase !== "done" && investigation.phase !== "error";
 
   return (
@@ -218,8 +310,16 @@ export default function Home() {
         </header>
 
         <div className="shrink-0 space-y-2">
-          <Steps phase={investigation.phase} hint={focus?.hint} />
+          <Steps phase={investigation.phase} hint={hint} />
           {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
+          {othersTurn && !readOnly && (
+            <p role="status" className="border-2 border-accent p-3 text-xs text-foreground">
+              Another visitor is running a simulation{othersTurn.dryRun ? " (dry run)" : ""}: you’re watching it live.
+              There’s one shop, so you can simulate yours when it ends, by{" "}
+              {new Date(othersTurn.expiresAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} at
+              the latest.
+            </p>
+          )}
           {leftover && investigation.phase === "idle" && (
             <div
               role="status"
@@ -248,17 +348,23 @@ export default function Home() {
         >
           {/* Same height as the other columns: each panel scrolls inside. */}
           <div className="flex min-h-0 flex-col gap-3">
-            <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
+            <SimulatePanel
+              busy={busy || watching}
+              runsLeft={demo?.runsLeft ?? null}
+              onSimulate={simulate}
+              onCancel={watching ? undefined : end}
+            />
             <ShopHealth />
           </div>
           <Terminal events={investigation.events} phase={investigation.phase} />
-          <DiagnosisPanel investigation={investigation} readOnly={readOnly} onDecide={decide} />
+          <DiagnosisPanel investigation={investigation} readOnly={readOnly || watching} onDecide={decide} />
           <div className="flex min-h-0 flex-col gap-3">
             <ResultPanel
               key={investigationId ?? "none"}
               investigation={investigation}
               truth={truth}
               readOnly={readOnly}
+              watching={watching}
               onEnd={end}
             />
             <History refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""} onOpen={openPast} />

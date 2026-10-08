@@ -26,12 +26,16 @@ const CATEGORIES: Record<string, string> = {
 
 export function SimulatePanel({
   busy,
+  runsLeft,
   onSimulate,
   onCancel,
 }: {
   busy: boolean;
+  /** Real investigations left today on the public demo (null: no limit). */
+  runsLeft: number | null;
   onSimulate: (scenario: string, dryRun: boolean) => void;
-  onCancel: () => void;
+  /** Only whoever started the simulation can cancel it. */
+  onCancel?: () => void;
 }) {
   const [catalog, setCatalog] = useState<Catalog>({});
   const [scenario, setScenario] = useState<string | null>(null);
@@ -114,10 +118,17 @@ export function SimulatePanel({
       >
         {busy ? "Incident in progress" : "Simulate incident"}
       </Button>
-      {busy && (
+      {busy && onCancel && (
         <Button variant="destructive" size="sm" onClick={onCancel}>
           Cancel simulation
         </Button>
+      )}
+      {runsLeft !== null && !busy && (
+        <p className="text-xs text-muted-foreground">
+          {runsLeft > 0
+            ? `Real investigations left for you today: ${runsLeft}. Dry runs are unlimited.`
+            : "No real investigations left for you today: dry runs and past investigations still work."}
+        </p>
       )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}

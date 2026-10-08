@@ -191,6 +191,8 @@ services:
     command: ["redis-server", "--requirepass", "agent", "--appendonly", "yes"]
     volumes:
       - agent-redis-data:/data
+    # The web keeps the demo's turns here (db 1); only reachable from this machine.
+    ports: ["127.0.0.1:6380:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "agent", "--no-auth-warning", "ping"]
       interval: 5s
