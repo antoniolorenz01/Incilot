@@ -15,8 +15,11 @@ Recordings (`make record`, run locally and committed) and dry runs cost nothing.
 
 ## 1. Server and domain
 
-- A Linux server with 8 GB of RAM (e.g. a Hetzner CX32), with Docker and the Compose plugin.
-- A DNS `A` record pointing the demo's domain at the server's IP.
+- A Linux server with 4 GB of RAM, x86 or ARM, with Docker and the Compose plugin. The
+  whole stack uses about 2 GB; building the images needs the rest. Oracle Cloud's Always
+  Free ARM instances are enough.
+- A DNS `A` record pointing the demo's domain at the server's IP (a free DuckDNS
+  subdomain works too).
 - Ports 80 and 443 open; nothing else needs to be.
 
 ## 2. Code and data
