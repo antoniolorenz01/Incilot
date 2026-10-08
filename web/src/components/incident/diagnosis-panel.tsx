@@ -110,10 +110,13 @@ function CorrectDialog({
 export function DiagnosisPanel({
   investigation,
   readOnly,
+  canAmend = true,
   onDecide,
 }: {
   investigation: Investigation;
   readOnly: boolean;
+  /** The recorded demo only has what happened after approving: no amending there. */
+  canAmend?: boolean;
   onDecide: (decision: Decision) => void;
 }) {
   const [correcting, setCorrecting] = useState(false);
@@ -197,7 +200,12 @@ export function DiagnosisPanel({
               >
                 Approve and apply
               </Button>
-              <Button variant="outline" onClick={() => setCorrecting(true)}>
+              <Button
+                variant="outline"
+                disabled={!canAmend}
+                title={canAmend ? undefined : "Only when running it live: a recording can’t show what didn’t happen"}
+                onClick={() => setCorrecting(true)}
+              >
                 Amend
               </Button>
               <Button variant="ghost" onClick={() => onDecide({ approved: false, note: "rejected from the UI" })}>

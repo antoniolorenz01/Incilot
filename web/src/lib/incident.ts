@@ -85,13 +85,26 @@ export function reduce(state: Investigation, event: AgentEvent): Investigation {
 export type Replay = {
   scenario: string;
   variant: string;
+  /** Which model investigated. */
+  model: string;
   recordedAt: string;
+  /** When the fault was injected (ms). */
+  injectedAt: number;
   truth: Truth;
   events: (AgentEvent & { at: number })[];
+  /** The "Shop health" series: [ms, value] every 15 s, from 15 min before the fault. */
+  health: Record<string, [number, number][]>;
 };
 
 /** An entry of web/public/replays/index.json. */
-export type ReplayEntry = { file: string; title: string; category: string; recordedAt: string };
+export type ReplayEntry = {
+  file: string;
+  scenario: string;
+  variant: string;
+  title: string;
+  category: string;
+  recordedAt: string;
+};
 
 export type Truth = {
   scenario: string;

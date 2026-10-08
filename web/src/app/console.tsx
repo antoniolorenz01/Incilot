@@ -10,6 +10,9 @@ import { Explain, TechMode } from "@/components/incident/explain";
 import { COLUMNS, Status, Steps } from "@/components/incident/progress";
 import { Switch } from "@/components/ui/switch";
 import { FOCUS } from "@/lib/explain";
+import { recordedHealth } from "@/lib/health";
+import { RECORDED, REPO_URL } from "@/lib/mode";
+import { Player, SPEED } from "@/lib/recording";
 import { ResultPanel } from "@/components/incident/result-panel";
 import { ShopHealth } from "@/components/incident/shop-health";
 import { SimulatePanel } from "@/components/incident/simulate-panel";
@@ -55,10 +58,21 @@ type Demo = {
 };
 
 const DEMO_POLL_MS = 4_000;
-// Recordings play faster than they happened, and long waits (the minute measuring the
-// shop after the fix) are shortened.
-const REPLAY_SPEED = 3;
-const REPLAY_MAX_GAP_MS = 5_000;
+function loadRecording(file: string): Promise<Replay | null> {
+  return fetch(`/replays/${file}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
+function pickAtRandom<T>(items: T[]): T | undefined {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function loadRecordings(): Promise<ReplayEntry[]> {
+  return fetch("/replays/index.json")
+    .then((r) => (r.ok ? r.json() : []))
+    .catch(() => []);
+}
 
 function fetchDemo(): Promise<Demo | null> {
   return fetch("/api/demo")
@@ -90,10 +104,13 @@ export function Console() {
   // Watching another visitor's simulation live (no decision possible either).
   const [watching, setWatching] = useState(false);
   const [demo, setDemo] = useState<Demo | null>(null);
-  // Playing a recording: its title, the timers still pending and how to show the rest.
-  const [replay, setReplay] = useState<string | null>(null);
-  const replayTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const replayRest = useRef<() => void>(() => {});
+  // Playing a recording: watched as is, or interactive (the visitor decides; that's
+  // how the recorded demo simulates).
+  const [replay, setReplay] = useState<{ title: string; interactive: boolean } | null>(null);
+  const player = useRef<Player | null>(null);
+  // The recorded health charts: the series, the moment shown and where it starts.
+  const [recorded, setRecorded] = useState<{ series: Replay["health"]; at: number; start: number } | null>(null);
+  const [model, setModel] = useState<string | null>(null);
   const [tech, setTech] = useState(false);
   // What the page shows, for the poll below (it runs outside React's render).
   const view = useRef({ investigationId, readOnly: readOnly || replay !== null, watching, phase: investigation.phase });
@@ -185,6 +202,17 @@ export function Console() {
   const refreshDemo = useCallback(() => fetchDemo().then(apply), [apply]);
 
   useEffect(() => {
+    if (RECORDED) {
+      // No backend: the charts start on a recording's normal shop, before its fault.
+      loadRecordings()
+        .then((entries) => (entries[0] ? loadRecording(entries[0].file) : null))
+        .then((first) => {
+          if (!first) return;
+          setModel(first.model);
+          setRecorded({ series: first.health, at: first.injectedAt, start: first.injectedAt });
+        });
+      return;
+    }
     // A simulation already active when the page opened, with no investigation to follow
     // (started in another tab or by the evals): offer to end it, unless it's someone else's.
     Promise.all([fetchDemo(), fetch("/api/incidents/active").then((r) => (r.ok ? r.json() : null))])
@@ -209,24 +237,22 @@ export function Console() {
   // Store the right answer as soon as there is a diagnosis: once resolved, the
   // injector no longer has an active incident to ask about.
   useEffect(() => {
-    if (investigation.diagnosis && !truth && !readOnly) {
+    if (investigation.diagnosis && !truth && !readOnly && replay === null) {
       fetch("/api/incidents/active")
         .then((r) => (r.ok ? r.json() : null))
         .then(setTruth)
         .catch(() => {});
     }
-  }, [investigation.diagnosis, truth, readOnly]);
+  }, [investigation.diagnosis, truth, readOnly, replay]);
 
   function stopReplay() {
-    replayTimers.current.forEach(clearTimeout);
-    replayTimers.current = [];
+    player.current?.stop();
+    player.current = null;
     setReplay(null);
   }
 
-  async function playReplay(entry: ReplayEntry) {
-    const recording: Replay | null = await fetch(`/replays/${entry.file}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
+  async function playRecording(entry: ReplayEntry, interactive: boolean) {
+    const recording = await loadRecording(entry.file);
     if (!recording) {
       toast.error("Could not load the recording.");
       return;
@@ -237,27 +263,29 @@ export function Console() {
     setWatching(false);
     setReadOnly(false);
     resetView();
-    setReplay(entry.title);
-    dispatch({ type: "breaking" });
-
-    const pending = [...recording.events];
-    const show = (event: AgentEvent) => {
-      dispatch({ type: "event", event });
-      if (event.type === "diagnosis") setTruth(recording.truth);
-    };
-    replayRest.current = () => {
-      replayTimers.current.forEach(clearTimeout);
-      replayTimers.current = [];
-      while (pending.length) show(pending.shift()!);
-    };
-    let delay = 1_500;
-    replayTimers.current.push(setTimeout(() => dispatch({ type: "investigating" }), delay));
-    let previous = recording.events[0]?.at ?? 0;
-    for (const event of recording.events) {
-      delay += 400 + Math.min((event.at - previous) / REPLAY_SPEED, REPLAY_MAX_GAP_MS);
-      previous = event.at;
-      replayTimers.current.push(setTimeout(() => show(pending.shift()!), delay));
-    }
+    setReplay({ title: entry.title, interactive });
+    setModel(recording.model);
+    setRecorded({ series: recording.health, at: recording.injectedAt, start: recording.injectedAt });
+    player.current = new Player(
+      recording,
+      {
+        onBreak: (ms) => {
+          dispatch({ type: "breaking" });
+          setCountdownTo(deadlineIn(ms));
+        },
+        onInvestigate: () => {
+          setCountdownTo(null);
+          dispatch({ type: "investigating" });
+        },
+        onEvent: (event) => {
+          dispatch({ type: "event", event });
+          if (event.type === "diagnosis") setTruth(recording.truth);
+        },
+        onClock: (at) => setRecorded((current) => current && { ...current, at }),
+      },
+      interactive,
+    );
+    player.current.start();
   }
 
   function openPast(id: string) {
@@ -273,6 +301,13 @@ export function Console() {
   }
 
   async function simulate(scenario: string, dryRun: boolean) {
+    if (RECORDED) {
+      // One of the real runs of that fault, chosen at random.
+      const runs = (await loadRecordings()).filter((entry) => entry.scenario === scenario);
+      const run = pickAtRandom(runs);
+      if (run) await playRecording(run, true);
+      return;
+    }
     stopReplay();
     dispatch({ type: "breaking" });
     setReadOnly(false);
@@ -317,6 +352,10 @@ export function Console() {
   }
 
   async function decide(decision: Decision) {
+    if (replay?.interactive) {
+      player.current?.decide(decision.approved, decision.note);
+      return;
+    }
     if (!investigationId) return;
     const response = await fetch(`/api/investigations/${investigationId}/approval`, {
       method: "POST",
@@ -331,24 +370,27 @@ export function Console() {
     clearTimeout(warmupTimer.current);
     setCountdownTo(null);
     // A past investigation or a recording leaves the real shop as it is.
-    if (!readOnly && replay === null) await fetch("/api/incidents/active/recover", { method: "POST" });
+    if (!readOnly && replay === null && !RECORDED) await fetch("/api/incidents/active/recover", { method: "POST" });
     stopReplay();
+    // Live: back to the live charts. Recorded demo: back to the normal shop.
+    setRecorded((current) => (RECORDED && current ? { ...current, at: current.start } : null));
     setReadOnly(false);
     setLeftover(null);
     resetView();
     void refreshDemo();
   }
 
-  const status = replay
-    ? { text: "Recording", tone: "text-accent" }
-    : watching
-      ? { text: "Watching live", tone: "text-accent" }
-      : STATUS[investigation.phase];
+  const status =
+    replay && !replay.interactive
+      ? { text: "Recording", tone: "text-accent" }
+      : watching
+        ? { text: "Watching live", tone: "text-accent" }
+        : STATUS[investigation.phase];
   const focus = readOnly ? null : FOCUS[investigation.phase];
   const hint =
     investigation.phase !== "awaiting_approval"
       ? focus?.hint
-      : replay
+      : replay && !replay.interactive
         ? "Read the evidence: in the recording, the visitor approves next"
         : watching
           ? "Another visitor decides: read the evidence meanwhile"
@@ -383,19 +425,37 @@ export function Console() {
         <div className="shrink-0 space-y-2">
           <Steps phase={investigation.phase} hint={hint} />
           {!readOnly && <Status key={investigation.phase} phase={investigation.phase} countdownTo={countdownTo} />}
+          {RECORDED && (
+            <p className="border-2 border-accent p-3 text-xs text-foreground">
+              <span className="text-accent">Demo mode.</span> Everything here really happened: the real agent
+              investigated the real shop{model ? ` (${model})` : ""}, and each run was recorded so it’s instant and
+              free. Simulating plays one of those runs; you take the decision. To run it live:{" "}
+              <a
+                className="underline hover:text-accent"
+                href={`https://codespaces.new/${REPO_URL.split("github.com/")[1]}`}
+              >
+                open it in Codespaces
+              </a>{" "}
+              or{" "}
+              <a className="underline hover:text-accent" href={`${REPO_URL}#run-it-locally`}>
+                run it locally
+              </a>
+              .
+            </p>
+          )}
           {replay && (
             <div
               role="status"
               className="flex flex-wrap items-center justify-between gap-3 border-2 border-accent p-3 text-xs"
             >
               <p className="text-foreground">
-                Recording: {replay}. A real investigation, played {REPLAY_SPEED}× faster. The ‘Shop health’ charts show
-                the live shop, not the recording.
+                {replay.interactive ? "Recorded run" : "Recording"}: {replay.title}. A real investigation, played{" "}
+                {SPEED}× faster{replay.interactive ? "; it waits for your decision" : ""}.
               </p>
               <span className="flex gap-2">
-                {investigation.phase !== "done" && (
-                  <Button size="sm" variant="outline" onClick={() => replayRest.current()}>
-                    Skip to the end
+                {investigation.phase !== "done" && investigation.phase !== "awaiting_approval" && (
+                  <Button size="sm" variant="outline" onClick={() => player.current?.skip()}>
+                    Skip ahead
                   </Button>
                 )}
                 <Button size="sm" variant="ghost" onClick={end}>
@@ -441,17 +501,18 @@ export function Console() {
           {/* Same height as the other columns: each panel scrolls inside. */}
           <div className="flex min-h-0 flex-col gap-3">
             <SimulatePanel
-              busy={(busy && replay === null) || watching}
+              busy={(busy && (replay === null || replay.interactive)) || watching}
               runsLeft={demo?.runsLeft ?? null}
               onSimulate={simulate}
-              onCancel={watching || replay !== null ? undefined : end}
+              onCancel={watching || (replay && !replay.interactive) ? undefined : end}
             />
-            <ShopHealth />
+            <ShopHealth recorded={recorded ? recordedHealth(recorded.series, recorded.at) : undefined} />
           </div>
           <Terminal events={investigation.events} phase={investigation.phase} />
           <DiagnosisPanel
             investigation={investigation}
-            readOnly={readOnly || watching || replay !== null}
+            readOnly={readOnly || watching || (replay !== null && !replay.interactive)}
+            canAmend={!replay?.interactive}
             onDecide={decide}
           />
           <div className="flex min-h-0 flex-col gap-3">
@@ -459,13 +520,13 @@ export function Console() {
               key={investigationId ?? "none"}
               investigation={investigation}
               truth={truth}
-              mode={readOnly ? "past" : replay !== null ? "replay" : watching ? "watching" : "live"}
+              mode={readOnly ? "past" : replay && !replay.interactive ? "replay" : watching ? "watching" : "live"}
               onEnd={end}
             />
             <History
               refreshKey={investigation.phase === "done" ? (investigationId ?? "") : ""}
               onOpen={openPast}
-              onReplay={playReplay}
+              onReplay={(entry) => playRecording(entry, false)}
             />
           </div>
         </div>

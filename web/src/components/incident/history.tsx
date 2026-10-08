@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReplayEntry } from "@/lib/incident";
+import { RECORDED } from "@/lib/mode";
 import { actionLabel } from "@/components/incident/terminal";
 import { Explain } from "@/components/incident/explain";
 
@@ -42,6 +43,7 @@ export function History({
   const [replays, setReplays] = useState<ReplayEntry[]>([]);
 
   useEffect(() => {
+    if (RECORDED) return; // no backend: the recordings are the history
     fetch("/api/history")
       .then((r) => (r.ok ? r.json() : []))
       .then(setItems)
@@ -61,18 +63,27 @@ export function History({
       className="flex min-h-[120px] flex-1 flex-col border-2 border-foreground p-4"
     >
       {replays.length > 0 && (
-        <div className="mb-3 shrink-0 border-b-2 border-border pb-3">
-          <h2 className="flex items-center gap-1.5 text-sm text-foreground">
+        <div
+          className={
+            RECORDED
+              ? "flex min-h-0 flex-1 flex-col"
+              : "mb-3 flex max-h-44 shrink-0 flex-col border-b-2 border-border pb-3"
+          }
+        >
+          <h2 className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
             Watch a recording <Explain topic="replays" />
           </h2>
-          <ul className="mt-1 flex flex-col">
+          <ul className="mt-1 flex min-h-0 flex-col overflow-y-auto pr-1">
             {replays.map((replay) => (
               <li key={replay.file}>
                 <button
                   onClick={() => onReplay(replay)}
                   className="flex w-full justify-between gap-2 py-1.5 text-left text-xs hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
                 >
-                  <span className="truncate text-foreground">{replay.title}</span>
+                  <span className="truncate text-foreground">
+                    {replay.title}
+                    <span className="text-muted-foreground"> · {replay.variant.replaceAll("-", " ")}</span>
+                  </span>
                   <span className="shrink-0 text-muted-foreground">{CATEGORY[replay.category] ?? replay.category}</span>
                 </button>
               </li>
@@ -80,10 +91,12 @@ export function History({
           </ul>
         </div>
       )}
-      <h2 className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
-        Past investigations <Explain topic="history" />
-      </h2>
-      {items.length === 0 ? (
+      {!RECORDED && (
+        <h2 className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
+          Past investigations <Explain topic="history" />
+        </h2>
+      )}
+      {RECORDED ? null : items.length === 0 ? (
         <p className="mt-1 text-xs text-muted-foreground">Investigations you finish will appear here.</p>
       ) : (
         <ul className="mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">

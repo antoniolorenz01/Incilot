@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Explain } from "@/components/incident/explain";
+import type { ReplayEntry } from "@/lib/incident";
+import { RECORDED } from "@/lib/mode";
 import { useDragScroll } from "@/lib/use-drag-scroll";
 
 type Catalog = Record<string, { title: string; category: string }>;
@@ -44,10 +46,15 @@ export function SimulatePanel({
   const scroller = useDragScroll<HTMLElement>();
 
   useEffect(() => {
-    fetch("/api/scenarios")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setCatalog)
-      .catch(() => setError("Couldn't load the fault types: is the environment running (make up)?"));
+    // The recorded demo offers the faults it has recordings of.
+    const load = RECORDED
+      ? fetch("/replays/index.json")
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((entries: ReplayEntry[]) =>
+            Object.fromEntries(entries.map((e) => [e.scenario, { title: e.title, category: e.category }])),
+          )
+      : fetch("/api/scenarios").then((r) => (r.ok ? r.json() : Promise.reject()));
+    load.then(setCatalog).catch(() => setError("Couldn't load the fault types: is the environment running (make up)?"));
   }, []);
 
   const byCategory = Object.entries(catalog).reduce<Record<string, [string, string][]>>((groups, [id, spec]) => {
@@ -100,7 +107,8 @@ export function SimulatePanel({
         </Select>
       </div>
 
-      <div className="flex items-start gap-1.5">
+      {/* The recorded demo costs nothing already: no dry run there. */}
+      <div className={RECORDED ? "hidden" : "flex items-start gap-1.5"}>
         <label className="flex flex-1 items-start gap-3 text-xs text-muted-foreground">
           <Switch checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
           <span>

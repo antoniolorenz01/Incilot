@@ -3,16 +3,8 @@
 import { useEffect, useState } from "react";
 import { AlertTriangleIcon, CheckIcon } from "lucide-react";
 import { Explain } from "@/components/incident/explain";
+import type { HealthMetric } from "@/lib/health";
 import { useDragScroll } from "@/lib/use-drag-scroll";
-
-type Metric = {
-  key: string;
-  label: string;
-  unit: string;
-  values: number[];
-  current: number | null;
-  healthy: boolean | null;
-};
 
 const REFRESH_MS = 10_000;
 
@@ -52,17 +44,20 @@ function format(value: number | null, unit: string) {
   return `${value.toFixed(digits)}${unit ? ` ${unit}` : ""}`;
 }
 
-/** What a customer notices: you see the shop break and return to normal. */
-export function ShopHealth() {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
+/** What a customer notices: you see the shop break and return to normal. Live from
+ *  /api/health, or the `recorded` charts of the demo's recordings. */
+export function ShopHealth({ recorded }: { recorded?: HealthMetric[] }) {
+  const [live, setLive] = useState<HealthMetric[]>([]);
+  const metrics = recorded ?? live;
   const scroller = useDragScroll<HTMLElement>();
 
   useEffect(() => {
+    if (recorded) return;
     let cancelled = false;
     const load = () =>
       fetch("/api/health")
         .then((r) => (r.ok ? r.json() : null))
-        .then((body) => !cancelled && body && setMetrics(body.metrics))
+        .then((body) => !cancelled && body && setLive(body.metrics))
         .catch(() => {});
     load();
     const timer = setInterval(load, REFRESH_MS);
@@ -70,7 +65,7 @@ export function ShopHealth() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [recorded === undefined]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     // Grows into free space; if short of room it scrolls inside (hidden bar) without squashing the charts.
