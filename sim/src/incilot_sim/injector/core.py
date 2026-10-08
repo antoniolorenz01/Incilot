@@ -257,6 +257,8 @@ class Injector:
                 raise ValueError(f"invalid commit: {target}")
             revert(self.repo, target, ON_CALL, datetime.now(UTC))
         elif kind == "restart":
+            if target not in COMPANY_SERVICES:
+                raise ValueError(f"cannot restart {target}: only {', '.join(COMPANY_SERVICES)}")
             containers = compose_containers(self.docker, [target])
             if not containers:
                 raise ValueError(f"unknown service: {target}")
@@ -268,9 +270,11 @@ class Injector:
                 pids = [int(p) for p in re.findall(r"\d+", target)]
                 await conn.fetch(
                     "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-                    "WHERE pid = ANY($1::int[]) OR application_name = $2",
+                    "WHERE (pid = ANY($1::int[]) OR application_name = $2) "
+                    "AND datname = ANY($3::text[]) AND pid <> pg_backend_pid()",
                     pids,
                     target,
+                    list(COMPANY_SERVICES),
                 )
             finally:
                 await conn.close()
@@ -279,6 +283,10 @@ class Injector:
 
 
 SHA = re.compile(r"^[0-9a-f]{7,40}$")
+# What a wrong (literal) action may touch: the company's services and their databases,
+# never the agent, the injector, observability or the shared Postgres and Redis. The
+# demo is public, so an amended action comes from a stranger.
+COMPANY_SERVICES = ("shop", "users", "inventory", "payments")
 EXECUTED = {
     "rollback": "revert of {target} committed and deployed",
     "revert_config": "revert of the {target} config committed and deployed",
