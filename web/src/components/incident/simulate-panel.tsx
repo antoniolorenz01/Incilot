@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Explain } from "@/components/incident/explain";
+import { useDragScroll } from "@/lib/use-drag-scroll";
 
 type Catalog = Record<string, { title: string; category: string }>;
 
@@ -36,6 +37,7 @@ export function SimulatePanel({
   const [scenario, setScenario] = useState<string | null>(null);
   const [dryRun, setDryRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scroller = useDragScroll<HTMLElement>();
 
   useEffect(() => {
     fetch("/api/scenarios")
@@ -50,7 +52,11 @@ export function SimulatePanel({
   }, {});
 
   return (
-    <section aria-label="Simular un incidente" className="flex shrink-0 flex-col gap-4 border-2 border-foreground p-4">
+    <section
+      ref={scroller}
+      aria-label="Simular un incidente"
+      className="scroll-hidden flex min-h-0 shrink flex-col gap-4 overflow-y-auto border-2 border-foreground p-4"
+    >
       <div>
         <h2 className="flex items-center gap-1.5 text-sm text-foreground">
           Simular un incidente <Explain topic="simulate" />

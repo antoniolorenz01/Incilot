@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangleIcon, CheckIcon } from "lucide-react";
 import { Explain } from "@/components/incident/explain";
+import { useDragScroll } from "@/lib/use-drag-scroll";
 
 type Metric = {
   key: string;
@@ -54,6 +55,7 @@ function format(value: number | null, unit: string) {
 /** Lo que nota un cliente: se ve la tienda romperse y volver a la normalidad. */
 export function ShopHealth() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
+  const scroller = useDragScroll<HTMLElement>();
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +73,12 @@ export function ShopHealth() {
   }, []);
 
   return (
-    <section aria-label="Salud de la tienda" className="flex flex-1 flex-col border-2 border-foreground p-4">
+    // Crece con el espacio libre; si falta, scrollea por dentro (barra oculta) sin aplastar los gráficos.
+    <section
+      ref={scroller}
+      aria-label="Salud de la tienda"
+      className="scroll-hidden flex min-h-0 flex-[1_1_16rem] flex-col overflow-y-auto border-2 border-foreground p-4"
+    >
       <h2 className="flex items-center gap-1.5 text-sm text-foreground">
         Salud de la tienda <Explain topic="health" />
       </h2>

@@ -245,9 +245,8 @@ export default function Home() {
           className={`focus-columns grid min-h-0 flex-1 gap-3 max-xl:overflow-y-auto ${COLUMNS}`}
           data-focus={focus?.columns.map((c) => `c${c}`).join(" ")}
         >
-          {/* Si el alto no alcanza (p. ej. con el aviso de «Rompiendo la tienda»), la
-            columna scrollea en vez de aplastar los gráficos. */}
-          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          {/* Misma altura que las otras columnas: cada panel scrollea por dentro. */}
+          <div className="flex min-h-0 flex-col gap-3">
             <SimulatePanel busy={busy} onSimulate={simulate} onCancel={end} />
             <ShopHealth />
           </div>

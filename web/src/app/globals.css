@@ -196,3 +196,11 @@
     transition: none;
   }
 }
+
+/* Scroll sin barra visible (rueda, touch o arrastrando con useDragScroll). */
+.scroll-hidden {
+  scrollbar-width: none;
+}
+.scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
