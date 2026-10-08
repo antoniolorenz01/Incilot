@@ -1,0 +1,46 @@
+# The public demo, on a single server: `make prod-up` (see infra/deploy.md).
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Only Caddy is reachable from outside (80/443); the shop, the agent, the injector,
+# observability and the databases stay on the internal network. The web runs with the
+# demo limits on, and the agent uses the API (never Claude Code: that is local only).
+
+services:
+  shop: { ports: !reset [] }
+  injector: { ports: !reset [] }
+  agent-api: { ports: !reset [] }
+  agent-redis: { ports: !reset [] }
+  prometheus: { ports: !reset [] }
+  loki: { ports: !reset [] }
+  grafana: { ports: !reset [] }
+
+  web:
+    build: web
+    image: incilot-web
+    restart: unless-stopped
+    environment:
+      INJECTOR_URL: http://injector:8000
+      AGENT_API_URL: http://agent-api:8000
+      PROMETHEUS_URL: http://prometheus:9090
+      DEMO_REDIS_URL: redis://default:agent@agent-redis:6379/1
+      DEMO_LIMITS: "on"
+      DEMO_RUNS_PER_IP: ${DEMO_RUNS_PER_IP:-2}
+      DEMO_RUNS_PER_DAY: ${DEMO_RUNS_PER_DAY:-20}
+    depends_on: [agent-api, injector, agent-redis]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (the demo's domain name)}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web]
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,7 @@
+# The only door to the public demo: HTTPS (certificates from Let's Encrypt, renewed by
+# Caddy) in front of the web. Caddy replaces any X-Forwarded-For the client sends with
+# the real IP, which the per-IP limits rely on.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}

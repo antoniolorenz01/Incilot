@@ -83,7 +83,19 @@ claude-bridge:
 web:
 	cd web && npm run dev
 
+# Public demo (on the server; see infra/deploy.md).
+PROD = docker compose -f compose.yaml -f compose.prod.yaml
+
+prod-up:
+	$(PROD) up -d --build
+
+prod-logs:
+	$(PROD) logs -f --tail 100 web agent-worker caddy
+
+backup:
+	scripts/backup.sh
+
 company-repo:
 	uv run python -m incilot_sim.company_repo
 
-.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval record claude-bridge web company-repo
+.PHONY: install lint fmt test check up down clean logs injector smoke agent-access investigate agent-tools agent-api-check rag-eval eval record claude-bridge web prod-up prod-logs backup company-repo
